@@ -2,14 +2,14 @@ import os, datetime
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from sandbox import database, util
+from sandbox import database, sidekickparser
 
 ##########
 # Init   #
 ##########
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-BOT_NAME='Sidekick Assist'
+BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
 bot = commands.Bot(command_prefix='?')
 
@@ -35,8 +35,8 @@ async def on_ready():
 async def config(ctx, from_channel:str, to_channel:str):
     #check if the channels already exist
     check_ok=True
-    from_channel_id=util.parse_channel_id(from_channel)
-    to_channel_id=util.parse_channel_id(to_channel)
+    from_channel_id=sidekickparser.parse_channel_id(from_channel)
+    to_channel_id=sidekickparser.parse_channel_id(to_channel)
     channel = discord.utils.get(ctx.guild.channels, id=from_channel_id)
     if channel is None:
         await ctx.channel.send(
@@ -57,8 +57,9 @@ async def config(ctx, from_channel:str, to_channel:str):
     pair = (from_channel_id, to_channel_id)
     database.add_warmiss_mapped_channels(pair, ctx.guild.id)
     await ctx.channel.send(
-        "Okay. Sidekick war feed from #{} will be automatically processed, with missed attacks forwarded to #{}".
-            format(from_channel, to_channel))
+        "Okay. Sidekick war feed from #{} will be automatically processed, with missed attacks forwarded to #{}. "
+        "Please ensure {} has access to these channels (read and write)".
+            format(from_channel, to_channel, BOT_NAME))
 
 @config.error
 async def config_error(ctx, error):
@@ -83,14 +84,14 @@ async def on_message(message):
         if from_channel in database.guild_skchannels_warmiss.keys():
             #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
             if 'remaining attack' in message.content.lower():
-                missed_attacks=util.parse_missed_attack(message.content)
+                missed_attacks=sidekickparser.parse_missed_attack(message.content)
 
                 #now send the message to the right channel
                 to_channel =database.guild_skchannels_warmiss[from_channel]
                 to_channel = int(to_channel[to_channel.index('|')+1:])
                 to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
-                message="War missed attack on {date}:\n"
+                message="War missed attack on {}:\n".format(datetime.datetime.now())
                 for k, v in missed_attacks.items():
                     message+="\t"+str(k)+"\t"+str(v)+"\n"
                 await to_channel.send(message)

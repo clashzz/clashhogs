@@ -21,3 +21,9 @@ missed attacks, z is the clan name
 def add_warmiss_mapped_channels(pair:tuple, guild_id):
     key  = str(guild_id)+"|"+str(pair[0])
     guild_skchannels_warmiss[key] = str(guild_id)+"|"+str(pair[1])
+
+def has_warmiss_fromchannel(from_channel:str):
+    return from_channel in guild_skchannels_warmiss.keys()
+
+def get_warmiss_tochannel(from_channel:str):
+    return guild_skchannels_warmiss[from_channel]

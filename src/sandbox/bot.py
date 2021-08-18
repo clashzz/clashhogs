@@ -2,7 +2,7 @@ import os, datetime
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from sandbox import database, sidekickparser
+from sandbox import database, sidekickparser, util
 
 ##########
 # Init   #
@@ -12,6 +12,8 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
 bot = commands.Bot(command_prefix='?')
+
+
 
 @bot.event
 async def on_ready():
@@ -31,7 +33,7 @@ async def on_ready():
                                  '\nE.g., config sidekick-war missed-attacks'
                                  '\nAll parameters must be a single word without space characters. The channels must'
                                  ' have the # prefix')
-@commands.has_role('co-leaders')
+@commands.has_role('admin')
 async def config(ctx, from_channel:str, to_channel:str):
     #check if the channels already exist
     check_ok=True
@@ -64,12 +66,54 @@ async def config(ctx, from_channel:str, to_channel:str):
 @config.error
 async def config_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'config' requires two arguments: sidekick war feed channel, and the channel "
-                               "to which missed attacks are to be forwarded (all as one word). \n"
-                               "E.g., 'config sidekick-war missed-attacks'")
+        await ctx.channel.send("'config' requires two arguments. Run ?help config for details")
     if isinstance(error, commands.MissingPermissions):
         await ctx.channel.send(
             "'config' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
+
+#########################################################
+# This method is used to process clan log summary
+#########################################################
+@bot.command(name='clandigest', help='This command is used to generate clan digest using data from the Sidekick clan feed channel. \n'
+                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel dd/mm/yyyy(from date). \n'
+                                     '{} must have read and write permissions to both channels.'.format(BOT_NAME))
+@commands.has_role('admin')
+async def clandigest(ctx, from_channel:str, to_channel:str, from_date:str):
+    #check if the channels already exist
+    check_ok=True
+    from_channel_id=sidekickparser.parse_channel_id(from_channel)
+    to_channel_id=sidekickparser.parse_channel_id(to_channel)
+    channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
+    if channel_from is None:
+        await ctx.channel.send(
+            "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
+            " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
+        check_ok=False
+    channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+    if channel_to is None:
+        await ctx.channel.send(
+            "The channel {} does not exist. Please create it first, and give {} 'Send messages'"
+            " permissions to that channel.".format(to_channel, BOT_NAME))
+        check_ok=False
+
+    if not check_ok:
+        return
+
+    date = util.parse_date(from_date)
+    messages = await channel_from.history(limit=20, after=date, oldest_first=False).flatten()
+    sidekickparser.parse_clan_best(messages)
+
+    print("done")
+
+    await channel_from.send(bot.SIDEKICK_COMMAND_CLANBEST)
+
+@clandigest.error
+async def clandigest(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.channel.send(
+            "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
 
 ###################################################################
 #This method is used to monitor to messages posted on the server, intercepts sidekick war feed,
@@ -78,16 +122,16 @@ async def config_error(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if message.author.name==SIDEKICK_NAME or message.content.startswith("test "):
+    if message.author.name==SIDEKICK_NAME or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         from_channel = str(message.guild.id)+"|"+str(message.channel.id)
-        if from_channel in database.guild_skchannels_warmiss.keys():
+        if database.has_warmiss_fromchannel(from_channel):
             #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
             if 'remaining attack' in message.content.lower():
                 missed_attacks=sidekickparser.parse_missed_attack(message.content)
 
                 #now send the message to the right channel
-                to_channel =database.guild_skchannels_warmiss[from_channel]
+                to_channel =database.get_warmiss_tochannel(from_channel)
                 to_channel = int(to_channel[to_channel.index('|')+1:])
                 to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
@@ -97,8 +141,8 @@ async def on_message(message):
                 await to_channel.send(message)
         else:
             return
-
-    await bot.process_commands(message)
+    else:
+        await bot.process_commands(message)
     # if 'missed attack' in message.content:
     #     await message.channel.send("missed attack recorded in {}: {}".format(message.channel.name,
     #                                                                          message.content))
@@ -135,6 +179,5 @@ async def on_message(message):
 # async def on_command_error(ctx, error):
 #     if isinstance(error, commands.errors.CheckFailure):
 #         await ctx.send('You do not have the correct role for this command.')
-
 
 bot.run(TOKEN)

@@ -1,4 +1,4 @@
-import os, datetime
+import os, datetime, time
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
@@ -11,6 +11,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
+BOT_WAIT_TIME=20
 bot = commands.Bot(command_prefix='?')
 
 
@@ -59,7 +60,7 @@ async def config(ctx, from_channel:str, to_channel:str):
     pair = (from_channel_id, to_channel_id)
     database.add_warmiss_mapped_channels(pair, ctx.guild.id)
     await ctx.channel.send(
-        "Okay. Sidekick war feed from #{} will be automatically processed, with missed attacks forwarded to #{}. "
+        "Okay. Missed attacks from #{} will be extracted and forwarded to #{}. "
         "Please ensure {} has access to these channels (read and write)".
             format(from_channel, to_channel, BOT_NAME))
 
@@ -75,10 +76,10 @@ async def config_error(ctx, error):
 # This method is used to process clan log summary
 #########################################################
 @bot.command(name='clandigest', help='This command is used to generate clan digest using data from the Sidekick clan feed channel. \n'
-                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel dd/mm/yyyy(from date). \n'
+                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel. \n'
                                      '{} must have read and write permissions to both channels.'.format(BOT_NAME))
 @commands.has_role('admin')
-async def clandigest(ctx, from_channel:str, to_channel:str, from_date:str):
+async def clandigest(ctx, from_channel:str, to_channel:str):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -99,18 +100,20 @@ async def clandigest(ctx, from_channel:str, to_channel:str, from_date:str):
     if not check_ok:
         return
 
-    date = util.parse_date(from_date)
-    messages = await channel_from.history(limit=20, after=date, oldest_first=False).flatten()
-    sidekickparser.parse_clan_best(messages)
+    #start_time=datetime.datetime.now() -datetime.timedelta(seconds=BOT_WAIT_TIME)
+    messages = await channel_from.history(limit=20, oldest_first=False).flatten()
+    messages.reverse()
+    data=sidekickparser.parse_clan_best(messages)
 
-    print("done")
-
-    await channel_from.send(bot.SIDEKICK_COMMAND_CLANBEST)
+    msg = "Clan feed summary:\n"
+    for k, v in data.items():
+        msg+="\t"+k+": "+str(v)+"\n"
+    await channel_to.send(msg)
 
 @clandigest.error
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
+        await ctx.channel.send("'clandigest' requires two arguments. Run ?help clandigest for details")
     if isinstance(error, commands.MissingPermissions):
         await ctx.channel.send(
             "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
@@ -128,7 +131,15 @@ async def on_message(message):
         if database.has_warmiss_fromchannel(from_channel):
             #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
             if 'remaining attack' in message.content.lower():
-                missed_attacks=sidekickparser.parse_missed_attack(message.content)
+                time.sleep(BOT_WAIT_TIME)
+
+                messages = await message.channel.history(limit=10, oldest_first=True).flatten()
+                message_content=""
+                for m in messages:
+                    #if m.author == BOT_NAME:# or m.author.
+                        message_content+=m.content+"\n"
+
+                missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
                 #now send the message to the right channel
                 to_channel =database.get_warmiss_tochannel(from_channel)

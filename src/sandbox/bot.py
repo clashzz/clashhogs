@@ -29,13 +29,13 @@ async def on_ready():
 # This method is used to configure the discord channels
 # to automatically tally missed attacks
 #########################################################
-@bot.command(name='config', help='This command is used to map your sidekick war feed channel to another channel,'
+@bot.command(name='warmiss', help='This command is used to map your sidekick war feed channel to another channel,'
                                  ' where missed attacks will be automatically tallied. '
-                                 '\nE.g., config sidekick-war missed-attacks'
+                                 '\nE.g., warmiss sidekick-war missed-attacks'
                                  '\nAll parameters must be a single word without space characters. The channels must'
                                  ' have the # prefix')
 @commands.has_role('admin')
-async def config(ctx, from_channel:str, to_channel:str):
+async def warmiss(ctx, from_channel:str, to_channel:str):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -64,22 +64,22 @@ async def config(ctx, from_channel:str, to_channel:str):
         "Please ensure {} has access to these channels (read and write)".
             format(from_channel, to_channel, BOT_NAME))
 
-@config.error
+@warmiss.error
 async def config_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'config' requires two arguments. Run ?help config for details")
+        await ctx.channel.send("'warmiss' requires two arguments. Run ?help warmiss for details")
     if isinstance(error, commands.MissingPermissions):
         await ctx.channel.send(
-            "'config' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
+            "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
 
 #########################################################
 # This method is used to process clan log summary
 #########################################################
 @bot.command(name='clandigest', help='This command is used to generate clan digest using data from the Sidekick clan feed channel. \n'
-                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel. \n'
+                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel [clanname] \n'
                                      '{} must have read and write permissions to both channels.'.format(BOT_NAME))
 @commands.has_role('admin')
-async def clandigest(ctx, from_channel:str, to_channel:str):
+async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -103,17 +103,33 @@ async def clandigest(ctx, from_channel:str, to_channel:str):
     #start_time=datetime.datetime.now() -datetime.timedelta(seconds=BOT_WAIT_TIME)
     messages = await channel_from.history(limit=20, oldest_first=False).flatten()
     messages.reverse()
-    data=sidekickparser.parse_clan_best(messages)
+    data_clanbest, season_id, sidekick_messages=sidekickparser.parse_clan_best(messages)
 
-    msg = "Clan feed summary:\n"
-    for k, v in data.items():
+    date_season_start=sidekickparser.parse_season_start(season_id)
+    messages=await channel_from.history(after=date_season_start, limit=None).flatten()
+    data_clanactivity=sidekickparser.parse_clan_activity(messages)
+
+    msg = "{} clan feed digest - {}:\n\n **Loots and Attacks:**".format(clanname, season_id.replace("\n"," "))
+    for k, v in data_clanbest.items():
         msg+="\t"+k+": "+str(v)+"\n"
-    await channel_to.send(msg)
+    await channel_to.send(msg+"\n")
+
+    msg="**Member Activity Counts** (upgrade completes, league promotion, super troop boosts etc):\n"
+    for k, v in data_clanactivity.items():
+        msg+="\t"+k+": "+str(v)+"\n"
+    await channel_to.send(msg+"\n")
+
+    #msg = "\n**Clan Best Messages Forward:**"
+    # for m in sidekick_messages:
+    #     if len(m.embeds)>0:
+    #         await channel_to.send(content=m.content, embed=m.embeds[0])
+    #     else:
+    #         await channel_to.send(content=m.content)
 
 @clandigest.error
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'clandigest' requires two arguments. Run ?help clandigest for details")
+        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
     if isinstance(error, commands.MissingPermissions):
         await ctx.channel.send(
             "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
@@ -133,7 +149,8 @@ async def on_message(message):
             if 'remaining attack' in message.content.lower():
                 time.sleep(BOT_WAIT_TIME)
 
-                messages = await message.channel.history(limit=10, oldest_first=True).flatten()
+                messages = await message.channel.history(limit=10, oldest_first=False).flatten()
+                messages.reverse()
                 message_content=""
                 for m in messages:
                     #if m.author == BOT_NAME:# or m.author.

@@ -16,3 +16,17 @@ def value_found_in_text(text:str, values:list):
         if v in text:
             return True
     return False
+
+def find_first_appearance(text:str, keywords:list):
+    index=len(text)
+    found=False
+    for k in keywords:
+        if k in text:
+            found = True
+            idx = text.index(k)
+            if idx<index:
+                index=idx
+    if found:
+        return index
+    else:
+        return -1

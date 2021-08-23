@@ -95,7 +95,10 @@ def extract_missed_attacks(message:str):
                 startindex=l.rindex(":")
             else:
                 continue
-            player_name = util.normalise_name(l[startindex + 1:])
+            player_name = util.normalise_name(l[startindex + 1:]).strip()
+            if len(player_name)==0:
+                continue
+
             if player_name in data.keys():
                 data[player_name]+=counter
             else:

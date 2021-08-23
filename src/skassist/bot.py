@@ -188,7 +188,7 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
 @wardigest.error
 async def wardigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
+        await ctx.channel.send("'wardigest' requires four arguments. Run ?help wardigest for details")
     if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))

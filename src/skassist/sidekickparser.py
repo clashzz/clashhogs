@@ -1,6 +1,6 @@
 import datetime
 
-from sandbox import util
+from skassist import util
 import re
 '''
 When client enters their channel using the format #channel-name, the value passed to the discord api will not be

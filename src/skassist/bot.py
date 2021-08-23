@@ -2,7 +2,7 @@ import os, datetime, time
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from sandbox import database, sidekickparser, util
+from skassist import database, sidekickparser, util
 
 ##########
 # Init   #

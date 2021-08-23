@@ -62,6 +62,50 @@ def extract_remaining_attacks(text:str, remaining_attacks:int, missed:dict):
         else:
             break
 
+def parse_warfeed_missed_attacks(messages:list):
+    concatenated=""
+    for m in messages:
+        if len(m.clean_content) == 0:
+            continue
+        concatenated+=m.clean_content+"\n"
+
+    data=extract_missed_attacks(concatenated)
+
+    return data
+
+def extract_missed_attacks(message:str):
+    lines=message.split("\n")
+
+    data={}
+    counter=0
+    found=False
+    for l in lines:
+        if '2 remaining attack' in l.lower():
+            counter=2
+            found=True
+            continue
+        elif '1 remaining attack' in l.lower():
+            counter=1
+            found=True
+            continue
+        elif found and (l.startswith("<:b") or l.startswith("<:s:") or l.startswith(":s:")):
+            if ">" in l:
+                startindex = l.rindex(">")
+            elif ":" in l:
+                startindex=l.rindex(":")
+            else:
+                continue
+            player_name = util.normalise_name(l[startindex + 1:])
+            if player_name in data.keys():
+                data[player_name]+=counter
+            else:
+                data[player_name]=counter
+        else:
+            counter=0
+            found=False
+    data = dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
+    return data
+
 def parse_clan_activity(messages:list):
     data={}
     for m in messages:

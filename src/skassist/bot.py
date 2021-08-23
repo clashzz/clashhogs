@@ -11,6 +11,9 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
+PERMISSION_WARMISS="admin"
+PERMISSION_WARDIGEST="developers"
+PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=20
 bot = commands.Bot(command_prefix='?')
 
@@ -34,7 +37,7 @@ async def on_ready():
                                  '\nE.g., warmiss sidekick-war missed-attacks'
                                  '\nAll parameters must be a single word without space characters. The channels must'
                                  ' have the # prefix')
-@commands.has_role('admin')
+@commands.has_role(PERMISSION_WARMISS)
 async def warmiss(ctx, from_channel:str, to_channel:str):
     #check if the channels already exist
     check_ok=True
@@ -68,9 +71,9 @@ async def warmiss(ctx, from_channel:str, to_channel:str):
 async def config_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'warmiss' requires two arguments. Run ?help warmiss for details")
-    if isinstance(error, commands.MissingPermissions):
+    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
+            "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_WARMISS))
 
 #########################################################
 # This method is used to process clan log summary
@@ -78,7 +81,7 @@ async def config_error(ctx, error):
 @bot.command(name='clandigest', help='This command is used to generate clan digest using data from the Sidekick clan feed channel. \n'
                                     'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel [clanname] \n'
                                      '{} must have read and write permissions to both channels.'.format(BOT_NAME))
-@commands.has_role('admin')
+@commands.has_role('developers')
 async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     #check if the channels already exist
     check_ok=True
@@ -130,9 +133,66 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
-    if isinstance(error, commands.MissingPermissions):
+    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format('admin'))
+            "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
+
+
+#########################################################
+# This method is used to process clan war summary
+#########################################################
+@bot.command(name='wardigest', help='This command is used to generate clan war digest using data from the Sidekick clan war feed channel. \n'
+                                    'Usage: ?clanwar #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy]\n'
+                                     '{} must have read and write permissions to both channels.'.format(BOT_NAME))
+@commands.has_role('developers')
+async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str):
+    #check if the channels already exist
+    check_ok=True
+    from_channel_id=sidekickparser.parse_channel_id(from_channel)
+    to_channel_id=sidekickparser.parse_channel_id(to_channel)
+    channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
+    if channel_from is None:
+        await ctx.channel.send(
+            "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
+            " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
+        check_ok=False
+    channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+    if channel_to is None:
+        await ctx.channel.send(
+            "The channel {} does not exist. Please create it first, and give {} 'Send messages'"
+            " permissions to that channel.".format(to_channel, BOT_NAME))
+        check_ok=False
+
+    if not check_ok:
+        return
+
+    try:
+        fromdate=datetime.datetime.strptime(fromdate, "%d/%m/%Y")
+    except:
+        fromdate=datetime.datetime.now() -datetime.timedelta(30)
+        await ctx.channel.send(
+            "The date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
+            " will be used instead.".format(to_channel, BOT_NAME))
+    await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick...")
+
+    #start_time=datetime.datetime.now() -datetime.timedelta(seconds=BOT_WAIT_TIME)
+    messages=await channel_from.history(after=fromdate, limit=None).flatten()
+    data_missed=sidekickparser.parse_warfeed_missed_attacks(messages)
+
+    msg = "{} clan war digest:\n\n **Missed Attacks from {}:** \n".format(clanname, fromdate)
+    for k, v in data_missed.items():
+        msg+="\t"+k+": "+str(v)+"\n"
+    await channel_to.send(msg+"\n")
+
+
+@wardigest.error
+async def wardigest(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
+    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
+
 
 ###################################################################
 #This method is used to monitor to messages posted on the server, intercepts sidekick war feed,
@@ -151,12 +211,13 @@ async def on_message(message):
 
                 messages = await message.channel.history(limit=10, oldest_first=False).flatten()
                 messages.reverse()
-                message_content=""
-                for m in messages:
-                    #if m.author == BOT_NAME:# or m.author.
-                        message_content+=m.content+"\n"
-
-                missed_attacks=sidekickparser.parse_missed_attack(message_content)
+                missed_attacks=sidekickparser.parse_warfeed_missed_attacks(messages)
+                # message_content=""
+                # for m in messages:
+                #     #if m.author == BOT_NAME:# or m.author.
+                #         message_content+=m.content+"\n"
+                #
+                # missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
                 #now send the message to the right channel
                 to_channel =database.get_warmiss_tochannel(from_channel)
@@ -171,41 +232,5 @@ async def on_message(message):
             return
     else:
         await bot.process_commands(message)
-    # if 'missed attack' in message.content:
-    #     await message.channel.send("missed attack recorded in {}: {}".format(message.channel.name,
-    #                                                                          message.content))
-    # await bot.process_commands(message)
-
-# @bot.command(name='missed', help='This command shows the tally of missed attacks from a starting date ('
-#                                  'provided in the format of DD/MM/YYYY). When the date is missing, data'
-#                                  ' from the last 30 days are collected.')
-# async def missed_attacks(ctx, fromdate:str):
-#     try:
-#         from_date=datetime.datetime.strptime(fromdate, '%d/%m/%Y')
-#     except:
-#         from_date=datetime.datetime.now() - datetime.timedelta(30)
-#     print(from_date)
-#
-#     await ctx.send("Missed attacks from {}".format(from_date))
-
-# @bot.command(name='wardigest')
-# @commands.has_role('co-leaders')
-# async def wardigest(ctx, fromdate:str):
-#     pass
-
-# @missed_attacks.error
-# async def missedattacks_error(ctx, error):
-#     if isinstance(error, commands.MissingPermissions):
-#         owner = ctx.guild.owner
-#         direct_message = await owner.create_dm()
-#         await direct_message.send("Missing Permissions")
-
-
-
-
-# @bot.event
-# async def on_command_error(ctx, error):
-#     if isinstance(error, commands.errors.CheckFailure):
-#         await ctx.send('You do not have the correct role for this command.')
 
 bot.run(TOKEN)

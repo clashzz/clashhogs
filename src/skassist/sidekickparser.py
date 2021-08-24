@@ -1,6 +1,7 @@
 import datetime
+import pandas as pd
 
-from skassist import util
+from skassist import util, models
 import re
 '''
 When client enters their channel using the format #channel-name, the value passed to the discord api will not be
@@ -28,43 +29,70 @@ def parse_channel_id(value:str):
         print("Cannot parse channel ID {}".format(value))
         return -1
 
-def parse_missed_attack(message:str):
-    missed_attacks={}
-    if "remaining attack" in message.lower():  # to check remaining attacks
-        try:
-            sidx = message.lower().index("2 remaining attack")
-            remaining_attacks = 2
+def parse_sidekick_war_data_export(in_csv, clanname, from_date,
+                                   missed_attacks:dict,
+                                   col_attacker_tag="tag",
+                                   col_attacker="name", col_stars="stars",
+                                   col_defenderth="defenderTH",
+                                   col_attackerth="thLevel",
+                                   col_ishomeclan="attacker_is_home_clan",
+                                   col_wartime="war_start_time",
+                                   col_defender="defenderName"
+                                   ):
+    player_mapping_by_name = {}
 
-            text = message[sidx:]
-            extract_remaining_attacks(text, remaining_attacks,missed_attacks)
-        except:
-            pass
+    data = pd.read_csv(in_csv, header=0, delimiter=',', quoting=0, encoding="utf-8",
+                       ).fillna("none")
 
-        try:
-            sidx = message.lower().index("1 remaining attack")
-            remaining_attacks = 1
+    attack_id=0
+    for index, row in data.iterrows():
+        ishomeclan = row[col_ishomeclan]
+        if ishomeclan!=1:
+            continue #for now ignore defence
 
-            text = message[sidx:]
-            extract_remaining_attacks(text, remaining_attacks,missed_attacks)
-        except:
-            pass
+        time=datetime.datetime.strptime(row[col_wartime], '%Y-%m-%d %H:%M:%S')
+        if time < from_date:
+            continue
 
-        return missed_attacks
+        attack_id+=1
+        player_tag=row[col_attacker_tag]
+        player_name = row[col_attacker]
+        player_th = row[col_attackerth]
+        defenderth = row[col_defenderth]
+        player_name = util.normalise_name(player_name)
+        stars=row[col_stars]
 
-def extract_remaining_attacks(text:str, remaining_attacks:int, missed:dict):
-    lines = text.split("\n")
-    for rowidx in range(1, len(lines)):
-        row = lines[rowidx]
-        if (row.startswith("<:b") or row.startswith("<:s:")):
-            startindex = row.rindex(">")
-            player_name = util.normalise_name(row[startindex + 1:])
-            missed[player_name]=remaining_attacks
+        if player_name in player_mapping_by_name.keys():
+            player = player_mapping_by_name[player_name]
         else:
-            break
+            player = models.Player(player_tag,player_name)
 
-def parse_warfeed_missed_attacks(messages:list):
+        attack = models.Attack(str(attack_id), defenderth,
+                            player_th, stars, True)
+        player._attacks.append(attack)
+
+        player_mapping_by_name[player_name] = player
+        attack_id += 1
+
+    for k, v in missed_attacks.items():
+        if k in player_mapping_by_name.keys():
+            player = player_mapping_by_name[k]
+            player._unused_attacks=v
+        else:
+            player = models.Player('UNKNOWN',k)
+            player._unused_attacks=v
+            player_mapping_by_name[k]=player
+
+    clan = models.ClanWarData(clanname)
+    clan._players = list(player_mapping_by_name.values())
+    return clan
+
+
+def parse_warfeed_missed_attacks(messages:list, sidekick_name):
     concatenated=""
     for m in messages:
+        if sidekick_name not in m.author.name:
+            continue
         if len(m.clean_content) == 0:
             continue
         concatenated+=m.clean_content+"\n"
@@ -279,3 +307,4 @@ def extract_numbers(text:str):
         except:
             pass
     return sum
+

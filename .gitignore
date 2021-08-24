@@ -1,1 +1,3 @@
 src/skassist/.env
+*.pyc
+src/skassist/tmp/*

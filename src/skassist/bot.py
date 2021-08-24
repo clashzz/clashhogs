@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 from skassist import database, sidekickparser, util
 import traceback
+from pathlib import Path
 
 ##########
 # Init   #
@@ -176,14 +177,39 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
             " will be used instead.".format(to_channel, BOT_NAME))
     await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick...")
 
-    #start_time=datetime.datetime.now() -datetime.timedelta(seconds=BOT_WAIT_TIME)
+    # gather missed attacks data
     messages=await channel_from.history(after=fromdate, limit=None).flatten()
-    data_missed=sidekickparser.parse_warfeed_missed_attacks(messages)
+    data_missed=sidekickparser.parse_warfeed_missed_attacks(messages, SIDEKICK_NAME)
 
-    msg = "{} clan war digest:\n\n **Missed Attacks from {}:** \n".format(clanname, fromdate)
+    msg = "**{} clan war digest from {}**:\n\n **Missed Attacks:** \n".format(clanname, fromdate)
     for k, v in data_missed.items():
         msg+="\t"+k+": "+str(v)+"\n"
     await channel_to.send(msg+"\n")
+
+    #gather war data
+    last_message=messages[len(messages)-1]
+    if str(last_message.attachments) == "[]":  # Checks if there is an attachment on the message
+        await ctx.channel.send("Cannot find the Sidekick war data export in the {} channel. Run **/export ...** "
+                               "in that channel first and ensure no other messages are sent before you run this command.".format(from_channel))
+    else:  # If there is it gets the filename from message.attachments
+        clanid = str(ctx.guild.id)
+        targetfolder = "tmp/" + clanid
+        Path(targetfolder).mkdir(parents=True, exist_ok=True)
+        split_v1 = str(last_message.attachments).split("filename='")[1]
+        filename = targetfolder+"/"+str(split_v1).split("' ")[0]
+        if filename.endswith(".csv"):  # Checks if it is a .csv file
+            await last_message.attachments[0].save(fp=filename)  # saves the file
+        #now process the file and extract data
+        clan_war_data=sidekickparser.parse_sidekick_war_data_export(filename, clanname, fromdate,data_missed)
+        data_for_plot=clan_war_data.output_clan_war_data(targetfolder)
+        figure = data_for_plot.plot(kind='bar',stacked=True).get_figure()
+        figure.savefig(targetfolder+'/clan_war_data.jpg', format='jpg')
+        #now fetch that file and send it to the channel
+        fileA = discord.File(targetfolder+"/clan_war_data.csv")
+        await channel_to.send(file=fileA, content="**Clan war data analysis ready for download**:")
+        fileB = discord.File(targetfolder + "/clan_war_data.jpg")
+        await channel_to.send(file=fileB,
+                              content="**Clan war data plot ready for download**:")
 
 
 @wardigest.error
@@ -193,7 +219,8 @@ async def wardigest(ctx, error):
     if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
-
+    else:
+        print("Error")
 
 ###################################################################
 #This method is used to monitor to messages posted on the server, intercepts sidekick war feed,

@@ -64,7 +64,7 @@ async def warmiss(ctx, from_channel:str, to_channel:str):
     pair = (from_channel_id, to_channel_id)
     database.add_warmiss_mapped_channels(pair, ctx.guild.id)
     await ctx.channel.send(
-        "Okay. Missed attacks from #{} will be extracted and forwarded to #{}. "
+        "Okay. Missed attacks from {} will be extracted and forwarded to {}. "
         "Please ensure {} has access to these channels (read and write)".
             format(from_channel, to_channel, BOT_NAME))
 
@@ -209,7 +209,9 @@ async def on_message(message):
             if database.has_warmiss_fromchannel(from_channel):
                 #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
                 if 'remaining attack' in message.content.lower():
+                    print("\t captured war miss messages...")
                     time.sleep(BOT_WAIT_TIME)
+                    print("\t waiting done")
 
                     messages = await message.channel.history(limit=10, oldest_first=False).flatten()
                     messages.reverse()
@@ -222,7 +224,7 @@ async def on_message(message):
                     # missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
                     #now send the message to the right channel
-                    print("\tmessage prepared for: {}"+missed_attacks)
+                    print("\tmessage prepared for: {}"+str(missed_attacks))
                     to_channel =database.get_warmiss_tochannel(from_channel)
                     to_channel = int(to_channel[to_channel.index('|')+1:])
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)

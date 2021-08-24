@@ -88,7 +88,7 @@ def extract_missed_attacks(message:str):
             counter=1
             found=True
             continue
-        elif found and (l.startswith("<:b") or l.startswith("<:s:") or l.startswith(":s:")):
+        elif found and (l.startswith("<:b") or l.startswith("<:s") or l.startswith(":s:")):
             if ">" in l:
                 startindex = l.rindex(">")
             elif ":" in l:

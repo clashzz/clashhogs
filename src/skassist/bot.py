@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 from skassist import database, sidekickparser, util
+import traceback
 
 ##########
 # Init   #
@@ -68,7 +69,7 @@ async def warmiss(ctx, from_channel:str, to_channel:str):
             format(from_channel, to_channel, BOT_NAME))
 
 @warmiss.error
-async def config_error(ctx, error):
+async def warmiss_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'warmiss' requires two arguments. Run ?help warmiss for details")
     if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
@@ -153,7 +154,7 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
     channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
     if channel_from is None:
         await ctx.channel.send(
-            "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
+            "The channel {} does not exist. This should be your sidekick war feed channel, and allows 'Read message history'"
             " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
         check_ok=False
     channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
@@ -203,33 +204,37 @@ async def wardigest(ctx, error):
 async def on_message(message):
     if message.author.name==SIDEKICK_NAME or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
-        from_channel = str(message.guild.id)+"|"+str(message.channel.id)
-        if database.has_warmiss_fromchannel(from_channel):
-            #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
-            if 'remaining attack' in message.content.lower():
-                time.sleep(BOT_WAIT_TIME)
+        try:
+            from_channel = str(message.guild.id)+"|"+str(message.channel.id)
+            if database.has_warmiss_fromchannel(from_channel):
+                #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
+                if 'remaining attack' in message.content.lower():
+                    time.sleep(BOT_WAIT_TIME)
 
-                messages = await message.channel.history(limit=10, oldest_first=False).flatten()
-                messages.reverse()
-                missed_attacks=sidekickparser.parse_warfeed_missed_attacks(messages)
-                # message_content=""
-                # for m in messages:
-                #     #if m.author == BOT_NAME:# or m.author.
-                #         message_content+=m.content+"\n"
-                #
-                # missed_attacks=sidekickparser.parse_missed_attack(message_content)
+                    messages = await message.channel.history(limit=10, oldest_first=False).flatten()
+                    messages.reverse()
+                    missed_attacks=sidekickparser.parse_warfeed_missed_attacks(messages)
+                    # message_content=""
+                    # for m in messages:
+                    #     #if m.author == BOT_NAME:# or m.author.
+                    #         message_content+=m.content+"\n"
+                    #
+                    # missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
-                #now send the message to the right channel
-                to_channel =database.get_warmiss_tochannel(from_channel)
-                to_channel = int(to_channel[to_channel.index('|')+1:])
-                to_channel = discord.utils.get(message.guild.channels, id=to_channel)
+                    #now send the message to the right channel
+                    print("\tmessage prepared for: {}"+missed_attacks)
+                    to_channel =database.get_warmiss_tochannel(from_channel)
+                    to_channel = int(to_channel[to_channel.index('|')+1:])
+                    to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
-                message="War missed attack on {}:\n".format(datetime.datetime.now())
-                for k, v in missed_attacks.items():
-                    message+="\t"+str(k)+"\t"+str(v)+"\n"
-                await to_channel.send(message)
-        else:
-            return
+                    message="War missed attack on {}:\n".format(datetime.datetime.now())
+                    for k, v in missed_attacks.items():
+                        message+="\t"+str(k)+"\t"+str(v)+"\n"
+                    await to_channel.send(message)
+            else:
+                return
+        except:
+            print(traceback.format_exc())
     else:
         await bot.process_commands(message)
 

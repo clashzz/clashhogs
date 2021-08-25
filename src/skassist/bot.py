@@ -2,9 +2,11 @@ import os, datetime, time
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from skassist import database, sidekickparser, util
+from skassist import database, sidekickparser
 import traceback
 from pathlib import Path
+
+#todo: robust error checking, do not fetch messages more than 30 days earlier
 
 ##########
 # Init   #
@@ -17,8 +19,7 @@ PERMISSION_WARMISS="admin"
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=20
-bot = commands.Bot(command_prefix='?')
-
+bot = commands.Bot(command_prefix='?', help_command=None)
 
 
 @bot.event
@@ -31,16 +32,46 @@ async def on_ready():
         print('\t{}, {}'.format(guild.name, guild.id))
 
 #########################################################
+# Register the help command
+#########################################################
+@bot.command()
+async def help(context, command=None):
+    if command is None:
+        await context.send("{} supports the following commands. Run **?help [command]** for how to use them:\n"
+                       "\t\t - **warmiss**: set up a channel for forwarding missed attacks\n"
+                       "\t\t - **wardigest**: analyse and produce a report for a clan's past war peformance\n"
+                       "\t\t - **clandigest**: analyse and produce a report for a clan's activities (excl. war)".format(BOT_NAME))
+    elif command == 'warmiss':
+        await context.send('This command is used to map your sidekick war feed channel to another channel,'
+                                 ' where missed attacks will be automatically tallied. '
+                                 '\n**Usage:** ?warmiss #sidekick-war #missed-attacks [clanname] \n'
+                                 '\t\t - [clanname] must be a single word'
+                                 '\nAll parameters must be a single word without space characters. The channels must'
+                                 ' have the # prefix')
+    elif command == 'clandigest':
+        await context.send('This command is used to generate clan digest for the current season '
+                                     'using data from the Sidekick clan feed channel. \n\n'
+                                    '**Usage**: ?clandigest #sidekick-clan-feed-channel #output-target-channel [clanname] \n'
+                                     '\t\t - [clanname] must be a single word\n'
+                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+    elif command == 'wardigest':
+        await context.send('This command is used to generate clan war digest using data from the Sidekick clan war feed channel. \n\n'
+                                    '**Usage**: ?wardigest #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy]'
+                                    ' [OPTIONAL:dd/mm/yyyy]\n'
+                                    '\t\t - [clanname]: must be one word\n'
+                                    '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '
+                                    'When the end date is not provided, the present date will be used\n'
+                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+    else:
+        await context.send('Command {} does not exist.'.format(command))
+
+#########################################################
 # This method is used to configure the discord channels
 # to automatically tally missed attacks
 #########################################################
-@bot.command(name='warmiss', help='This command is used to map your sidekick war feed channel to another channel,'
-                                 ' where missed attacks will be automatically tallied. '
-                                 '\nE.g., warmiss sidekick-war missed-attacks'
-                                 '\nAll parameters must be a single word without space characters. The channels must'
-                                 ' have the # prefix')
+@bot.command(name='warmiss')
 @commands.has_role(PERMISSION_WARMISS)
-async def warmiss(ctx, from_channel:str, to_channel:str):
+async def warmiss(ctx, from_channel:str, to_channel:str, clan:str):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -63,16 +94,16 @@ async def warmiss(ctx, from_channel:str, to_channel:str):
 
     #checks complete, all good
     pair = (from_channel_id, to_channel_id)
-    database.add_warmiss_mapped_channels(pair, ctx.guild.id)
+    database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)
     await ctx.channel.send(
-        "Okay. Missed attacks from {} will be extracted and forwarded to {}. "
+        "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. "
         "Please ensure {} has access to these channels (read and write)".
-            format(from_channel, to_channel, BOT_NAME))
+            format(clan, from_channel, to_channel, BOT_NAME))
 
 @warmiss.error
 async def warmiss_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'warmiss' requires two arguments. Run ?help warmiss for details")
+        await ctx.channel.send("'warmiss' requires three arguments. Run ?help warmiss for details")
     if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_WARMISS))
@@ -80,9 +111,7 @@ async def warmiss_error(ctx, error):
 #########################################################
 # This method is used to process clan log summary
 #########################################################
-@bot.command(name='clandigest', help='This command is used to generate clan digest using data from the Sidekick clan feed channel. \n'
-                                    'Usage: ?clandigest #sidekick-clan-feed-channel #output-target-channel [clanname] \n'
-                                     '{} must have read and write permissions to both channels.'.format(BOT_NAME))
+@bot.command(name='clandigest')
 @commands.has_role('developers')
 async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     #check if the channels already exist
@@ -143,11 +172,9 @@ async def clandigest(ctx, error):
 #########################################################
 # This method is used to process clan war summary
 #########################################################
-@bot.command(name='wardigest', help='This command is used to generate clan war digest using data from the Sidekick clan war feed channel. \n'
-                                    'Usage: ?clanwar #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy]\n'
-                                     '{} must have read and write permissions to both channels.'.format(BOT_NAME))
+@bot.command(name='wardigest')
 @commands.has_role('developers')
-async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str):
+async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str, todate=None):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -173,15 +200,32 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
     except:
         fromdate=datetime.datetime.now() -datetime.timedelta(30)
         await ctx.channel.send(
-            "The date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
+            "The start date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
             " will be used instead.".format(to_channel, BOT_NAME))
+    try:
+        if todate is not None:
+            todate=datetime.datetime.strptime(todate, "%d/%m/%Y")
+        else:
+            todate=datetime.datetime.now()
+    except:
+        todate=datetime.datetime.now()
+        await ctx.channel.send(
+            "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
+            " will be used instead.".format(to_channel, BOT_NAME))
+
+    delta = todate - fromdate
+    if delta.days > 60:
+        await ctx.channel.send("Fetching data covering more than 60 days is not recommended as this leads to slow response"
+                               " time. If you wish to analyse historical data, set your start and end dates accordingly.")
+        return
+
     await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick...")
 
     # gather missed attacks data
     messages=await channel_from.history(after=fromdate, limit=None).flatten()
     data_missed=sidekickparser.parse_warfeed_missed_attacks(messages, SIDEKICK_NAME)
 
-    msg = "**{} clan war digest from {}**:\n\n **Missed Attacks:** \n".format(clanname, fromdate)
+    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clanname, fromdate, todate)
     for k, v in data_missed.items():
         msg+="\t"+k+": "+str(v)+"\n"
     await channel_to.send(msg+"\n")
@@ -201,7 +245,12 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
             await last_message.attachments[0].save(fp=filename)  # saves the file
         #now process the file and extract data
         clan_war_data=sidekickparser.parse_sidekick_war_data_export(filename, clanname, fromdate,data_missed)
-        data_for_plot=clan_war_data.output_clan_war_data(targetfolder)
+        data_for_plot, clan_summary=clan_war_data.output_clan_war_data(targetfolder)
+        msg = "\n**Clan Overview**:\n"
+        for k, v in clan_summary.items():
+            msg += "\t" + k + ": " + str(v) + "\n"
+        await channel_to.send(msg + "\n")
+
         figure = data_for_plot.plot(kind='bar',stacked=True).get_figure()
         figure.savefig(targetfolder+'/clan_war_data.jpg', format='jpg')
         #now fetch that file and send it to the channel
@@ -229,11 +278,16 @@ async def wardigest(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if message.author.name==SIDEKICK_NAME or 'DeadSages Elite' in message.content:
+    #debugging#
+    print("botname:"+message.author.name)
+    print("sidekick in name:"+str(SIDEKICK_NAME in message.author.name))
+    print("has remaining attacks:"+str('remaining attack' in message.content.lower())+"\n")
+    #debugging#
+
+    if SIDEKICK_NAME in message.author.name or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         try:
-            from_channel = str(message.guild.id)+"|"+str(message.channel.id)
-            if database.has_warmiss_fromchannel(from_channel):
+            if database.has_warmiss_fromchannel(message.guild.id,message.channel.id):
                 #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
                 if 'remaining attack' in message.content.lower():
                     print("\t captured war miss messages...")
@@ -252,11 +306,10 @@ async def on_message(message):
 
                     #now send the message to the right channel
                     print("\tmessage prepared for: {}"+str(missed_attacks))
-                    to_channel =database.get_warmiss_tochannel(from_channel)
-                    to_channel = int(to_channel[to_channel.index('|')+1:])
+                    to_channel, clan =database.get_warmiss_tochannel(message.guild.id,message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
-                    message="War missed attack on {}:\n".format(datetime.datetime.now())
+                    message="War missed attack for **{} on {}**:\n".format(clan, datetime.datetime.now())
                     for k, v in missed_attacks.items():
                         message+="\t"+str(k)+"\t"+str(v)+"\n"
                     await to_channel.send(message)

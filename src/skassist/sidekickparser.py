@@ -68,7 +68,7 @@ def parse_sidekick_war_data_export(in_csv, clanname, from_date,
             player = models.Player(player_tag,player_name)
 
         attack = models.Attack(str(attack_id), defenderth,
-                            player_th, stars, True)
+                            player_th, stars, True,time)
         player._attacks.append(attack)
 
         player_mapping_by_name[player_name] = player
@@ -88,10 +88,10 @@ def parse_sidekick_war_data_export(in_csv, clanname, from_date,
     return clan
 
 
-def parse_warfeed_missed_attacks(messages:list, sidekick_name):
+def parse_warfeed_missed_attacks(messages:list, sidekick_name=None):
     concatenated=""
     for m in messages:
-        if sidekick_name not in m.author.name:
+        if sidekick_name is not None and sidekick_name not in m.author.name:
             continue
         if len(m.clean_content) == 0:
             continue

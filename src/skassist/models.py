@@ -1,3 +1,5 @@
+import datetime
+
 from skassist import util
 import csv, pandas
 
@@ -7,12 +9,14 @@ class Attack:
     #target_thlvl= town hall level of the attacker
     #stars = #of stars won
     #is_outgoing: True indicating an attack; False indicating a defence.
-    def __init__(self,id:str, target_thlvl:int, source_thlvl:int, stars:int, is_outgoing:bool):
+    def __init__(self,id:str, target_thlvl:int, source_thlvl:int, stars:int, is_outgoing:bool,
+                 time:datetime.datetime):
         self._id=id
         self._target_thlvl=target_thlvl
         self._source_thlvl=source_thlvl
         self._stars=stars
         self._is_out = is_outgoing
+        self._time=time
 
 
 
@@ -148,6 +152,7 @@ class ClanWarData:
         master_csv=out_csv+"/clan_war_data.csv"
 
         data_as_list = []
+        summary={}
         header = ["3 stars", "2 stars", "1 star", "0 star"]
         row_index=[]
         #player overview
@@ -170,6 +175,9 @@ class ClanWarData:
             writer.writerow(["Total attacks",self._clan_total_attacks])
             writer.writerow(["Total unused attacks", self._clan_total_unused_attacks])
             writer.writerow(["Total stars", self._clan_total_stars])
+            summary["Total attacks"]=self._clan_total_attacks
+            summary["Total unused attacks"] = self._clan_total_unused_attacks
+            summary["Total stars"] = self._clan_total_stars
             writer.writerow(["\n"])
 
             #prepare the data frame
@@ -200,4 +208,4 @@ class ClanWarData:
                 writer.writerow(row)
 
         df = pandas.DataFrame(data_as_list, columns = header, index=row_index)
-        return df
+        return df, summary

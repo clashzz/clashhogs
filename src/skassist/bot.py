@@ -6,8 +6,6 @@ from skassist import database, sidekickparser
 import traceback
 from pathlib import Path
 
-#todo: robust error checking, do not fetch messages more than 30 days earlier
-
 ##########
 # Init   #
 ##########
@@ -30,6 +28,7 @@ async def on_ready():
     for guild in bot.guilds:
         database.guilds[guild.id] = guild.name
         print('\t{}, {}'.format(guild.name, guild.id))
+        database.check_database(guild.id)#todo
 
 #########################################################
 # Register the help command
@@ -94,7 +93,7 @@ async def warmiss(ctx, from_channel:str, to_channel:str, clan:str):
 
     #checks complete, all good
     pair = (from_channel_id, to_channel_id)
-    database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)
+    database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan) #TODO
     await ctx.channel.send(
         "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. "
         "Please ensure {} has access to these channels (read and write)".
@@ -237,7 +236,7 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
                                "in that channel first and ensure no other messages are sent before you run this command.".format(from_channel))
     else:  # If there is it gets the filename from message.attachments
         clanid = str(ctx.guild.id)
-        targetfolder = "tmp/" + clanid
+        targetfolder = "db/" + clanid
         Path(targetfolder).mkdir(parents=True, exist_ok=True)
         split_v1 = str(last_message.attachments).split("filename='")[1]
         filename = targetfolder+"/"+str(split_v1).split("' ")[0]

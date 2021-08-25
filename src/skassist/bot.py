@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import commands
 from skassist import database, sidekickparser
-import traceback
+import traceback, sys
 from pathlib import Path
 
 ##########
@@ -268,7 +268,7 @@ async def wardigest(ctx, error):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
     else:
-        print("Error")
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 ###################################################################
 #This method is used to monitor to messages posted on the server, intercepts sidekick war feed,

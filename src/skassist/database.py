@@ -91,12 +91,12 @@ def get_warmiss_tochannel(guild_id, channel_id):
     return int(values[1]), values[2] #1 = to_channel under the same guild, 2 = clan name
 
 
-guild_id=58686983354
-check_database(guild_id)
-
-from_channel=5475688
-to_channel=6869865
-add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-print("done")
+# guild_id=58686983354
+# check_database(guild_id)
+#
+# from_channel=5475688
+# to_channel=6869865
+# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
+# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
+# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
+# print("done")

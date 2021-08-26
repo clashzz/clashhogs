@@ -36,14 +36,19 @@ async def on_ready():
 @bot.command()
 async def help(context, command=None):
     if command is None:
-        await context.send("{} supports the following commands. Run **?help [command]** for how to use them:\n"
+        await context.send("{} supports the following commands. Run **?help [command]** for how to use them. Also see"
+                           " details at https://github.com/clashzz/sidekickassist:\n"
                        "\t\t - **warmiss**: set up a channel for forwarding missed attacks\n"
                        "\t\t - **wardigest**: analyse and produce a report for a clan's past war peformance\n"
                        "\t\t - **clandigest**: analyse and produce a report for a clan's activities (excl. war)".format(BOT_NAME))
     elif command == 'warmiss':
         await context.send('This command is used to map your sidekick war feed channel to another channel,'
                                  ' where missed attacks will be automatically tallied. '
-                                 '\n**Usage:** ?warmiss #sidekick-war #missed-attacks [clanname] \n'
+                                 '\n**Usage:** ?warmiss [option] #sidekick-war #missed-attacks [clanname] \n'
+                                 '\t\t - [option]: \n'
+                                 '\t\t\t\t -l: to list current channel mappings (ignore other parameters when using this option) \n'
+                           '\t\t\t\t -a: to add a channel mapping \n'
+                           '\t\t\t\t -r: to remove a channel mapping: \n'
                                  '\t\t - [clanname] must be a single word'
                                  '\nAll parameters must be a single word without space characters. The channels must'
                                  ' have the # prefix')
@@ -70,42 +75,68 @@ async def help(context, command=None):
 #########################################################
 @bot.command(name='warmiss')
 @commands.has_role(PERMISSION_WARMISS)
-async def warmiss(ctx, from_channel:str, to_channel:str, clan:str):
-    #check if the channels already exist
-    check_ok=True
-    from_channel_id=sidekickparser.parse_channel_id(from_channel)
-    to_channel_id=sidekickparser.parse_channel_id(to_channel)
+async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None):
+    #list current mappings
+    if option=="-l":
+        mappings = database.get_warmiss_mappings_for_guild_db(ctx.guild.id)
+        msg="The follow channels are mapped for war missed attacks:\n"
+        for m in mappings:
+            fc = discord.utils.get(ctx.guild.channels, id=m[0])
+            tc = discord.utils.get(ctx.guild.channels, id=m[1])
+            clanname=m[2]
+            msg+="\t\tFrom: **{}**,\tTo: **{}**,\t Clan: **{}**\n".format(fc.mention, tc.mention, clanname)
+        await ctx.channel.send(msg)
+        return
+
+    #if other options, then the other three params are required
+    if from_channel is None or to_channel is None or clan is None:
+        await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
+        return
+
+    # check if the channels already exist
+    check_ok = True
+    from_channel_id = sidekickparser.parse_channel_id(from_channel)
+    to_channel_id = sidekickparser.parse_channel_id(to_channel)
     channel = discord.utils.get(ctx.guild.channels, id=from_channel_id)
     if channel is None:
         await ctx.channel.send(
-            "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
-            " permissions to that channel.".format(from_channel, BOT_NAME))
-        check_ok=False
+                "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
+                " permissions to that channel.".format(from_channel, BOT_NAME))
+        check_ok = False
     channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
     if channel is None:
         await ctx.channel.send(
-            "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
-            " permissions to that channel.".format(to_channel, BOT_NAME))
-        check_ok=False
+                "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
+                " permissions to that channel.".format(to_channel, BOT_NAME))
+        check_ok = False
 
     if not check_ok:
         return
 
-    #checks complete, all good
-    pair = (from_channel_id, to_channel_id)
-    database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan) #TODO
-    await ctx.channel.send(
-        "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. "
-        "Please ensure {} has access to these channels (read and write)".
-            format(clan, from_channel, to_channel, BOT_NAME))
+    # checks complete, all good
+
+    if option=="-a": #adding a mapping
+        pair = (from_channel_id, to_channel_id)
+        database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan) #TODO
+        await ctx.channel.send(
+            "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. "
+            "Please ensure {} has access to these channels (read and write)".
+                format(clan, from_channel, to_channel, BOT_NAME))
+
+    if option=="-r": #remove a channel
+        database.remove_warmiss_mappings_for_guild_db(ctx.guild.id, from_channel_id)
+        await ctx.channel.send(
+            "Mapping removed")
 
 @warmiss.error
 async def warmiss_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'warmiss' requires three arguments. Run ?help warmiss for details")
+        await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
     if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_WARMISS))
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
 # This method is used to process clan log summary
@@ -258,6 +289,12 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
         fileB = discord.File(targetfolder + "/clan_war_data.jpg")
         await channel_to.send(file=fileB,
                               content="**Clan war data plot ready for download**:")
+
+        #save individual war data
+        print("\tsaving war data for individuals ({})...".format(datetime.datetime.now()))
+        database.save_individual_war_data(ctx.guild.id,clan_war_data)
+        print("\tdone ({})".format(datetime.datetime.now()))
+
 
 
 @wardigest.error

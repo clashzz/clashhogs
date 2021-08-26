@@ -3,8 +3,9 @@ This file implements data storage.
 Currently everything saved in member.
 TODO: use mongodb
 '''
-import sqlite3, threading
+import sqlite3, threading, pickle
 from pathlib import Path
+from skassist import models
 TABLE_channel_mapping_warmiss="channel_mapping_warmiss"
 TABLE_member_attacks="member_attacks"
 
@@ -76,6 +77,68 @@ def add_channel_mappings_warmiss_db(pair:tuple, guild_id, clan):
     con.close()
     update_channel_mapping_warmiss(guild_id, pair[0], pair[1],clan)
 
+def get_warmiss_mappings_for_guild_db(guild_id):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {};'.format(TABLE_channel_mapping_warmiss))
+    rows = cursor.fetchall()
+    res=[]
+    if rows is None:
+        return res
+    else:
+        for row in rows:
+            res.append((row[0],row[1],row[2]))
+    con.close()
+    return res
+
+def remove_warmiss_mappings_for_guild_db(guild_id, from_channel_id):
+    key = str(guild_id) + "|" + str(from_channel_id)
+    if key in channel_mapping_warmiss.keys():
+        del channel_mapping_warmiss[key]
+
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('DELETE FROM {} WHERE from_id=?;'.format(TABLE_channel_mapping_warmiss),[from_channel_id])
+    con.commit()
+    con.close()
+
+
+def save_individual_war_data(guild_id, clanwardata:models.ClanWarData):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    for p in clanwardata._players:
+        cursor.execute('SELECT * FROM {} WHERE (id=?);'.format(TABLE_member_attacks), [p._tag])
+        entry = cursor.fetchone()
+
+
+        if entry is None:
+            b = pickle.dumps(p)
+            cursor.execute('INSERT INTO {} (id, name, data) VALUES (?,?,?)'.format(TABLE_member_attacks),
+                           [p._tag, p._name, b])
+        else:
+            past_data=entry[2]
+            past_p = pickle.loads(past_data)
+            for t, atk in p._attacks.items():
+                if t in past_p._attacks.keys():
+                    continue
+                past_p._attacks[t]=atk
+            b = pickle.dumps(past_p)
+            cursor.execute('UPDATE {} SET data = ? WHERE id = ?'.format(TABLE_member_attacks),
+                                               [b, p._tag])
+
+            #convert back to player
+            #update player
+            #save
+        #     cursor.execute('UPDATE {} SET data = ? WHERE id = ?'.format(TABLE_channel_mapping_warmiss),
+        #                    [pair[1], clan, pair[0]])
+        # if not p._data_populated:
+        #     p.summarize_attacks()
+
+        # self.output_player_war_data(outfolder, p)
+    con.commit()
+    con.close()
+
+
 # def add_channel_mappings_warmiss(pair:tuple, guild_id, clan):
 #     key  = str(guild_id)+"|"+str(pair[0])
 #     channel_mapping_warmiss[key] = str(guild_id) + "|" + str(pair[1]) + "|"+str(clan)
@@ -89,6 +152,7 @@ def get_warmiss_tochannel(guild_id, channel_id):
     key = str(guild_id) + "|" + str(channel_id)
     values= channel_mapping_warmiss[key].split("|")
     return int(values[1]), values[2] #1 = to_channel under the same guild, 2 = clan name
+
 
 
 # guild_id=58686983354

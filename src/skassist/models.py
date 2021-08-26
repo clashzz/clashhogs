@@ -27,7 +27,7 @@ class Player:
         self._tag=tag
         self._name=name
         self._unused_attacks=0 # num of attacks this player had
-        self._attacks=[] #attacks used and associated data
+        self._attacks={}#attacks used and associated data
         self._defences=[] #num of times this player is attacked
 
         self._total_stars=0
@@ -41,7 +41,7 @@ class Player:
         #thlvl_attacks = {}
         #thlvl_stars = {} #key=0/1/2/3 stars; value=frequency
 
-        for atk in self._attacks:
+        for atk in self._attacks.values():
             if not atk._is_out:
                 continue
             self._total_stars += atk._stars

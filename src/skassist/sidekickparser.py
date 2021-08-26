@@ -69,7 +69,7 @@ def parse_sidekick_war_data_export(in_csv, clanname, from_date,
 
         attack = models.Attack(str(attack_id), defenderth,
                             player_th, stars, True,time)
-        player._attacks.append(attack)
+        player._attacks[time]=attack
 
         player_mapping_by_name[player_name] = player
         attack_id += 1

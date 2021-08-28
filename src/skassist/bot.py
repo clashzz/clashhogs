@@ -1,8 +1,10 @@
-import os, datetime, time
+import os, datetime, time, pandas
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from skassist import database, sidekickparser
+from numpy import frexp
+
+from skassist import database, sidekickparser, models
 import traceback, sys
 from pathlib import Path
 
@@ -40,7 +42,8 @@ async def help(context, command=None):
                            " details at https://github.com/clashzz/sidekickassist:\n"
                        "\t\t - **warmiss**: set up a channel for forwarding missed attacks\n"
                        "\t\t - **wardigest**: analyse and produce a report for a clan's past war peformance\n"
-                       "\t\t - **clandigest**: analyse and produce a report for a clan's activities (excl. war)".format(BOT_NAME))
+                       "\t\t - **clandigest**: analyse and produce a report for a clan's activities (excl. war)".format(BOT_NAME)+"\n "
+                        "\t\t - **warpersonal**: analyse and produce a report for a player's past war peformance\n")
     elif command == 'warmiss':
         await context.send('This command is used to map your sidekick war feed channel to another channel,'
                                  ' where missed attacks will be automatically tallied. '
@@ -65,6 +68,15 @@ async def help(context, command=None):
                                     '\t\t - [clanname]: must be one word\n'
                                     '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '
                                     'When the end date is not provided, the present date will be used\n'
+                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+    elif command == 'warpersonal':
+        await context.send('This command is used to generate personal war analysis using data from the Sidekick clan war feed channel.'
+                           ' You must have taken part in the wars to have any data for analysis. \n\n'
+                                    '**Usage**: ?warpersonal [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy] \n'                                   
+                                    '\t\t - [player_tag] your player tag (must include #)\n'
+                                    '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for' 
+                                    'your data. When the end date is not provided, the present date will be used\n'
+                           'When the end date is not provided, the present date will be used\n'
                                      '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
     else:
         await context.send('Command {} does not exist.'.format(command))
@@ -237,6 +249,9 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
             todate=datetime.datetime.strptime(todate, "%d/%m/%Y")
         else:
             todate=datetime.datetime.now()
+            await ctx.channel.send(
+                "End date not provided, using today's date as the end date")
+
     except:
         todate=datetime.datetime.now()
         await ctx.channel.send(
@@ -249,22 +264,23 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
                                " time. If you wish to analyse historical data, set your start and end dates accordingly.")
         return
 
-    await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick...")
+    await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick. Historical data may take longer, please be patient...")
 
     # gather missed attacks data
-    messages=await channel_from.history(after=fromdate, limit=None).flatten()
+    messages=await channel_from.history(after=fromdate, before = todate, limit=None).flatten()
     data_missed=sidekickparser.parse_warfeed_missed_attacks(messages, SIDEKICK_NAME)
 
+    messages_with_export_data = await channel_from.history(before = datetime.datetime.now(), limit=1).flatten()
     msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clanname, fromdate, todate)
     for k, v in data_missed.items():
         msg+="\t"+k+": "+str(v)+"\n"
     await channel_to.send(msg+"\n")
 
     #gather war data
-    last_message=messages[len(messages)-1]
+    last_message=messages_with_export_data[0]
     if str(last_message.attachments) == "[]":  # Checks if there is an attachment on the message
         await ctx.channel.send("Cannot find the Sidekick war data export in the {} channel. Run **/export ...** "
-                               "in that channel first and ensure no other messages are sent before you run this command.".format(from_channel))
+                               "in that channel first and ensure no other messages are posted before you run this command.".format(from_channel))
     else:  # If there is it gets the filename from message.attachments
         clanid = str(ctx.guild.id)
         targetfolder = "db/" + clanid
@@ -295,8 +311,7 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
         database.save_individual_war_data(ctx.guild.id,clan_war_data)
         print("\tdone ({})".format(datetime.datetime.now()))
 
-
-
+    await ctx.channel.send("Done. Please see your target channel for the output. ")
 @wardigest.error
 async def wardigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -306,6 +321,80 @@ async def wardigest(ctx, error):
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
+
+#########################################################
+# This method is used to produce personal war summary
+#########################################################
+@bot.command(name='warpersonal')
+async def warpersonal(ctx, playertag:str, fromdate:str, todate=None):
+    #check if the channels already exist
+    try:
+        fromdate=datetime.datetime.strptime(fromdate, "%d/%m/%Y")
+    except:
+        fromdate=datetime.datetime.now() -datetime.timedelta(30)
+        await ctx.channel.send(
+            "The start date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
+            " will be used instead.".format(ctx.channel, BOT_NAME))
+    try:
+        if todate is not None:
+            todate=datetime.datetime.strptime(todate, "%d/%m/%Y")
+        else:
+            todate=datetime.datetime.now()
+    except:
+        todate=datetime.datetime.now()
+        await ctx.channel.send(
+            "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
+            " will be used instead.".format(ctx.channel, BOT_NAME))
+
+    await ctx.channel.send("This may take a few seconds while I retrieve data from Sidekick...")
+
+    # gather personal war data
+    war_data=database.load_individual_war_data(ctx.guild.id, playertag, fromdate,todate)
+    if len(war_data)<5:
+        await ctx.channel.send(
+            "There are not enough war data for {} with a total of {} attacks in our database. Run the command with a wider timespan or try this later "
+            "when you have warred more with us.".format( ctx.channel, BOT_NAME))
+        return
+
+    player = models.Player(playertag, playertag)
+    player._attacks = war_data
+    player.summarize_attacks()
+
+    #attack stars by town hall
+    data_as_list, row_index, header = models.summarise_by_townhalls(player._thlvl_attacks, player._thlvl_stars)
+    data_for_plot = pandas.DataFrame(data_as_list, columns=header, index=row_index)
+    targetfolder = "db/"
+    Path(targetfolder).mkdir(parents=True, exist_ok=True)
+    figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
+    file=targetfolder + '/{}_byth.jpg'.format(playertag.replace('#','_'))
+    figure.savefig(file, format='jpg')
+    fileA = discord.File(file)
+    await ctx.channel.send("Data for **{}**, between **{}** and **{}**".format(playertag, fromdate, todate))
+    await ctx.channel.send(file=fileA, content="**Attack stars by target town hall levels**:")
+
+    #attack stars by time
+    dataframe= models.summarise_by_months(player._attacks)
+    figure = dataframe.plot(kind='bar', rot=0).get_figure()
+    file = targetfolder + '/{}_bytime.jpg'.format(playertag.replace('#', '_'))
+    figure.savefig(file, format='jpg')
+    fileB = discord.File(file)
+    await ctx.channel.send(file=fileB, content="**Attack stars by time**:")
+
+
+@warpersonal.error
+async def warpersonal(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send("'warpersonal' requires four arguments. Run ?help warpersonal for details")
+    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
+
 
 ###################################################################
 #This method is used to monitor to messages posted on the server, intercepts sidekick war feed,

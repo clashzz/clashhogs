@@ -5,7 +5,7 @@ TODO: use mongodb
 '''
 import sqlite3, threading, pickle
 from pathlib import Path
-from skassist import models
+from skassist import models, util
 TABLE_channel_mapping_warmiss="channel_mapping_warmiss"
 TABLE_member_attacks="member_attacks"
 
@@ -126,17 +126,34 @@ def save_individual_war_data(guild_id, clanwardata:models.ClanWarData):
             cursor.execute('UPDATE {} SET data = ? WHERE id = ?'.format(TABLE_member_attacks),
                                                [b, p._tag])
 
-            #convert back to player
-            #update player
-            #save
-        #     cursor.execute('UPDATE {} SET data = ? WHERE id = ?'.format(TABLE_channel_mapping_warmiss),
-        #                    [pair[1], clan, pair[0]])
-        # if not p._data_populated:
-        #     p.summarize_attacks()
-
-        # self.output_player_war_data(outfolder, p)
     con.commit()
     con.close()
+
+
+def load_individual_war_data(guild_id, player_tag, from_date, to_date):
+
+    lock = threading.Lock()
+    lock.acquire()
+    res={}
+    player_tag=util.normalise_player_tag(player_tag)
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+
+    cursor.execute('SELECT * FROM {} WHERE (id=?);'.format(TABLE_member_attacks), [player_tag])
+    entry = cursor.fetchone()
+
+    if entry is None:
+        return res
+    else:
+        war_data = entry[2]
+        player = pickle.loads(war_data)
+        for time, atk in player._attacks.items():
+            if time<to_date and time>from_date:
+                res[time]=atk
+
+    con.close()
+    lock.release()
+    return res
 
 
 # def add_channel_mappings_warmiss(pair:tuple, guild_id, clan):

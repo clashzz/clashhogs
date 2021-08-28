@@ -1,16 +1,15 @@
-import os, datetime, time, pandas
+import os, datetime, time, pandas, logging, sys, traceback
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from numpy import frexp
-
 from skassist import database, sidekickparser, models
-import traceback, sys
 from pathlib import Path
 
 ##########
 # Init   #
 ##########
+
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
@@ -21,16 +20,20 @@ PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=20
 bot = commands.Bot(command_prefix='?', help_command=None)
 
+logging.basicConfig(stream=sys.stdout, format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
+log = logging.getLogger(BOT_NAME)
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
+    log.info(f'{bot.user.name} has connected to Discord!')
     #register each connected guild to the bot database
-    print('The following guilds are connected with the bot:')
+    log.info('The following guilds are connected with the bot:')
     for guild in bot.guilds:
         database.guilds[guild.id] = guild.name
-        print('\t{}, {}'.format(guild.name, guild.id))
-        database.check_database(guild.id)#todo
+        log.info('\t{}, {}'.format(guild.name, guild.id))
+        database.check_database(guild.id)
 
 #########################################################
 # Register the help command
@@ -144,11 +147,13 @@ async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None
 async def warmiss_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
-    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_WARMISS))
     else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error=''.join(traceback.format_stack())
+        log.error("GUILD={}, ACTION=warmiss\n{}".format(ctx.guild.id, error))
 
 #########################################################
 # This method is used to process clan log summary
@@ -206,10 +211,13 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
-    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
-
+    else:
+        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error=''.join(traceback.format_stack())
+        log.error("GUILD={}, ACTION=clandigest\n{}".format(ctx.guild.id, error))
 
 #########################################################
 # This method is used to process clan war summary
@@ -307,20 +315,22 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
                               content="**Clan war data plot ready for download**:")
 
         #save individual war data
-        print("\tsaving war data for individuals ({})...".format(datetime.datetime.now()))
+        log.info("GUILD={}, ACTION=wardigst\n\t\tsaving war data for individuals...".format(ctx.guild.id))
         database.save_individual_war_data(ctx.guild.id,clan_war_data)
-        print("\tdone ({})".format(datetime.datetime.now()))
+        log.info("GUILD={}, ACTION=wardigst\n\t\tsaving war data for individuals COMPLETE...".format(ctx.guild.id))
 
     await ctx.channel.send("Done. Please see your target channel for the output. ")
 @wardigest.error
 async def wardigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'wardigest' requires four arguments. Run ?help wardigest for details")
-    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
     else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error=''.join(traceback.format_stack())
+        log.error("GUILD={}, ACTION=wardigest\n{}".format(ctx.guild.id, error))
 
 
 
@@ -387,13 +397,13 @@ async def warpersonal(ctx, playertag:str, fromdate:str, todate=None):
 async def warpersonal(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send("'warpersonal' requires four arguments. Run ?help warpersonal for details")
-    if isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
     else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
-
+        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error=''.join(traceback.format_stack())
+        log.error("GUILD={}, ACTION=warpersonal\n{}".format(ctx.guild.id, error))
 
 
 ###################################################################
@@ -404,20 +414,20 @@ async def warpersonal(ctx, error):
 @bot.event
 async def on_message(message):
     #debugging#
-    print("botname:"+message.author.name)
-    print("sidekick in name:"+str(SIDEKICK_NAME in message.author.name))
-    print("has remaining attacks:"+str('remaining attack' in message.content.lower())+"\n")
+    # print("botname:"+message.author.name)
+    # print("sidekick in name:"+str(SIDEKICK_NAME in message.author.name))
+    # print("has remaining attacks:"+str('remaining attack' in message.content.lower())+"\n")
     #debugging#
 
-    if SIDEKICK_NAME in message.author.name or 'DeadSages Elite' in message.content:
+    if SIDEKICK_NAME in message.author.name:# or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         try:
             if database.has_warmiss_fromchannel(message.guild.id,message.channel.id):
                 #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
                 if 'remaining attack' in message.content.lower():
-                    print("\t captured war miss messages...")
+                    log.info("GUILD={}, captured war miss messages...".format(message.guild.id))
                     time.sleep(BOT_WAIT_TIME)
-                    print("\t waiting done")
+                    #print("\t waiting done")
 
                     messages = await message.channel.history(limit=10, oldest_first=False).flatten()
                     messages.reverse()
@@ -430,7 +440,7 @@ async def on_message(message):
                     # missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
                     #now send the message to the right channel
-                    print("\tmessage prepared for: {}"+str(missed_attacks))
+                    log.info("GUILD={}, prepared war miss message, total={} war miss messages...".format(message.guild.id,len(missed_attacks)))
                     to_channel, clan =database.get_warmiss_tochannel(message.guild.id,message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
@@ -441,7 +451,8 @@ async def on_message(message):
             else:
                 return
         except:
-            print(traceback.format_exc())
+            error = ''.join(traceback.format_stack())
+            log.error("GUILD={}, ACTION=on_message\n{}".format(message.guild.id, error))
     else:
         await bot.process_commands(message)
 

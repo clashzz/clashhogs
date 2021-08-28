@@ -56,7 +56,7 @@ def check_database(guild_id):
     cursor.execute("SELECT * FROM {};".format(TABLE_channel_mapping_warmiss))
     rows = cursor.fetchall()
     for row in rows:
-        print(row)
+        #print(row)
         update_channel_mapping_warmiss(guild_id,row[0],row[1],row[2])
     con.close()
 

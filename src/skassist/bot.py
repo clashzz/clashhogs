@@ -159,7 +159,7 @@ async def warmiss_error(ctx, error):
 # This method is used to process clan log summary
 #########################################################
 @bot.command(name='clandigest')
-@commands.has_role('developers')
+#@commands.has_role('developers')
 async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     #check if the channels already exist
     check_ok=True
@@ -223,7 +223,7 @@ async def clandigest(ctx, error):
 # This method is used to process clan war summary
 #########################################################
 @bot.command(name='wardigest')
-@commands.has_role('developers')
+#@commands.has_role('developers')
 async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str, todate=None):
     #check if the channels already exist
     check_ok=True
@@ -328,7 +328,7 @@ async def wardigest(ctx, error):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
     else:
-        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
         log.error("GUILD={}, ACTION=wardigest\n{}".format(ctx.guild.id, error))
 

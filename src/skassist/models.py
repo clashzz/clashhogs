@@ -102,7 +102,7 @@ def summarise_attacks(attacks: dict, thlvl_attacks:dict, thlvl_stars:dict):
         update_stats(star_freq, s)
         thlvl_stars[atk._target_thlvl] = star_freq
 
-    return total_stars, total_attacks
+    return total_attacks, total_stars
 
 def update_stats(star_freq: dict, stars: int):
     n = 1

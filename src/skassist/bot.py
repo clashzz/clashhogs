@@ -14,7 +14,6 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
-PERMISSION_WARMISS="admin"
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=20
@@ -95,7 +94,7 @@ async def help(context, command=None):
 # to automatically tally missed attacks
 #########################################################
 @bot.command(name='warmiss')
-@commands.has_role(PERMISSION_WARMISS)
+@commands.has_permissions(manage_guild=True)
 async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None):
     #list current mappings
     if option=="-l":
@@ -229,7 +228,6 @@ async def clandigest(ctx, error):
 # This method is used to process clan war summary
 #########################################################
 @bot.command(name='wardigest')
-#@commands.has_role('developers')
 async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str, todate=None):
     #check if the channels already exist
     check_ok=True
@@ -438,14 +436,7 @@ async def on_message(message):
                     messages = await message.channel.history(limit=10, oldest_first=False).flatten()
                     messages.reverse()
                     missed_attacks=sidekickparser.parse_warfeed_missed_attacks(messages)
-                    # message_content=""
-                    # for m in messages:
-                    #     #if m.author == BOT_NAME:# or m.author.
-                    #         message_content+=m.content+"\n"
-                    #
-                    # missed_attacks=sidekickparser.parse_missed_attack(message_content)
 
-                    #now send the message to the right channel
                     log.info("GUILD={}, prepared war miss message, total={} war miss messages...".format(message.guild.id,len(missed_attacks)))
                     to_channel, clan =database.get_warmiss_tochannel(message.guild.id,message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)

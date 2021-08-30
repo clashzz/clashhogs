@@ -2,3 +2,4 @@ src/skassist/.env
 *.pyc
 src/skassist/db/*
 *.jpg
+*.db

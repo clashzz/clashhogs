@@ -16,7 +16,7 @@ BOT_NAME='Sidekick Assist v1'
 SIDEKICK_NAME='Sidekick II'
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"
-BOT_WAIT_TIME=20
+BOT_WAIT_TIME=5
 bot = commands.Bot(command_prefix='?', help_command=None)
 
 logging.basicConfig(stream=sys.stdout, format='%(asctime)s %(levelname)-8s %(message)s',
@@ -417,12 +417,6 @@ async def warpersonal(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    #debugging#
-    # print("botname:"+message.author.name)
-    # print("sidekick in name:"+str(SIDEKICK_NAME in message.author.name))
-    # print("has remaining attacks:"+str('remaining attack' in message.content.lower())+"\n")
-    #debugging#
-
     if SIDEKICK_NAME in message.author.name:# or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         try:

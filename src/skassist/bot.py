@@ -32,8 +32,14 @@ async def on_ready():
     log.info('The following guilds are connected with the bot:')
     for guild in bot.guilds:
         database.guilds[guild.id] = guild.name
-        log.info('\t{}, {}'.format(guild.name, guild.id))
+        log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id)
+
+@bot.event
+async def on_guild_join(guild):
+    log.info('{} has been added to a new server: {}'.format(BOT_NAME, guild.id))
+    log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
+    database.check_database(guild.id)
 
 #########################################################
 # Register the help command

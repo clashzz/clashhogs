@@ -154,7 +154,7 @@ async def warmiss_error(ctx, error):
         await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "'warmiss' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_WARMISS))
+            "Users of 'warmiss' must have 'Manage server' permission. You do not seem to have permission to use this command")
     else:
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
@@ -417,7 +417,7 @@ async def warpersonal(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if SIDEKICK_NAME in message.author.name:# or 'DeadSages Elite' in message.content:
+    if SIDEKICK_NAME in message.author.name or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         try:
             if database.has_warmiss_fromchannel(message.guild.id,message.channel.id):

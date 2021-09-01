@@ -22,11 +22,10 @@ SIDEKICK_CLANBEST_TITLE="Gainers This Season"
 SIDEKICK_CLANACTIVITY_KEYWORDS=['upgraded','is now','boosted','pushed','unlocked']
 
 def parse_channel_id(value:str):
-    hash=value.index("#")
     try:
+        hash = value.index("#")
         return int(value[hash+1:len(value)-1])
     except:
-        print("Cannot parse channel ID {}".format(value))
         return -1
 
 def parse_sidekick_war_data_export(in_csv, clanname, from_date,
@@ -214,7 +213,10 @@ def find_start_message_index(messages:list):
 
         for e in m.embeds:
             if type(e.title) is str and SIDEKICK_CLANBEST_TITLE in e.title:
-                return i, e.description
+                desc = e.description.split("\n")
+                desc = " ".join(desc[0:2])
+
+                return i, desc.strip()
     return None, None
 
 #the season identifier taken from sidekick /best command is parsed to a date, e.g.:

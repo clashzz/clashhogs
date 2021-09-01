@@ -171,19 +171,30 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
+    if from_channel_id ==-1:
+        await ctx.channel.send(
+            "You must pass a channel for the first argument")
+        check_ok=False
+    else:
+        channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
+        if channel_from is None:
+            await ctx.channel.send(
+                "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
+                " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
+            check_ok = False
+
     to_channel_id=sidekickparser.parse_channel_id(to_channel)
-    channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
-    if channel_from is None:
+    if to_channel_id ==-1:
         await ctx.channel.send(
-            "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
-            " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
+            "You must pass a channel for the second argument")
         check_ok=False
-    channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
-    if channel_to is None:
-        await ctx.channel.send(
-            "The channel {} does not exist. Please create it first, and give {} 'Send messages'"
-            " permissions to that channel.".format(to_channel, BOT_NAME))
-        check_ok=False
+    else:
+        channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+        if channel_to is None:
+            await ctx.channel.send(
+                "The channel {} does not exist. Please create it first, and give {} 'Send messages'"
+                " permissions to that channel.".format(to_channel, BOT_NAME))
+            check_ok=False
 
     if not check_ok:
         return
@@ -218,6 +229,8 @@ async def clandigest(ctx, error):
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
         log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
+        traceback.print_stack()
+
 
 #########################################################
 # This method is used to process clan war summary
@@ -444,7 +457,7 @@ async def on_message(message):
         except:
             error = ''.join(traceback.format_stack())
             log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
-    else:
+    elif message.clean_content.strip().startswith('?'):
         await bot.process_commands(message)
 
 bot.run(TOKEN)

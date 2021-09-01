@@ -13,7 +13,7 @@ from pathlib import Path
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME='Sidekick Assist v1'
-SIDEKICK_NAME='Sidekick II'
+SIDEKICK_NAME='sidekick'
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=5
@@ -96,6 +96,7 @@ async def help(context, command=None):
 @bot.command(name='warmiss')
 @commands.has_permissions(manage_guild=True)
 async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None):
+    log.info("GUILD={}, {}, ACTION=warmiss, arg={}".format(ctx.guild.id, ctx.guild.name, option))
     #list current mappings
     if option=="-l":
         mappings = database.get_warmiss_mappings_for_guild_db(ctx.guild.id)
@@ -158,7 +159,7 @@ async def warmiss_error(ctx, error):
     else:
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
-        log.error("GUILD={}, ACTION=warmiss\n{}".format(ctx.guild.id, error))
+        log.error("GUILD={}, {}, ACTION=warmiss\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 #########################################################
 # This method is used to process clan log summary
@@ -166,6 +167,7 @@ async def warmiss_error(ctx, error):
 @bot.command(name='clandigest')
 #@commands.has_role('developers')
 async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
+    log.info("GUILD={}, {}, ACTION=clandigest".format(ctx.guild.id, ctx.guild.name))
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -205,13 +207,6 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
         msg+="\t"+k+": "+str(v)+"\n"
     await channel_to.send(msg+"\n")
 
-    #msg = "\n**Clan Best Messages Forward:**"
-    # for m in sidekick_messages:
-    #     if len(m.embeds)>0:
-    #         await channel_to.send(content=m.content, embed=m.embeds[0])
-    #     else:
-    #         await channel_to.send(content=m.content)
-
 @clandigest.error
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -222,13 +217,15 @@ async def clandigest(ctx, error):
     else:
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
-        log.error("GUILD={}, ACTION=clandigest\n{}".format(ctx.guild.id, error))
+        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 #########################################################
 # This method is used to process clan war summary
 #########################################################
 @bot.command(name='wardigest')
 async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdate:str, todate=None):
+    log.info("GUILD={}, {}, ACTION=wardigest".format(ctx.guild.id, ctx.guild.name))
+
     #check if the channels already exist
     check_ok=True
     from_channel_id=sidekickparser.parse_channel_id(from_channel)
@@ -319,9 +316,9 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
                               content="**Clan war data plot ready for download**:")
 
         #save individual war data
-        log.info("GUILD={}, ACTION=wardigst\n\t\tsaving war data for individuals...".format(ctx.guild.id))
+        log.info("GUILD={}, {}, ACTION=wardigst\n\t\tsaving war data for individuals...".format(ctx.guild.id, ctx.guild.name))
         database.save_individual_war_data(ctx.guild.id,clan_war_data)
-        log.info("GUILD={}, ACTION=wardigst\n\t\tsaving war data for individuals COMPLETE...".format(ctx.guild.id))
+        log.info("GUILD={}, {}, ACTION=wardigst\n\t\tsaving war data for individuals COMPLETE...".format(ctx.guild.id, ctx.guild.name))
 
     await ctx.channel.send("Done. Please see your target channel for the output. ")
 @wardigest.error
@@ -334,7 +331,7 @@ async def wardigest(ctx, error):
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
-        log.error("GUILD={}, ACTION=wardigest\n{}".format(ctx.guild.id, error))
+        log.error("GUILD={}, {}, ACTION=wardigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 
 
@@ -343,13 +340,14 @@ async def wardigest(ctx, error):
 #########################################################
 @bot.command(name='warpersonal')
 async def warpersonal(ctx, playertag:str, fromdate:str, todate=None):
+
     #check if the channels already exist
     try:
         fromdate=datetime.datetime.strptime(fromdate, "%d/%m/%Y")
     except:
         fromdate=datetime.datetime.now() -datetime.timedelta(30)
         await ctx.channel.send(
-            "The start date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
+            "The start date you specified does not conform to the required format dd/mm/yyyy. The date 30 days ago from today"
             " will be used instead.".format(ctx.channel, BOT_NAME))
     try:
         if todate is not None:
@@ -407,7 +405,7 @@ async def warpersonal(ctx, error):
     else:
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
-        log.error("GUILD={}, ACTION=warpersonal\n{}".format(ctx.guild.id, error))
+        log.error("GUILD={}, {}, ACTION=warpersonal\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 
 ###################################################################
@@ -417,13 +415,13 @@ async def warpersonal(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if SIDEKICK_NAME in message.author.name or 'DeadSages Elite' in message.content:
+    if SIDEKICK_NAME in message.author.name.lower():# or 'DeadSages Elite' in message.content:
         #sidekick posted a message, let's check if it is war feed
         try:
             if database.has_warmiss_fromchannel(message.guild.id,message.channel.id):
                 #we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
-                if 'remaining attack' in message.content.lower():
-                    log.info("GUILD={}, captured war miss messages...".format(message.guild.id))
+                if 'lost the war' in message.content.lower() or 'won the war' in message.content.lower():
+                    log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
                     time.sleep(BOT_WAIT_TIME)
                     #print("\t waiting done")
 
@@ -431,7 +429,9 @@ async def on_message(message):
                     messages.reverse()
                     missed_attacks=sidekickparser.parse_warfeed_missed_attacks(messages)
 
-                    log.info("GUILD={}, prepared war miss message, total={} war miss messages...".format(message.guild.id,len(missed_attacks)))
+                    log.info("GUILD={},{}, prepared war miss message, total={} war miss messages...".format(message.guild.id,
+                                                                                                           message.guild.name,
+                                                                                                           len(missed_attacks)))
                     to_channel, clan =database.get_warmiss_tochannel(message.guild.id,message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
@@ -443,7 +443,7 @@ async def on_message(message):
                 return
         except:
             error = ''.join(traceback.format_stack())
-            log.error("GUILD={}, ACTION=on_message\n{}".format(message.guild.id, error))
+            log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
     else:
         await bot.process_commands(message)
 

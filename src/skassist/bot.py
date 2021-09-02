@@ -428,7 +428,7 @@ async def warpersonal(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if SIDEKICK_NAME in message.author.name.lower():# or 'DeadSages Elite' in message.content:
+    if SIDEKICK_NAME in message.author.name.lower() or message.content.startswith('TEST '):
         #sidekick posted a message, let's check if it is war feed
         try:
             if database.has_warmiss_fromchannel(message.guild.id,message.channel.id):
@@ -453,6 +453,9 @@ async def on_message(message):
                         message+="\t"+str(k)+"\t"+str(v)+"\n"
                     await to_channel.send(message)
             else:
+                log.info(
+                    "GUILD={},{}, captured Sidekick message from warfeed channel, does not contain war end...".format(message.guild.id,
+                                                                                                   message.guild.name))
                 return
         except:
             error = ''.join(traceback.format_stack())

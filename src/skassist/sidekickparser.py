@@ -108,6 +108,7 @@ def extract_missed_attacks(message:str):
     found=False
     for l in lines:
         if '2 remaining attack' in l.lower():
+            print(">>>>> remaining attacks set to 2, msg={}".format(l))
             counter=2
             found=True
             continue

@@ -449,8 +449,11 @@ async def on_message(message):
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
                     message="War missed attack for **{} on {}**:\n".format(clan, datetime.datetime.now())
-                    for k, v in missed_attacks.items():
-                        message+="\t"+str(k)+"\t"+str(v)+"\n"
+                    if len(messages) ==0:
+                        message+="\tNone, everyone attacked!"
+                    else:
+                        for k, v in missed_attacks.items():
+                            message+="\t"+str(k)+"\t"+str(v)+"\n"
                     await to_channel.send(message)
             else:
                 log.info(

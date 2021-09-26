@@ -448,7 +448,8 @@ async def on_message(message):
                     to_channel, clan =database.get_warmiss_tochannel(message.guild.id,message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
-                    message="War missed attack for **{} on {}**:\n".format(clan, datetime.datetime.now())
+                    message="War missed attack for **{} on {}**:\n" \
+                            "(Double check your in-game data, Sidekick can miss attacks made in the last minutes)".format(clan, datetime.datetime.now())
                     if len(messages) ==0:
                         message+="\tNone, everyone attacked!"
                     else:

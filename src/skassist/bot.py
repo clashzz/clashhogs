@@ -203,20 +203,23 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     messages = await channel_from.history(limit=20, oldest_first=False).flatten()
     messages.reverse()
     data_clanbest, season_id, sidekick_messages=sidekickparser.parse_clan_best(messages)
+    if len(data_clanbest) == 0:
+        msg = "Could not find required data in your clan feed channel. Did you run Sidekick's '/best' command immediately before this?"
+        await channel_to.send(msg)
+    else:
+        date_season_start=sidekickparser.parse_season_start(season_id)
+        messages=await channel_from.history(after=date_season_start, limit=None).flatten()
+        data_clanactivity=sidekickparser.parse_clan_activity(messages)
 
-    date_season_start=sidekickparser.parse_season_start(season_id)
-    messages=await channel_from.history(after=date_season_start, limit=None).flatten()
-    data_clanactivity=sidekickparser.parse_clan_activity(messages)
+        msg = "{} clan feed digest - {}:\n\n **Loots and Attacks:**".format(clanname, season_id.replace("\n"," "))
+        for k, v in data_clanbest.items():
+            msg+="\t"+k+": "+str(v)+"\n"
+        await channel_to.send(msg+"\n")
 
-    msg = "{} clan feed digest - {}:\n\n **Loots and Attacks:**".format(clanname, season_id.replace("\n"," "))
-    for k, v in data_clanbest.items():
-        msg+="\t"+k+": "+str(v)+"\n"
-    await channel_to.send(msg+"\n")
-
-    msg="**Member Activity Counts** (upgrade completes, league promotion, super troop boosts etc):\n"
-    for k, v in data_clanactivity.items():
-        msg+="\t"+k+": "+str(v)+"\n"
-    await channel_to.send(msg+"\n")
+        msg="**Member Activity Counts** (upgrade completes, league promotion, super troop boosts etc):\n"
+        for k, v in data_clanactivity.items():
+            msg+="\t"+k+": "+str(v)+"\n"
+        await channel_to.send(msg+"\n")
 
 @clandigest.error
 async def clandigest(ctx, error):

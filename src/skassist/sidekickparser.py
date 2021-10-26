@@ -165,7 +165,7 @@ def parse_clan_best(discord_messages:list):
     data={}
     start_index, season_id=find_start_message_index(discord_messages)
     if start_index is None:
-        return data
+        return data, None, None
 
     tally = 0
     prev_fieldname = ""

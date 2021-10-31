@@ -15,12 +15,13 @@ load_dotenv()
 #properties
 TOKEN = os.getenv('DISCORD_TOKEN')
 BOT_NAME=os.getenv('BOT_NAME')
+PREFIX=os.getenv('BOT_PREFIX')
 
 SIDEKICK_NAME='sidekick'
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"
 BOT_WAIT_TIME=5
-bot = commands.Bot(command_prefix='?', help_command=None)
+bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
 logging.basicConfig(stream=sys.stdout, format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,

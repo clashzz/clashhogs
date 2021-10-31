@@ -11,8 +11,11 @@ from pathlib import Path
 
 
 load_dotenv()
+#There must be a .env file within the same folder of this source file, and this needs to have the following two
+#properties
 TOKEN = os.getenv('DISCORD_TOKEN')
-BOT_NAME='Sidekick Assist v1'
+BOT_NAME=os.getenv('BOT_NAME')
+
 SIDEKICK_NAME='sidekick'
 PERMISSION_WARDIGEST="developers"
 PERMISSION_CLANDIGEST="developers"

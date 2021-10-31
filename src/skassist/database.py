@@ -1,13 +1,15 @@
 '''
 This file implements data storage.
 Currently everything saved in member.
-TODO: use mongodb
+
+Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
 import sqlite3, threading, pickle
 from pathlib import Path
 from skassist import models, util
 TABLE_channel_mapping_warmiss="channel_mapping_warmiss"
 TABLE_member_attacks="member_attacks"
+TABLE_member_warnings="member_warnings"
 
 
 guilds={}

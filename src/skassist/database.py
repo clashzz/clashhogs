@@ -52,6 +52,11 @@ def check_database(guild_id):
                                     "name TEXT NOT NULL, " \
                                     "data BLOB NOT NULL);".format(TABLE_member_attacks)
         cursor.execute(create_statement)
+    if TABLE_member_warnings not in table_names:
+        create_statement = "CREATE TABLE {} (id text PRIMARY KEY, " \
+                                    "name TEXT NOT NULL, " \
+                                    "data BLOB NOT NULL);".format(TABLE_member_attacks)
+        cursor.execute(create_statement)
     con.commit()
 
     #populate channel mappings into memory

@@ -472,7 +472,7 @@ async def on_message(message):
         except:
             error = ''.join(traceback.format_stack())
             log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
-    elif message.clean_content.strip().startswith('?'):
+    elif message.clean_content.strip().startswith(PREFIX):
         await bot.process_commands(message)
 
 bot.run(TOKEN)

@@ -1,5 +1,5 @@
 .idea
-src/skassist/.env
+env/.env
 *.pyc
 src/skassist/db/*
 *.jpg

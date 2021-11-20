@@ -1,0 +1,27 @@
+#! /usr/bin/env bash
+
+ACTIVATE_DIR="${CONDA_PREFIX}/etc/conda/activate.d"
+DEACTIVATE_DIR="${CONDA_PREFIX}/etc/conda/deactivate.d"
+
+ENV_DIR="$(pwd)"
+ROOT_DIR="$(dirname "${ENV_DIR}")"
+SET_SRC="${ENV_DIR}/env_vars.sh"
+SECRET_SRC="${ENV_DIR}/.env"
+UNSET_SRC="${ENV_DIR}/unset_env_vars.sh"
+
+SET_DEST="${ACTIVATE_DIR}/env_vars.sh"
+SECRET_DEST="${ACTIVATE_DIR}/.env"
+UNSET_DEST="${DEACTIVATE_DIR}/env_vars.sh"
+
+printf "\nexport ROOT_DIR=${ROOT_DIR}\n" >> "${SECRET_SRC}"
+
+mkdir -p "${ACTIVATE_DIR}"
+mkdir -p "${DEACTIVATE_DIR}"
+
+chmod +x "${SET_SRC}"
+chmod +x "${SECRET_SRC}"
+chmod +x "${UNSET_SRC}"
+
+ln -s "${SET_SRC}" "${SET_DEST}"
+ln -s "${SECRET_SRC}" "${SECRET_DEST}"
+ln -s "${UNSET_SRC}" "${UNSET_DEST}"

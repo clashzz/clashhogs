@@ -1,42 +1,49 @@
-import os, datetime, time, pandas, logging, sys, traceback
-from dotenv import load_dotenv
+import datetime
+import logging
+import os
+import pandas
+import sys
+import time
+import traceback
+from pathlib import Path
 import discord
 from discord.ext import commands
 from skassist import database, sidekickparser, models
-from pathlib import Path
 
 ##########
 # Init   #
 ##########
 
 
-load_dotenv()
-#There must be a .env file within the same folder of this source file, and this needs to have the following two
-#properties
+# There must be a .env file within the same folder of this source file, and this needs to have the following two
+# properties
 TOKEN = os.getenv('DISCORD_TOKEN')
-BOT_NAME=os.getenv('BOT_NAME')
-PREFIX=os.getenv('BOT_PREFIX')
+BOT_NAME = os.getenv('BOT_NAME')
+PREFIX = os.getenv('BOT_PREFIX')
 
-SIDEKICK_NAME='sidekick'
-PERMISSION_WARDIGEST="developers"
-PERMISSION_CLANDIGEST="developers"
-BOT_WAIT_TIME=5
+SIDEKICK_NAME = 'sidekick'
+PERMISSION_WARDIGEST = 'developers'
+PERMISSION_CLANDIGEST = 'developers'
+BOT_WAIT_TIME = 5
 bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
-logging.basicConfig(stream=sys.stdout, format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S')
+logging.basicConfig(stream=sys.stdout,
+                    format='%(asctime)s %(levelname)-8s %(message)s',
+                    level=logging.INFO,
+                    datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(BOT_NAME)
+
 
 @bot.event
 async def on_ready():
-    log.info(f'{bot.user.name} has connected to Discord!')
-    #register each connected guild to the bot database
+    log.info(f'{bot.user.name} has connected to Discord! (prefix: {PREFIX})')
+    # register each connected guild to the bot database
     log.info('The following guilds are connected with the bot:')
     for guild in bot.guilds:
         database.guilds[guild.id] = guild.name
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id)
+
 
 @bot.event
 async def on_guild_join(guild):
@@ -44,54 +51,60 @@ async def on_guild_join(guild):
     log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
     database.check_database(guild.id)
 
+
 #########################################################
 # Register the help command
 #########################################################
 @bot.command()
 async def help(context, command=None):
     if command is None:
-        await context.send("{} supports the following commands. Run **?help [command]** for how to use them. Also see"
-                           " details at https://github.com/clashzz/sidekickassist:\n"
-                       "\t\t - **warmiss**: set up a channel for forwarding missed attacks\n"
-                       "\t\t - **wardigest**: analyse and produce a report for a clan's past war peformance\n"
-                       "\t\t - **clandigest**: analyse and produce a report for a clan's activities (excl. war)".format(BOT_NAME)+"\n "
-                        "\t\t - **warpersonal**: analyse and produce a report for a player's past war peformance\n")
+        await context.send(
+            f'{BOT_NAME} supports the following commands. Run **{PREFIX}help [command]** for how to use them. Also see '
+            'details at https://github.com/clashzz/sidekickassist:\n'
+            '\t\t - **warmiss**: set up a channel for forwarding missed attacks\n'
+            '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n'
+            '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'
+            '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n')
     elif command == 'warmiss':
-        await context.send('This command is used to map your sidekick war feed channel to another channel,'
-                                 ' where missed attacks will be automatically tallied. '
-                                 '\n**Usage:** ?warmiss [option] #sidekick-war #missed-attacks [clanname] \n'
-                                 '\t\t - [option]: \n'
-                                 '\t\t\t\t -l: to list current channel mappings (ignore other parameters when using this option) \n'
-                           '\t\t\t\t -a: to add a channel mapping \n'
-                           '\t\t\t\t -r: to remove a channel mapping: \n'
-                                 '\t\t - [clanname] must be a single word'
-                                 '\nAll parameters must be a single word without space characters. The channels must'
-                                 ' have the # prefix')
+        await context.send(
+            'This command is used to map your sidekick war feed channel to another channel,'
+            ' where missed attacks will be automatically tallied.\n'
+            f'**Usage:** {PREFIX}warmiss [option] #sidekick-war #missed-attacks [clanname]\n'
+            '\t\t - [option]: \n'
+            '\t\t\t\t -l: to list current channel mappings (ignore other parameters when using this option)\n'
+            '\t\t\t\t -a: to add a channel mapping\n'
+            '\t\t\t\t -r: to remove a channel mapping:\n'
+            '\t\t - [clanname] must be a single word\n'
+            'All parameters must be a single word without space characters. The channels must have the # prefix')
     elif command == 'clandigest':
-        await context.send('This command is used to generate clan digest for the current season '
-                                     'using data from the Sidekick clan feed channel. \n\n'
-                                    '**Usage**: ?clandigest #sidekick-clan-feed-channel #output-target-channel [clanname] \n'
-                                     '\t\t - [clanname] must be a single word\n'
-                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+        await context.send(
+            'This command is used to generate clan digest for the current season using data from the Sidekick clan '
+            'feed channel. \n'
+            f'**Usage**: {PREFIX}clandigest #sidekick-clan-feed-channel #output-target-channel [clanname]\n'
+            '\t\t - [clanname] must be a single word\n\n'
+            f'{BOT_NAME} must have read and write permissions to both channels.')
     elif command == 'wardigest':
-        await context.send('This command is used to generate clan war digest using data from the Sidekick clan war feed channel. \n\n'
-                                    '**Usage**: ?wardigest #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy]'
-                                    ' [OPTIONAL:dd/mm/yyyy]\n'
-                                    '\t\t - [clanname]: must be one word\n'
-                                    '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '
-                                    'When the end date is not provided, the present date will be used\n'
-                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+        await context.send(
+            'This command is used to generate clan war digest using data from the Sidekick clan war feed channel.\n'
+            f'**Usage**: {PREFIX}wardigest #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy] '
+            '[OPTIONAL:dd/mm/yyyy]\n'
+            '\t\t - [clanname]: must be one word\n'
+            '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '
+            'When the end date is not provided, the present date will be used\n\n'
+            f'{BOT_NAME} must have read and write permissions to both channels.')
     elif command == 'warpersonal':
-        await context.send('This command is used to generate personal war analysis using data from the Sidekick clan war feed channel.'
-                           ' You must have taken part in the wars to have any data for analysis. \n\n'
-                                    '**Usage**: ?warpersonal [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy] \n'                                   
-                                    '\t\t - [player_tag] your player tag (must include #)\n'
-                                    '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for' 
-                                    'your data. When the end date is not provided, the present date will be used\n'
-                           'When the end date is not provided, the present date will be used\n'
-                                     '\n{} must have read and write permissions to both channels.'.format(BOT_NAME))
+        await context.send(
+            'This command is used to generate personal war analysis using data from the Sidekick clan war feed '
+            'channel. You must have taken part in the wars to have any data for analysis.\n\n'
+            f'**Usage**: {PREFIX}warpersonal [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy]\n'                                   
+            '\t\t - [player_tag] your player tag (must include #)\n'
+            '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for ' 
+            'your data. When the end date is not provided, the present date will be used\n'
+            'When the end date is not provided, the present date will be used\n\n'
+            f'{BOT_NAME} must have read and write permissions to both channels.')
     else:
-        await context.send('Command {} does not exist.'.format(command))
+        await context.send(f'Command {command} does not exist.')
+
 
 #########################################################
 # This method is used to configure the discord channels
@@ -101,21 +114,21 @@ async def help(context, command=None):
 @commands.has_permissions(manage_guild=True)
 async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None):
     log.info("GUILD={}, {}, ACTION=warmiss, arg={}".format(ctx.guild.id, ctx.guild.name, option))
-    #list current mappings
-    if option=="-l":
+    # list current mappings
+    if option == "-l":
         mappings = database.get_warmiss_mappings_for_guild_db(ctx.guild.id)
-        msg="The follow channels are mapped for war missed attacks:\n"
+        msg = "The follow channels are mapped for war missed attacks:\n"
         for m in mappings:
             fc = discord.utils.get(ctx.guild.channels, id=m[0])
             tc = discord.utils.get(ctx.guild.channels, id=m[1])
             clanname=m[2]
-            msg+="\t\tFrom: **{}**,\tTo: **{}**,\t Clan: **{}**\n".format(fc.mention, tc.mention, clanname)
+            msg += "\t\tFrom: **{}**,\tTo: **{}**,\t Clan: **{}**\n".format(fc.mention, tc.mention, clanname)
         await ctx.channel.send(msg)
         return
 
-    #if other options, then the other three params are required
+    # if other options, then the other three params are required
     if from_channel is None or to_channel is None or clan is None:
-        await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
+        await ctx.channel.send(f"'warmiss' requires arguments. Run {PREFIX}help warmiss for details")
         return
 
     # check if the channels already exist
@@ -125,14 +138,14 @@ async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None
     channel = discord.utils.get(ctx.guild.channels, id=from_channel_id)
     if channel is None:
         await ctx.channel.send(
-                "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
-                " permissions to that channel.".format(from_channel, BOT_NAME))
+                f"The channel {from_channel} does not exist. Please create it first, and give {BOT_NAME} "
+                "'Send messages' and 'Read message history' permissions to that channel.")
         check_ok = False
     channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
     if channel is None:
         await ctx.channel.send(
-                "The channel {} does not exist. Please create it first, and give {} 'Send messages' and 'Read message history'"
-                " permissions to that channel.".format(to_channel, BOT_NAME))
+                f"The channel {to_channel} does not exist. Please create it first, and give {BOT_NAME} "
+                "'Send messages' and 'Read message history' permissions to that channel.")
         check_ok = False
 
     if not check_ok:
@@ -140,42 +153,44 @@ async def warmiss(ctx, option:str, from_channel=None, to_channel=None, clan=None
 
     # checks complete, all good
 
-    if option=="-a": #adding a mapping
+    if option == "-a":  # adding a mapping
         pair = (from_channel_id, to_channel_id)
-        database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan) #TODO
+        database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan)  # TODO
         await ctx.channel.send(
-            "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. "
-            "Please ensure {} has access to these channels (read and write)".
-                format(clan, from_channel, to_channel, BOT_NAME))
+            "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. Please ensure {} has "
+            "access to these channels (read and write)".format(clan, from_channel, to_channel, BOT_NAME))
 
-    if option=="-r": #remove a channel
+    if option == "-r":  # remove a channel
         database.remove_warmiss_mappings_for_guild_db(ctx.guild.id, from_channel_id)
         await ctx.channel.send(
             "Mapping removed")
 
+
 @warmiss.error
 async def warmiss_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'warmiss' requires arguments. Run ?help warmiss for details")
+        await ctx.channel.send(f"'warmiss' requires arguments. Run {PREFIX}help warmiss for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "Users of 'warmiss' must have 'Manage server' permission. You do not seem to have permission to use this command")
+            "Users of 'warmiss' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
     else:
-        #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
         log.error("GUILD={}, {}, ACTION=warmiss\n{}".format(ctx.guild.id, ctx.guild.name, error))
+
 
 #########################################################
 # This method is used to process clan log summary
 #########################################################
 @bot.command(name='clandigest')
-#@commands.has_role('developers')
+# @commands.has_role('developers')
 async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
     log.info("GUILD={}, {}, ACTION=clandigest".format(ctx.guild.id, ctx.guild.name))
-    #check if the channels already exist
-    check_ok=True
-    from_channel_id=sidekickparser.parse_channel_id(from_channel)
-    if from_channel_id ==-1:
+    # check if the channels already exist
+    check_ok = True
+    from_channel_id = sidekickparser.parse_channel_id(from_channel)
+    if from_channel_id == -1:
         await ctx.channel.send(
             "You must pass a channel for the first argument")
         check_ok=False
@@ -183,8 +198,8 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
         channel_from = discord.utils.get(ctx.guild.channels, id=from_channel_id)
         if channel_from is None:
             await ctx.channel.send(
-                "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read message history'"
-                " and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
+                "The channel {} does not exist. This should be your sidekick clan feed channel, and allows 'Read "
+                "message history' and 'Send messages' permissions for {}.".format(from_channel, BOT_NAME))
             check_ok = False
 
     to_channel_id=sidekickparser.parse_channel_id(to_channel)
@@ -228,7 +243,7 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
 @clandigest.error
 async def clandigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'clandigest' requires three arguments. Run ?help clandigest for details")
+        await ctx.channel.send(f"'clandigest' requires three arguments. Run {PREFIX}help clandigest for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
@@ -344,7 +359,7 @@ async def wardigest(ctx, from_channel:str, to_channel:str, clanname:str, fromdat
 @wardigest.error
 async def wardigest(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'wardigest' requires four arguments. Run ?help wardigest for details")
+        await ctx.channel.send(f"'wardigest' requires four arguments. Run {PREFIX}help wardigest for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
@@ -418,14 +433,15 @@ async def warpersonal(ctx, playertag:str, fromdate:str, todate=None):
 @warpersonal.error
 async def warpersonal(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send("'warpersonal' requires four arguments. Run ?help warpersonal for details")
+        await ctx.channel.send(f"'warpersonal' requires four arguments. Run {PREFIX}help warpersonal for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(PERMISSION_CLANDIGEST))
+            f"'wardigest' can only be used by the {PERMISSION_CLANDIGEST} role(s). You do not seem to have permission "
+            "to use this command")
     else:
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=warpersonal\n{}".format(ctx.guild.id, ctx.guild.name, error))
+        log.error(f"GUILD={ctx.guild.id}, {ctx.guild.name}, ACTION=warpersonal\n{error}")
 
 
 ###################################################################
@@ -472,7 +488,7 @@ async def on_message(message):
         except:
             error = ''.join(traceback.format_stack())
             log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
-    elif message.clean_content.strip().startswith('?'):
+    elif message.clean_content.strip().startswith(PREFIX):
         await bot.process_commands(message)
 
 bot.run(TOKEN)

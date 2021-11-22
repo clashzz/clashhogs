@@ -4,7 +4,9 @@ Currently everything saved in member.
 
 Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
-import sqlite3, threading, pickle
+import sqlite3
+import threading
+import pickle
 from pathlib import Path
 from skassist import models, util
 TABLE_channel_mapping_warmiss="channel_mapping_warmiss"
@@ -63,7 +65,6 @@ def check_database(guild_id):
     cursor.execute("SELECT * FROM {};".format(TABLE_channel_mapping_warmiss))
     rows = cursor.fetchall()
     for row in rows:
-        #print(row)
         update_channel_mapping_warmiss(guild_id,row[0],row[1],row[2])
     con.close()
 

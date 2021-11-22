@@ -1,0 +1,10 @@
+name: discord
+channels:
+  - defaults
+dependencies:
+  - discord.py
+  - pandas
+  - pip
+  - python=3.9.*
+  - sqlite
+  - wheel

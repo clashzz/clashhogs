@@ -8,7 +8,7 @@ import traceback
 from pathlib import Path
 import discord
 from discord.ext import commands
-from skassist import database, sidekickparser, models
+from skassist import database, sidekickparser, models, util
 
 ##########
 # Init   #
@@ -17,9 +17,19 @@ from skassist import database, sidekickparser, models
 
 # There must be a .env file within the same folder of this source file, and this needs to have the following two
 # properties
-TOKEN = os.getenv('DISCORD_TOKEN')
-BOT_NAME = os.getenv('BOT_NAME')
-PREFIX = os.getenv('BOT_PREFIX')
+if len(sys.argv)<1:
+    print("Please provide the file path to your .env file")
+    exit(0)
+properties=util.load_properties(sys.argv[1])
+if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys() \
+    or 'BOT_PREFIX' not in properties.keys():
+    print("Some of the required properties are missing, please check you have the following properties in your .env file: "
+          "\n\t{}\n\t{}\n\t{}".format("BOT_NAME","BOT_PREFIX","DISCORD_TOKEN"))
+    exit(0)
+
+TOKEN = properties['DISCORD_TOKEN']
+BOT_NAME = properties['BOT_NAME']
+PREFIX = properties['BOT_PREFIX']
 
 SIDEKICK_NAME = 'sidekick'
 PERMISSION_WARDIGEST = 'developers'
@@ -236,9 +246,14 @@ async def clandigest(ctx, from_channel:str, to_channel:str, clanname:str):
         await channel_to.send(msg+"\n")
 
         msg="**Member Activity Counts** (upgrade completes, league promotion, super troop boosts etc):\n"
-        for k, v in data_clanactivity.items():
-            msg+="\t"+k+": "+str(v)+"\n"
-        await channel_to.send(msg+"\n")
+        if len(data_clanactivity)>0:
+            for k, v in data_clanactivity.items():
+                msg+="\t"+k+": "+str(v)+"\n"
+            await channel_to.send(msg+"\n")
+        else:
+            msg += "\t Empty. Your sidekick /best command must be run in the configured clan feed channel. The " \
+                   "source channel you provided does not contain this data."
+            await channel_to.send(msg+"\n")
 
 @clandigest.error
 async def clandigest(ctx, error):

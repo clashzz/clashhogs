@@ -1,6 +1,19 @@
 MONTHS_MAPPINGS={
     1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
 }
+
+def load_properties(file):
+    params={}
+    with open(file) as f:
+        lines = f.readlines()
+        for l in lines:
+            values = l.split("=")
+            if len(values)<2:
+                continue
+            params[values[0].strip()]=values[1].strip()
+    return params
+
+
 def normalise_name(text):
     text = text.encode('ascii', 'ignore').decode("utf-8")
     return text.strip().replace(" ","_")

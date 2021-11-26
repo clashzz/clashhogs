@@ -150,7 +150,10 @@ def parse_clan_activity(messages:list):
             if end==-1:
                 continue
             l = l[:end].strip()
-            player =l.split(" ",1)[1].strip()
+            textvalues=l.split(" ", 1)
+            if len(textvalues)<2:
+                continue
+            player =textvalues[1].strip()
             if player in data.keys():
                 data[player]+=1
             else:

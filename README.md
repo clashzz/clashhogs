@@ -18,6 +18,9 @@ To run this bot, you must create a virtual environment using
 download instructions).  
 If using conda for the first time, run `conda init <SHELL_NAME>` and then restart your terminal.  
 Once you have anaconda installed and initialized:
+
+#### UPDATE 26 Nov 2021: the .env must be provided as an argument when starting the bot, some of the configuration steps below may not be required now.
+
 1. Navigate to the root of this repo in terminal
 2. `cd env` (must be in this directory for the setup_helper script to work)
 3. Create a file called `.env` in this directory that looks like the following:
@@ -31,6 +34,8 @@ export BOT_PREFIX="[your prefix]"
 6. `./setup_helper`
 7. `conda deactivate`
 8. `conda activate discord` (you have to re-activate so that the environment vars are set)
+
+Then run the `bot.py` file providing a file path as an argument pointing to your `.env` file
 
 To use this bot, your discord server must have
 

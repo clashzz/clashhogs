@@ -60,13 +60,13 @@ def check_database(guild_id):
                                     "name TEXT NOT NULL, clan TEXT NOT NULL, total DOUBLE NOT NULL," \
                                     "date TEXT NOT NULL);".format(TABLE_member_warnings)
         cursor.execute(create_statement)
-    else:
-        print("deleting the wrong warning table")
-        cursor.execute("DROP TABLE {}".format(TABLE_member_warnings))
-        create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
-                           "clan TEXT NOT NULL, name TEXT NOT NULL, value DOUBLE NOT NULL," \
-                           "date TEXT NOT NULL);".format(TABLE_member_warnings)
-        cursor.execute(create_statement)
+    # else:
+    #     print("deleting the wrong warning table")
+    #     cursor.execute("DROP TABLE {}".format(TABLE_member_warnings))
+    #     create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
+    #                        "clan TEXT NOT NULL, name TEXT NOT NULL, value DOUBLE NOT NULL," \
+    #                        "date TEXT NOT NULL);".format(TABLE_member_warnings)
+    #     cursor.execute(create_statement)
     con.commit()
 
     #populate channel mappings into memory

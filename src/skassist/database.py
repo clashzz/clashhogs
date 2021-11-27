@@ -4,6 +4,7 @@ Currently everything saved in member.
 
 Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
+import datetime
 import sqlite3
 import threading
 import pickle
@@ -55,10 +56,17 @@ def check_database(guild_id):
                                     "data BLOB NOT NULL);".format(TABLE_member_attacks)
         cursor.execute(create_statement)
     if TABLE_member_warnings not in table_names:
-        create_statement = "CREATE TABLE {} (id text PRIMARY KEY, " \
-                                    "name TEXT NOT NULL, " \
-                                    "data BLOB NOT NULL);".format(TABLE_member_warnings)
+        create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
+                                    "name TEXT NOT NULL, clan TEXT NOT NULL, total DOUBLE NOT NULL," \
+                                    "date TEXT NOT NULL);".format(TABLE_member_warnings)
         cursor.execute(create_statement)
+    # else:
+    #     print("deleting the wrong warning table")
+    #     cursor.execute("DROP TABLE {}".format(TABLE_member_warnings))
+    #     create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
+    #                        "clan TEXT NOT NULL, name TEXT NOT NULL, value DOUBLE NOT NULL," \
+    #                        "date TEXT NOT NULL);".format(TABLE_member_warnings)
+    #     cursor.execute(create_statement)
     con.commit()
 
     #populate channel mappings into memory
@@ -178,6 +186,48 @@ def get_warmiss_tochannel(guild_id, channel_id):
     values= channel_mapping_warmiss[key].split("|")
     return int(values[1]), values[2] #1 = to_channel under the same guild, 2 = clan name
 
+def add_warning(guild_id, clan, person, value):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('INSERT INTO {} (clan, name, value, date) VALUES (?,?,?,?)'.
+                   format(TABLE_member_warnings),
+                       [clan, person, value, datetime.datetime.now()])
+    con.commit()
+    con.close()
+
+def list_warnings(guild_id, clan, person=None):
+    res=[]
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    if person is None:
+        cursor.execute('SELECT * FROM {} WHERE (clan=?);'.format(TABLE_member_warnings), [clan])
+        rows = cursor.fetchall()
+        for row in rows:
+            res.append(row)
+    else:
+        cursor.execute('SELECT * FROM {} WHERE (clan=?) AND (name=?);'.format(TABLE_member_warnings), [clan, person])
+        rows = cursor.fetchall()
+        for row in rows:
+            res.append(row)
+
+    con.close()
+    return res
+
+def clear_warnings(guild_id, clan, person):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('DELETE FROM {} WHERE name=? AND clan=?'.
+                   format(TABLE_member_warnings), [person, clan])
+    con.commit()
+    con.close()
+
+def delete_warning(guild_id, warning_id):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    r = cursor.execute('DELETE FROM {} WHERE id=?'.
+                   format(TABLE_member_warnings), [warning_id])
+    con.commit()
+    con.close()
 
 
 # guild_id=58686983354

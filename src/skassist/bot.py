@@ -74,7 +74,8 @@ async def help(context, command=None):
             '\t\t - **warmiss**: set up a channel for forwarding missed attacks\n'
             '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n'
             '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'
-            '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n')
+            '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'
+            '\t\t - **warn**: manage warnings for a clan/player\n')
     elif command == 'warmiss':
         await context.send(
             'This command is used to map your sidekick war feed channel to another channel,'
@@ -112,6 +113,16 @@ async def help(context, command=None):
             'your data. When the end date is not provided, the present date will be used\n'
             'When the end date is not provided, the present date will be used\n\n'
             f'{BOT_NAME} must have read and write permissions to both channels.')
+    elif command == 'warn':
+        await context.send(
+            'This command is used to manage warnings of players in a clan.\n'
+            f'**Usage:** {PREFIX}warn [option] [clanname] [playername] [value]\n'
+            '- [option]: \n'
+            '\t\t -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n'
+            '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory)\n'
+            '\t\t -c: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'
+            '\t\t -d: to delete a specific warning record. Supply the warning record ID as a value for [clanname]\n'
+            'All parameters must be a single word without space characters. [value] must be a number when provided')
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -457,6 +468,74 @@ async def warpersonal(ctx, error):
         #traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
         log.error(f"GUILD={ctx.guild.id}, {ctx.guild.name}, ACTION=warpersonal\n{error}")
+
+
+#########################################################
+# This method is used to log warnings
+#########################################################
+@bot.command(name='warn')
+@commands.has_permissions(manage_guild=True)
+async def warn(ctx, option:str, clan:str, name=None, value=None):
+    log.info("GUILD={}, {}, ACTION=warn, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+
+    # list current warnings
+    if option == "-l":
+        if name is None: #list all warnings of a clan
+            res=database.list_warnings(ctx.guild.id, clan)
+            string = "\t"
+            for r in res:
+                string+=str(r)+"\n\t"
+            #await ctx.send(embed=util.embed_warnings(clan))
+            await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
+            return
+        else:#list all warnings of a person in a clan
+            res=database.list_warnings(ctx.guild.id, clan, name)
+            string = "\t"
+            for r in res:
+                string += str(r) + "\n\t"
+            await ctx.channel.send("The member {} has a total of {} warnings:\n{}".format(name, len(res), string))
+
+
+    # add a warning
+    if option == "-a":
+        if name is None or value is None:
+            await ctx.channel.send(f"'warn' requires 4 arguments for adding a warning. Run '{PREFIX}help warn' for details")
+            return
+        try:
+            value= float(value)
+        except:
+            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
+            return
+        database.add_warning(ctx.guild.id, clan, name, value)
+        await ctx.channel.send("Warning added for {} from the {} clan.".format(name, clan))
+        return
+
+    # clear all warnings with a person
+    if option == "-c":
+        if name is None:
+            await ctx.channel.send(f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
+            return
+        database.clear_warnings(ctx.guild.id, clan, name)
+        await ctx.channel.send("All warnings for {} from the {} clan are deleted.".format(name, clan))
+        return
+        # delete a warning
+    if option == "-d":
+        database.delete_warning(ctx.guild.id, clan)
+        await ctx.channel.send("The warning with the ID {} has been deleted".format(clan))
+
+@warn.error
+async def warn_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'warn' requires arguments. Run '{PREFIX}help warn' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error=''.join(traceback.format_stack())
+        log.error("GUILD={}, {}, ACTION=warn\n{}".format(ctx.guild.id, ctx.guild.name, error))
+
 
 
 ###################################################################

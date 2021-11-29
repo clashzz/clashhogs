@@ -525,7 +525,7 @@ async def warn_error(ctx, error):
             "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
-        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error=''.join(traceback.format_stack())
         log.error("GUILD={}, {}, ACTION=warn\n{}".format(ctx.guild.id, ctx.guild.name, error))
 

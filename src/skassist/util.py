@@ -1,4 +1,5 @@
 import discord
+from datetime import datetime
 
 MONTHS_MAPPINGS={
     1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
@@ -44,9 +45,17 @@ def find_first_appearance(text:str, keywords:list):
     else:
         return -1
 
-def embed_warnings(clan:str):
-    embedVar = discord.Embed(title="Current warning records", description="Clan: {}".format(clan)) #, color=0x00ff00
-    embedVar.add_field(name="01", value="DSE\nZZ\n0.5\n21-Nov-2021 19:05:32", inline=False)
-    embedVar.add_field(name="02", value="DSE\nZZ\n0.5\n21-Nov-2021 20:05:32",inline=False)
-    embedVar.add_field(name="04", value="DS\nZZ.mini\n0.5\n21-Nov-2021 19:05:32",inline=False)
+def format_warnings(clan:str, records:list, player=None):
+    if player is None:
+        embedVar = discord.Embed(title="Current warning records", description="Clan: {}".format(clan)) #, color=0x00ff00
+    else:
+        embedVar = discord.Embed(title="Current warning records",
+                                 description="Clan: {}, Player: {}".format(clan, player))  # , color=0x00ff00
+    for r in records:
+        id="Warning ID: {}".format(r[0])
+        d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
+        embedVar.add_field(name=f'**{id}**',
+                    value=f'> Player: {r[2]}\n> Clan: {r[1]}\n> Points: {r[3]}\n> Date: {d}',
+                    inline=False)
+
     return embedVar

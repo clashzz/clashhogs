@@ -482,19 +482,12 @@ async def warn(ctx, option:str, clan:str, name=None, value=None):
     if option == "-l":
         if name is None: #list all warnings of a clan
             res=database.list_warnings(ctx.guild.id, clan)
-            string = "\t"
-            for r in res:
-                string+=str(r)+"\n\t"
-            #await ctx.send(embed=util.embed_warnings(clan))
-            await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
+            await ctx.send(embed=util.format_warnings(clan, res))
+            #await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
             return
         else:#list all warnings of a person in a clan
             res=database.list_warnings(ctx.guild.id, clan, name)
-            string = "\t"
-            for r in res:
-                string += str(r) + "\n\t"
-            await ctx.channel.send("The member {} has a total of {} warnings:\n{}".format(name, len(res), string))
-
+            await ctx.send(embed=util.format_warnings(clan, res, name))
 
     # add a warning
     if option == "-a":

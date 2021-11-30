@@ -116,13 +116,13 @@ async def help(context, command=None):
     elif command == 'warn':
         await context.send(
             'This command is used to manage warnings of players in a clan.\n'
-            f'**Usage:** {PREFIX}warn [option] [clanname] [playername] [value]\n'
+            f'**Usage:** {PREFIX}warn [option] [clanname] [playername] [value] [note]\n'
             '- [option]: \n'
             '\t\t -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n'
-            '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory)\n'
+            '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n'
             '\t\t -c: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'
             '\t\t -d: to delete a specific warning record. Supply the warning record ID as a value for [clanname]\n'
-            'All parameters must be a single word without space characters. [value] must be a number when provided')
+            '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided')
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -475,7 +475,7 @@ async def warpersonal(ctx, error):
 #########################################################
 @bot.command(name='warn')
 @commands.has_permissions(manage_guild=True)
-async def warn(ctx, option:str, clan:str, name=None, value=None):
+async def warn(ctx, option:str, clan:str, name=None, value=None, *note):
     log.info("GUILD={}, {}, ACTION=warn, arg={}".format(ctx.guild.id, ctx.guild.name, option))
 
     # list current warnings
@@ -492,14 +492,14 @@ async def warn(ctx, option:str, clan:str, name=None, value=None):
     # add a warning
     if option == "-a":
         if name is None or value is None:
-            await ctx.channel.send(f"'warn' requires 4 arguments for adding a warning. Run '{PREFIX}help warn' for details")
+            await ctx.channel.send(f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
             return
         try:
             value= float(value)
         except:
             await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
             return
-        database.add_warning(ctx.guild.id, clan, name, value)
+        database.add_warning(ctx.guild.id, clan, name, value, note)
         await ctx.channel.send("Warning added for {} from the {} clan.".format(name, clan))
         return
 

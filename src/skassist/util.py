@@ -49,13 +49,19 @@ def format_warnings(clan:str, records:list, player=None):
     if player is None:
         embedVar = discord.Embed(title="Current warning records", description="Clan: {}".format(clan)) #, color=0x00ff00
     else:
+        total_points=0
+        for r in records:
+            try:
+                total_points+=float(r[3])
+            except:
+                pass
         embedVar = discord.Embed(title="Current warning records",
-                                 description="Clan: {}, Player: {}".format(clan, player))  # , color=0x00ff00
+                                 description="Clan: {}, Player: {}, Total points: {}".format(clan, player, total_points))  # , color=0x00ff00
     for r in records:
         id="Warning ID: {}".format(r[0])
         d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
         embedVar.add_field(name=f'**{id}**',
-                    value=f'> Player: {r[2]}\n> Clan: {r[1]}\n> Points: {r[3]}\n> Date: {d}',
+                    value=f'> *Player*: {r[2]}\t\t *Clan*: {r[1]}\n> *Points*: {r[3]}\t\t *Date*: {d} \n> *Note*: {r[5]}',
                     inline=False)
 
     return embedVar

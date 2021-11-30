@@ -58,15 +58,15 @@ def check_database(guild_id):
     if TABLE_member_warnings not in table_names:
         create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
                                     "name TEXT NOT NULL, clan TEXT NOT NULL, total DOUBLE NOT NULL," \
-                                    "date TEXT NOT NULL);".format(TABLE_member_warnings)
+                                    "date TEXT NOT NULL, note TEXT);".format(TABLE_member_warnings)
         cursor.execute(create_statement)
-    # else:
-    #     print("deleting the wrong warning table")
-    #     cursor.execute("DROP TABLE {}".format(TABLE_member_warnings))
-    #     create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
-    #                        "clan TEXT NOT NULL, name TEXT NOT NULL, value DOUBLE NOT NULL," \
-    #                        "date TEXT NOT NULL);".format(TABLE_member_warnings)
-    #     cursor.execute(create_statement)
+    else:
+        print("deleting the wrong warning table")
+        cursor.execute("DROP TABLE {}".format(TABLE_member_warnings))
+        create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
+                           "clan TEXT NOT NULL, name TEXT NOT NULL, value DOUBLE NOT NULL," \
+                           "date TEXT NOT NULL, note TEXT);".format(TABLE_member_warnings)
+        cursor.execute(create_statement)
     con.commit()
 
     #populate channel mappings into memory
@@ -186,12 +186,17 @@ def get_warmiss_tochannel(guild_id, channel_id):
     values= channel_mapping_warmiss[key].split("|")
     return int(values[1]), values[2] #1 = to_channel under the same guild, 2 = clan name
 
-def add_warning(guild_id, clan, person, value):
+def add_warning(guild_id, clan, person, point, note=None):
+    if type(note) is tuple:
+        note=' '.join(note)
+    elif note is not None:
+        note=str(note)
+
     con = connect_db(str(guild_id))
     cursor = con.cursor()
-    cursor.execute('INSERT INTO {} (clan, name, value, date) VALUES (?,?,?,?)'.
+    cursor.execute('INSERT INTO {} (clan, name, value, date, note) VALUES (?,?,?,?,?)'.
                    format(TABLE_member_warnings),
-                       [clan, person, value, datetime.datetime.now()])
+                   [clan, person, point, datetime.datetime.now(), note])
     con.commit()
     con.close()
 

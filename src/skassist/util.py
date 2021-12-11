@@ -22,7 +22,7 @@ def normalise_name(text):
     return text.strip().replace(" ","_")
 
 #letter O > number 0
-def normalise_player_tag(tag):
+def normalise_tag(tag):
     return tag.replace("O","0").upper()
 
 def value_found_in_text(text:str, values:list):
@@ -65,3 +65,22 @@ def format_warnings(clan:str, records:list, player=None):
                     inline=False)
 
     return embedVar
+
+def format_credit_systems(res:dict):
+    if len(res)==0:
+        embedVar = discord.Embed(title="Clan(s) is/are not currently registered for the credit system",
+                                 description="")  # , color=0x00ff00
+    else:
+        embedVar = discord.Embed(title="Clans currently registered for the credit system",
+                                 description="")  # , color=0x00ff00
+    for clantag, values in res.items():
+        id="Clan Tag: {}".format(clantag)
+        string=""
+        for k, v in values.items():
+            string+=f" *{k}*={v}\t\t "
+        embedVar.add_field(name=f'**{id}**',
+                    value=string,
+                    inline=False)
+
+    return embedVar
+

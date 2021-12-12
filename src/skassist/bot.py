@@ -21,7 +21,7 @@ from coc import utils
 if len(sys.argv) < 1:
     print("Please provide the file path to your .env file")
     exit(0)
-properties = util.load_properties(sys.argv[1])
+properties = util.load_properties(sys.argv[1]+".env")
 if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys() \
         or 'BOT_PREFIX' not in properties.keys() or 'CoC_API_EMAIL' not in properties.keys() \
         or 'CoC_API_PASS' not in properties.keys():
@@ -63,14 +63,14 @@ async def on_ready():
     for guild in bot.guilds:
         database.guilds[guild.id] = guild.name
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-        database.check_database(guild.id)
+        database.check_database(guild.id,sys.argv[1])
 
 
 @bot.event
 async def on_guild_join(guild):
     log.info('{} has been added to a new server: {}'.format(BOT_NAME, guild.id))
     log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-    database.check_database(guild.id)
+    database.check_database(guild.id, sys.argv[1])
 
 
 #########################################################
@@ -80,76 +80,23 @@ async def on_guild_join(guild):
 async def help(context, command=None):
     if command is None:
         await context.send(
-            f'{BOT_NAME} supports the following commands. Run **{PREFIX}help [command]** for how to use them. Also see '
-            'details at https://github.com/clashzz/sidekickassist:\n'
-            '\t\t - **warmiss**: set up a channel for forwarding missed attacks\n'
-            '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n'
-            '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'
-            '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'
-            '\t\t - **warn**: manage warnings for a clan/player\n'
-            '\t\t - **credit**: manage a clan members\' credits\n')
+            util.prepare_help_menu(BOT_NAME,PREFIX))
     elif command == 'warmiss':
         await context.send(
-            'This command is used to map your sidekick war feed channel to another channel,'
-            ' where missed attacks will be automatically tallied.\n'
-            f'**Usage:** {PREFIX}warmiss [option] #sidekick-war #missed-attacks [clanname]\n'
-            '\t\t - [option]: \n'
-            '\t\t\t\t -l: to list current channel mappings (ignore other parameters when using this option)\n'
-            '\t\t\t\t -a: to add a channel mapping\n'
-            '\t\t\t\t -r: to remove a channel mapping:\n'
-            '\t\t - [clanname] must be a single word\n'
-            'All parameters must be a single word without space characters. The channels must have the # prefix')
+            util.prepare_warmiss_help(PREFIX))
     elif command == 'clandigest':
         await context.send(
-            'This command is used to generate clan digest for the current season using data from the Sidekick clan '
-            'feed channel. \n'
-            f'**Usage**: {PREFIX}clandigest #sidekick-clan-feed-channel #output-target-channel [clanname]\n'
-            '\t\t - [clanname] must be a single word\n\n'
-            f'{BOT_NAME} must have read and write permissions to both channels.')
+            util.prepare_clandigest_help(BOT_NAME,PREFIX))
     elif command == 'wardigest':
         await context.send(
-            'This command is used to generate clan war digest using data from the Sidekick clan war feed channel.\n'
-            f'**Usage**: {PREFIX}wardigest #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy] '
-            '[OPTIONAL:dd/mm/yyyy]\n'
-            '\t\t - [clanname]: must be one word\n'
-            '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '
-            'When the end date is not provided, the present date will be used\n\n'
-            f'{BOT_NAME} must have read and write permissions to both channels.')
+            util.prepare_wardigest_help(BOT_NAME,PREFIX))
     elif command == 'warpersonal':
         await context.send(
-            'This command is used to generate personal war analysis using data from the Sidekick clan war feed '
-            'channel. You must have taken part in the wars to have any data for analysis.\n\n'
-            f'**Usage**: {PREFIX}warpersonal [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy]\n'
-            '\t\t - [player_tag] your player tag (must include #)\n'
-            '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for '
-            'your data. When the end date is not provided, the present date will be used\n'
-            'When the end date is not provided, the present date will be used\n\n'
-            f'{BOT_NAME} must have read and write permissions to both channels.')
+            util.prepare_warpersonal_help(BOT_NAME, PREFIX))
     elif command == 'warn':
-        await context.send(
-            'This command is used to manage warnings of players in a clan.\n'
-            f'**Usage:** {PREFIX}warn [option] [clanname] [playername] [value] [note]\n'
-            '- [option]: \n'
-            '\t\t -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n'
-            '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n'
-            '\t\t -c: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'
-            '\t\t -d: to delete a specific warning record. Supply the warning record ID as a value for [clanname]\n'
-            '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided')
+        await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'credit':
-        default=""
-        for k, v in database.credit_watch_activities.items():
-            default+=k+"="+str(v)+" "
-        await context.send(
-            'This command is used to manage credits of a clan\'s members.\n'
-            f'**Usage:** {PREFIX}credit [option] [clantag or playertag] [*value] [note]\n'
-            '- [option]: \n'
-            '\t\t -l: If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: credit -l *\n'
-            '\t\t -a: to register a clan for credit watch. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '
-            'If none provided, then: '
-            f'*{default.strip()}*. '
-            f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]'
-            '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n')
-
+        await context.send(util.prepare_credit_help(PREFIX, database.credit_watch_clans))
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -593,7 +540,7 @@ async def credit(ctx, option: str, tag: str, *values):
             return
 
         #2YGUPUU82, #2998V8JG0, #2L29RRJU9, #2PYQOV822
-        result=database.registered_clan(ctx.guild.id, tag, clan.name, values)
+        result=database.registered_clan(sys.argv[1],ctx.guild.id, tag, clan.name, values)
         if len(result)!=0:
             await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
                                    format(clan, result))
@@ -609,7 +556,7 @@ async def credit(ctx, option: str, tag: str, *values):
         except coc.NotFound:
             await ctx.send("This clan doesn't exist.")
             return
-        database.remove_registered_clan(ctx.guild.id, tag)
+        database.remove_registered_clan(ctx.guild.id, tag, sys.argv[1])
         coc_client.remove_clan_updates(tag)
         await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
@@ -676,5 +623,66 @@ async def on_message(message):
     elif message.clean_content.strip().startswith(PREFIX):
         await bot.process_commands(message)
 
+
+#############################################
+# CoC api events
+#############################################
+@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
+@coc.ClanEvents.member_donations()
+async def on_clan_member_donation(old_member, new_member):
+    final_donated_troops = new_member.donations - old_member.donations
+    print(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
+
+"""War Events"""
+@coc_client.event
+@coc.WarEvents.state()
+async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
+    if new_war.state=="preparation" or new_war.state=="inWar": #new war started
+        #, conclude credits for the previous war
+        clan_home=old_war.clan
+        log.info(
+            "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
+        if old_war.type!="friendly" and clan_home.tag in database.credit_watch_clans.keys():
+            database.register_war_credits(clan_home.tag, clan_home.name)
+            del database.current_wars[clan_home.tag]
+
+        ##########################
+        # set up for the new war
+        ##########################
+        log.info(
+            "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
+        clan_home=new_war.clan
+        if new_war.type!="friendly" and clan_home.tag in database.credit_watch_clans.keys():
+            total_attacks=2
+            if new_war.type=="cwl":
+                total_attacks=1
+
+            clanwar_participants={}
+            for m in new_war.members:
+                #check if the player clan is in the credit watch
+                if m.clan.tag !=clan_home.tag:
+                    continue
+                clanwar_participants[(util.normalise_tag(m.tag),util.normalise_name(m.name))] = total_attacks
+            database.current_wars[clan_home.tag] = {
+                database.CLAN_NAME:clan_home.name,
+                database.CLAN_WAR_TYPE:new_war.type,
+                database.CLAN_WAR_ATTACKS:total_attacks,
+                database.CLAN_WAR_MEMBERS: clanwar_participants
+            }
+            log.info(
+                "\tClan registered for credit watch: {}".format(database.current_wars[clan_home.tag]))
+
+@coc_client.event
+@coc.WarEvents.war_attack()
+async def current_war_stats(attack, war):
+    attacker = attack.attacker
+    attacker_clan=attacker.clan
+    if attacker_clan.tag in database.credit_watch_clans.keys() and \
+        attacker_clan.tag in database.current_wars.keys():
+        #register an attack
+        clan_war_participants=database.current_wars[attacker_clan.tag]
+        key = (attacker.tag, attacker.name)
+        if key in clan_war_participants[database.CLAN_WAR_MEMBERS].keys():
+            clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
 
 bot.run(TOKEN)

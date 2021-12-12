@@ -4,3 +4,4 @@ env/.env
 src/skassist/db/*
 *.jpg
 *.db
+*.json

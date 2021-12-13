@@ -65,6 +65,11 @@ async def on_ready():
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id,sys.argv[1])
 
+    log.info('The following clans are added for the CoC api:')
+    for clan in database.credit_watch_clans.keys():
+        coc_client.add_clan_updates(clan)
+        log.info('\t{}'.format(clan))
+
 
 @bot.event
 async def on_guild_join(guild):
@@ -635,9 +640,22 @@ async def on_clan_member_donation(old_member, new_member):
 
 """War Events"""
 @coc_client.event
-@coc.WarEvents.state()
+@coc.WarEvents.war_attack()
+async def current_war_stats(attack, war):
+    attacker = attack.attacker
+    attacker_clan=attacker.clan
+    if attacker_clan.tag in database.credit_watch_clans.keys() and \
+        attacker_clan.tag in database.current_wars.keys():
+        #register an attack
+        clan_war_participants=database.current_wars[attacker_clan.tag]
+        key = (attacker.tag, attacker.name)
+        if key in clan_war_participants[database.CLAN_WAR_MEMBERS].keys():
+            clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
+
+@coc_client.event
+@coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    if new_war.state=="preparation" or new_war.state=="inWar": #new war started
+    if old_war.state=="warEnded": #new war started
         #, conclude credits for the previous war
         clan_home=old_war.clan
         log.info(
@@ -649,9 +667,11 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         ##########################
         # set up for the new war
         ##########################
+    if new_war is not None and (new_war.state=="preparation" or new_war.state=="inWar"):
         log.info(
             "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
         clan_home=new_war.clan
+
         if new_war.type!="friendly" and clan_home.tag in database.credit_watch_clans.keys():
             total_attacks=2
             if new_war.type=="cwl":
@@ -671,18 +691,5 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             }
             log.info(
                 "\tClan registered for credit watch: {}".format(database.current_wars[clan_home.tag]))
-
-@coc_client.event
-@coc.WarEvents.war_attack()
-async def current_war_stats(attack, war):
-    attacker = attack.attacker
-    attacker_clan=attacker.clan
-    if attacker_clan.tag in database.credit_watch_clans.keys() and \
-        attacker_clan.tag in database.current_wars.keys():
-        #register an attack
-        clan_war_participants=database.current_wars[attacker_clan.tag]
-        key = (attacker.tag, attacker.name)
-        if key in clan_war_participants[database.CLAN_WAR_MEMBERS].keys():
-            clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
 
 bot.run(TOKEN)

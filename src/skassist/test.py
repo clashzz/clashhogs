@@ -1,13 +1,13 @@
 import logging
 import os
+import sys
 
 import coc
 
 from coc import utils
 
 client = coc.login(
-    "clash_zz_v4@outlook.com",
-    "cla2h_22_vA__##",
+    sys.argv[1], sys.argv[2],
     key_names="coc.py tests",
     client=coc.EventsClient,
 )
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
 
-clan_tags = ["#2YGUPUU82", "#2998V8JG0", "#2L29RRJU9", "#2PYQOV822"] #ds, tb, dse, ds
+clan_tags = [] #ds, tb, dse, ds
 
 
 @client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
@@ -23,25 +23,6 @@ clan_tags = ["#2YGUPUU82", "#2998V8JG0", "#2L29RRJU9", "#2PYQOV822"] #ds, tb, ds
 async def on_clan_member_donation(old_member, new_member):
     final_donated_troops = new_member.donations - old_member.donations
     print(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
-
-
-@client.event
-@coc.ClanEvents.member_received(tags=clan_tags)
-async def on_clan_member_donation_receive(old_member, new_member):
-    final_received_troops = new_member.received - old_member.received
-    print(f"{new_member} of {new_member.clan} just received {final_received_troops} troops.")
-
-
-@client.event
-@coc.ClanEvents.member_join(tags=clan_tags)
-async def on_clan_member_join(member, clan):
-    print(f"{member.name} has joined {clan.name}")
-
-
-@client.event
-@coc.ClanEvents.member_leave(tags=clan_tags)
-async def on_clan_member_leave(member, clan):
-    print(f"{member.name} has left {clan.name}")
 
 """War Events"""
 @client.event
@@ -61,9 +42,32 @@ async def current_war_stats(attack, war):
 
              f"attacked ({attack.defender.map_position}).{attack.defender} of {attack.defender.clan}")
 
-async def add_clan_players():
-    async for clan in client.get_clans(clan_tags):
-        client.add_player_updates(*[member.tag for member in clan.members])
+# @client.event
+# @coc.ClanEvents.member_received(tags=clan_tags)
+# async def on_clan_member_donation_receive(old_member, new_member):
+#     final_received_troops = new_member.received - old_member.received
+#     print(f"{new_member} of {new_member.clan} just received {final_received_troops} troops.")
+#
+#
+# @client.event
+# @coc.ClanEvents.member_join(tags=clan_tags)
+# async def on_clan_member_join(member, clan):
+#     print(f"{member.name} has joined {clan.name}")
+
+#
+# @client.event
+# @coc.ClanEvents.member_leave(tags=clan_tags)
+# async def on_clan_member_leave(member, clan):
+#     print(f"{member.name} has left {clan.name}")
+
+
+
+# async def add_clan_players():
+#     async for clan in client.get_clans(clan_tags):
+#         client.add_player_updates(*[member.tag for member in clan.members])
 
 #client.loop.run_until_complete(add_clan_players())
+for clan in ["#2YGUPUU82","#2L29RRJU9"]:
+    client.add_clan_updates(clan)
+
 client.loop.run_forever()

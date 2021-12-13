@@ -118,7 +118,7 @@ def check_database(guild_id, data_folder):
     # populate credit_watch_points dictionary
     cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
     rows = cursor.fetchall()
-    populate_cr_registered_clans(rows, credit_watch_clans)
+    populate_cr_registered_clans(rows, credit_watch_clans) #todo: add to coc clan to watch
     con.close()
 
 

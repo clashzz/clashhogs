@@ -427,18 +427,20 @@ def register_war_credits(clan_tag:str, clan_name:str):
         con.close()
 
 #todo: this should be done by databases
+#every time a war starts or ends, we must call this method
 def save_mappings_clan_currentwars(folder):
     try:
-        with open(folder+"/current_wars.pk", 'wb') as handle:
+        with open(folder+"current_wars.pk", 'wb') as handle:
             pickle.dump(MEM_mappings_clan_currentwars, handle)
     except:
-        print("Unable to save current war data to file: {}".format(folder+"/current_wars.pk"))
+        print("Unable to save current war data to file: {}".format(folder+"current_wars.pk"))
 
 #todo: this should be done by databases
+#every time the bot starts, we must call this method
 def load_mappings_clan_currentwars(folder):
-    try:
-        with open(folder+"/current_wars.pk", 'r') as handle:
+    #try:
+        with open(folder+"current_wars.pk", 'rb') as handle:
             MEM_mappings_clan_currentwars.update(pickle.load(handle))
-    except:
-        print("Unable to load current war data to file: {}".format(folder+"/current_wars.pk"))
+    # except:
+    #     print("Unable to load current war data to file: {}".format(folder+"current_wars.pk"))
 

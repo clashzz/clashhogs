@@ -1,27 +1,20 @@
-import datetime
-import logging
-import pandas
-import sys
-import time
-import traceback
+import datetime, time, logging, pandas, sys, traceback, discord, coc
 from pathlib import Path
-import discord
 from discord.ext import commands
 from skassist import database, sidekickparser, models, util
-import coc
-from coc import utils
 
 ##########
 # Init   #
 ##########
-
-
 # There must be a .env file within the same folder of this source file, and this needs to have the following two
 # properties
 if len(sys.argv) < 1:
-    print("Please provide the file path to your .env file")
+    print("Please provide the path to the folder containing your .env file")
     exit(0)
-properties = util.load_properties(sys.argv[1]+".env")
+rootfolder=sys.argv[1]
+if not rootfolder.endswith("/"):
+    rootfolder+="/"
+properties = util.load_properties(rootfolder+".env")
 if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys() \
         or 'BOT_PREFIX' not in properties.keys() or 'CoC_API_EMAIL' not in properties.keys() \
         or 'CoC_API_PASS' not in properties.keys():
@@ -31,6 +24,7 @@ if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys
                                                 "CoC_API_EMAIL", "CoC_API_PASS"))
     exit(0)
 
+#CoC.py api client object
 coc_client = coc.login(
     properties["CoC_API_EMAIL"],
     properties["CoC_API_PASS"],
@@ -38,44 +32,46 @@ coc_client = coc.login(
     client=coc.EventsClient,
 )
 
+#Bot information and properties
 TOKEN = properties['DISCORD_TOKEN']
 BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
-
 SIDEKICK_NAME = 'sidekick'
-PERMISSION_WARDIGEST = 'developers'
 PERMISSION_CLANDIGEST = 'developers'
 BOT_WAIT_TIME = 5
 bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
+#logging
 logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s %(levelname)-8s %(message)s',
                     level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(BOT_NAME)
 
-
+##################################################
+# Bot events
+##################################################
 @bot.event
 async def on_ready():
+    database.load_mappings_clan_currentwars(rootfolder)
     log.info(f'{bot.user.name} has connected to Discord! (prefix: {PREFIX})')
     # register each connected guild to the bot database
     log.info('The following guilds are connected with the bot:')
     for guild in bot.guilds:
-        database.guilds[guild.id] = guild.name
+        database.MEM_mappings_guild_id_name[guild.id] = guild.name
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-        database.check_database(guild.id,sys.argv[1])
+        database.check_database(guild.id,rootfolder)
 
-    log.info('The following clans are added for the CoC api:')
-    for clan in database.credit_watch_clans.keys():
-        coc_client.add_clan_updates(clan)
+    log.info('The following clans are registered for clan credit watch:')
+    for clan in database.MEM_mappings_clan_creditwatch.keys():
+        coc_client.add_war_updates(clan)
         log.info('\t{}'.format(clan))
-
 
 @bot.event
 async def on_guild_join(guild):
     log.info('{} has been added to a new server: {}'.format(BOT_NAME, guild.id))
     log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-    database.check_database(guild.id, sys.argv[1])
+    database.check_database(guild.id, rootfolder)
 
 
 #########################################################
@@ -101,7 +97,7 @@ async def help(context, command=None):
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'credit':
-        await context.send(util.prepare_credit_help(PREFIX, database.credit_watch_clans))
+        await context.send(util.prepare_credit_help(PREFIX, database.MEM_mappings_clan_creditwatch))
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -116,7 +112,7 @@ async def warmiss(ctx, option: str, from_channel=None, to_channel=None, clan=Non
     log.info("GUILD={}, {}, ACTION=warmiss, arg={}".format(ctx.guild.id, ctx.guild.name, option))
     # list current mappings
     if option == "-l":
-        mappings = database.get_warmiss_mappings_for_guild_db(ctx.guild.id)
+        mappings = database.get_warmiss_mappings_for_guild(ctx.guild.id)
         msg = "The follow channels are mapped for war missed attacks:\n"
         for m in mappings:
             fc = discord.utils.get(ctx.guild.channels, id=m[0])
@@ -152,16 +148,15 @@ async def warmiss(ctx, option: str, from_channel=None, to_channel=None, clan=Non
         return
 
     # checks complete, all good
-
     if option == "-a":  # adding a mapping
         pair = (from_channel_id, to_channel_id)
-        database.add_channel_mappings_warmiss_db(pair, ctx.guild.id, clan)  # TODO
+        database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)  # TODO
         await ctx.channel.send(
             "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. Please ensure {} has "
             "access to these channels (read and write)".format(clan, from_channel, to_channel, BOT_NAME))
 
     if option == "-r":  # remove a channel
-        database.remove_warmiss_mappings_for_guild_db(ctx.guild.id, from_channel_id)
+        database.remove_warmiss_mappings_for_guild(ctx.guild.id, from_channel_id)
         await ctx.channel.send(
             "Mapping removed")
 
@@ -532,7 +527,7 @@ async def credit(ctx, option: str, tag: str, *values):
 
     # list current registered clans
     if option == "-l":
-        res = database.list_registered_clans(ctx.guild.id,tag)
+        res = database.list_registered_clans_creditwatch(ctx.guild.id, tag)
         await ctx.send(embed=util.format_credit_systems(res))
         return
 
@@ -544,13 +539,12 @@ async def credit(ctx, option: str, tag: str, *values):
             await ctx.send("This clan doesn't exist.")
             return
 
-        #2YGUPUU82, #2998V8JG0, #2L29RRJU9, #2PYQOV822
-        result=database.registered_clan(sys.argv[1],ctx.guild.id, tag, clan.name, values)
+        result=database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, clan.name, values)
         if len(result)!=0:
             await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
                                    format(clan, result))
         else:
-            coc_client.add_clan_updates(tag)
+            coc_client.add_war_updates(tag)
             await ctx.channel.send("The clan {} has been updated for the credit watch system.".format(tag))
         return
 
@@ -561,7 +555,7 @@ async def credit(ctx, option: str, tag: str, *values):
         except coc.NotFound:
             await ctx.send("This clan doesn't exist.")
             return
-        database.remove_registered_clan(ctx.guild.id, tag, sys.argv[1])
+        database.remove_registered_clan_creditwatch(ctx.guild.id, tag, rootfolder)
         coc_client.remove_clan_updates(tag)
         await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
@@ -642,12 +636,14 @@ async def on_clan_member_donation(old_member, new_member):
 @coc_client.event
 @coc.WarEvents.war_attack()
 async def current_war_stats(attack, war):
+    print(f"Attack number {attack.order}\n({attack.attacker.map_position}).{attack.attacker} of {attack.attacker.clan} "
+          f"attacked ({attack.defender.map_position}).{attack.defender} of {attack.defender.clan}")
     attacker = attack.attacker
     attacker_clan=attacker.clan
-    if attacker_clan.tag in database.credit_watch_clans.keys() and \
-        attacker_clan.tag in database.current_wars.keys():
+    if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys() and \
+        attacker_clan.tag in database.MEM_mappings_clan_currentwars.keys():
         #register an attack
-        clan_war_participants=database.current_wars[attacker_clan.tag]
+        clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
         key = (attacker.tag, attacker.name)
         if key in clan_war_participants[database.CLAN_WAR_MEMBERS].keys():
             clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
@@ -655,24 +651,26 @@ async def current_war_stats(attack, war):
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    if old_war.state=="warEnded": #new war started
+    if new_war.state=="warEnded": #new war started
         #, conclude credits for the previous war
         clan_home=old_war.clan
         log.info(
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
-        if old_war.type!="friendly" and clan_home.tag in database.credit_watch_clans.keys():
+        if old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
+                and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():
             database.register_war_credits(clan_home.tag, clan_home.name)
-            del database.current_wars[clan_home.tag]
+            del database.MEM_mappings_clan_currentwars[clan_home.tag]
+            database.save_mappings_clan_currentwars(rootfolder)
 
         ##########################
         # set up for the new war
         ##########################
-    if new_war is not None and (new_war.state=="preparation" or new_war.state=="inWar"):
+    if new_war.state=="preparation" or new_war.state=="inWar":
         log.info(
             "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
         clan_home=new_war.clan
 
-        if new_war.type!="friendly" and clan_home.tag in database.credit_watch_clans.keys():
+        if new_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys():
             total_attacks=2
             if new_war.type=="cwl":
                 total_attacks=1
@@ -683,13 +681,14 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 if m.clan.tag !=clan_home.tag:
                     continue
                 clanwar_participants[(util.normalise_tag(m.tag),util.normalise_name(m.name))] = total_attacks
-            database.current_wars[clan_home.tag] = {
+            database.MEM_mappings_clan_currentwars[clan_home.tag] = {
                 database.CLAN_NAME:clan_home.name,
                 database.CLAN_WAR_TYPE:new_war.type,
                 database.CLAN_WAR_ATTACKS:total_attacks,
                 database.CLAN_WAR_MEMBERS: clanwar_participants
             }
+            database.save_mappings_clan_currentwars(rootfolder)
             log.info(
-                "\tClan registered for credit watch: {}".format(database.current_wars[clan_home.tag]))
+                "\tClan registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
 
 bot.run(TOKEN)

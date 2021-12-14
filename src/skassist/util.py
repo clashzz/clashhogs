@@ -161,3 +161,4 @@ def prepare_credit_help(prefix, default_points:dict):
         f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]' \
         '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n'
     return string
+

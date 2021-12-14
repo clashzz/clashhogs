@@ -4,7 +4,7 @@ Currently everything saved in member.
 
 Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
-import datetime, sqlite3, threading, pickle, json
+import datetime, sqlite3, threading, json, pickle
 from pathlib import Path
 from skassist import models, util
 
@@ -19,46 +19,37 @@ CLAN_WAR_TYPE="type"
 CLAN_WAR_MEMBERS="members"
 CLAN_WAR_ATTACKS="attacks"
 
-guilds = {}
-credit_watch_clans = {}  # key: clan tag; value: {clan name, cw_attack, cw_miss, cwl_attack,cwl_miss}
-clan_guild_mapping={} #key:clan tag; value: discord guild id. Needed by the credit watch system
-# coc api only knows a clan, not guild. But when registering a clan for a guild system, we need to keep separate DB
-# for that guild. So we need a way to find given a clan, its guild.
-credit_watch_activities={"cw_attack":10, "cw_miss":-10, "cwl_attack":10, "cwl_miss":-10}
+CREDIT_WATCH_ACTIVITIES={"cw_attack":10, "cw_miss":-10, "cwl_attack":10, "cwl_miss":-10}
+
+# This is not persisted. It is populated everytime a guild connects to the bot
+MEM_mappings_guild_id_name = {}
+
 # key=guild id|clan name (e.g., 3492301120|myclan
 # value=a list of tuple (x, y) where x is the sidekick channel (name) of war feed, y is the channel (name) to tally
-# missed attacks
-channel_mapping_warmiss = {}
+# missed attacks. This needs to be initialised every time the bot starts, or when a guild connects
+MEM_mappings_guild_warmisschannel = {}
 
-#NB: this object is not persisted so if the bot crashes, data will be lost
-current_wars={} ## key: clan tag; value: {clan_name, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
+# key:clan tag; value: discord guild id. Needed by the credit watch system
+# This needs to be initialised every time the bot starts, or updated when a clan registers for war/credit watch
+MEM_mappings_clan_guild={}
 
+# This needs to be initialised every time the bot starts, or updated when a clan registers for/removed from war/credit watch
+MEM_mappings_clan_creditwatch = {}  # key: clan tag; value: {clan name, cw_attack, cw_miss, cwl_attack,cwl_miss}
+
+# NB: this object is not persisted so if the bot crashes, data will be lost
+# This is updated every time an attack is made from a clan registered for war/credit watch
+## key: clan tag; value: {clan_name, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
+## if the key is found in this mapping, it should also be present in the MEM_mappings_clan_creditwatch mapping
+MEM_mappings_clan_currentwars={}
 
 def connect_db(dbname):
-
     targetfolder = "db/"
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(targetfolder + str(dbname) + '.db')
     return con
 
-
-def update_channel_mapping_warmiss(guild_id, from_id, to_id, clan):
-    lock = threading.Lock()
-    lock.acquire()
-    key = str(guild_id) + "|" + str(from_id)
-    channel_mapping_warmiss[key] = str(guild_id) + "|" + str(to_id) + "|" + str(clan)
-    lock.release()
-
-
+#check, initialise, and populate the database for a discord guild
 def check_database(guild_id, data_folder):
-    if len(clan_guild_mapping)==0:
-        file=data_folder+"/clan2guild.json"
-        try:
-            with open(file) as json_file:
-                clan_guild_mapping.update(json.load(json_file))
-        except:
-            print("Unable to load the clan-guild mapping. Reset to empty. File does not exist: {}".format(file))
-
     con = connect_db(guild_id)
     cursor = con.cursor()
 
@@ -109,20 +100,37 @@ def check_database(guild_id, data_folder):
 
     con.commit()
 
-    # populate channel mappings into memory
+    # Populate MEM_mappings_clan_guild
+    # todo: replace file system with database
+    if len(MEM_mappings_clan_guild) == 0:
+        file = data_folder + "/clan2guild.json"
+        try:
+            with open(file) as json_file:
+                MEM_mappings_clan_guild.update(json.load(json_file))
+        except:
+            print("Unable to load the clan-guild mapping. Reset to empty. File does not exist: {}".format(file))
+
+    # populate MEM_mappings_guild_warmisschannel
     cursor.execute("SELECT * FROM {};".format(TABLE_channel_mapping_warmiss))
     rows = cursor.fetchall()
     for row in rows:
-        update_channel_mapping_warmiss(guild_id, row[0], row[1], row[2])
+        update_mappings_guild_warmisschannel(guild_id, row[0], row[1], row[2])
 
-    # populate credit_watch_points dictionary
+    # populate MEM_mappings_clan_creditwatch
     cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
     rows = cursor.fetchall()
-    populate_cr_registered_clans(rows, credit_watch_clans) #todo: add to coc clan to watch
+    update_mappings_clan_creditwatch(rows, MEM_mappings_clan_creditwatch)
     con.close()
 
 
-def add_channel_mappings_warmiss_db(pair: tuple, guild_id, clan):
+def update_mappings_guild_warmisschannel(guild_id, from_id, to_id, clan):
+    lock = threading.Lock()
+    lock.acquire()
+    key = str(guild_id) + "|" + str(from_id)
+    MEM_mappings_guild_warmisschannel[key] = str(guild_id) + "|" + str(to_id) + "|" + str(clan)
+    lock.release()
+
+def add_channel_mappings_warmiss(pair: tuple, guild_id, clan):
     con = connect_db(guild_id)
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {} WHERE (from_id=?);'.format(TABLE_channel_mapping_warmiss), [pair[0]])
@@ -137,10 +145,9 @@ def add_channel_mappings_warmiss_db(pair: tuple, guild_id, clan):
 
     con.commit()
     con.close()
-    update_channel_mapping_warmiss(guild_id, pair[0], pair[1], clan)
+    update_mappings_guild_warmisschannel(guild_id, pair[0], pair[1], clan)
 
-
-def get_warmiss_mappings_for_guild_db(guild_id):
+def get_warmiss_mappings_for_guild(guild_id):
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {};'.format(TABLE_channel_mapping_warmiss))
@@ -154,18 +161,16 @@ def get_warmiss_mappings_for_guild_db(guild_id):
     con.close()
     return res
 
-
-def remove_warmiss_mappings_for_guild_db(guild_id, from_channel_id):
+def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
     key = str(guild_id) + "|" + str(from_channel_id)
-    if key in channel_mapping_warmiss.keys():
-        del channel_mapping_warmiss[key]
+    if key in MEM_mappings_guild_warmisschannel.keys():
+        del MEM_mappings_guild_warmisschannel[key]
 
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('DELETE FROM {} WHERE from_id=?;'.format(TABLE_channel_mapping_warmiss), [from_channel_id])
     con.commit()
     con.close()
-
 
 def save_individual_war_data(guild_id, clanwardata: models.ClanWarData):
     con = connect_db(str(guild_id))
@@ -192,7 +197,6 @@ def save_individual_war_data(guild_id, clanwardata: models.ClanWarData):
     con.commit()
     con.close()
 
-
 def load_individual_war_data(guild_id, player_tag, from_date, to_date):
     lock = threading.Lock()
     lock.acquire()
@@ -217,20 +221,13 @@ def load_individual_war_data(guild_id, player_tag, from_date, to_date):
     lock.release()
     return res
 
-
-# def add_channel_mappings_warmiss(pair:tuple, guild_id, clan):
-#     key  = str(guild_id)+"|"+str(pair[0])
-#     channel_mapping_warmiss[key] = str(guild_id) + "|" + str(pair[1]) + "|"+str(clan)
-
-
 def has_warmiss_fromchannel(guild_id, channel_id):
     key = str(guild_id) + "|" + str(channel_id)
-    return key in channel_mapping_warmiss.keys()
-
+    return key in MEM_mappings_guild_warmisschannel.keys()
 
 def get_warmiss_tochannel(guild_id, channel_id):
     key = str(guild_id) + "|" + str(channel_id)
-    values = channel_mapping_warmiss[key].split("|")
+    values = MEM_mappings_guild_warmisschannel[key].split("|")
     return int(values[1]), values[2]  # 1 = to_channel under the same guild, 2 = clan name
 
 
@@ -289,7 +286,7 @@ def delete_warning(guild_id, warning_id):
 returned format
  # key: clan tag; value: {clan name, cw_attack, cw_miss, cwl_attack,cwl_miss}
 '''
-def populate_cr_registered_clans(database_search_res, res: dict):
+def update_mappings_clan_creditwatch(database_search_res, res: dict):
     for row in database_search_res:
         clantag = row[3]
         clanname = row[2]
@@ -303,26 +300,28 @@ def populate_cr_registered_clans(database_search_res, res: dict):
             res[clantag] = values
     return res
 
-def list_registered_clans(guild_id, clantag="*"):
+def list_registered_clans_creditwatch(guild_id, clantag="*"):
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     res={}
     if clantag =="*":
         cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
         rows = cursor.fetchall()
-        populate_cr_registered_clans(rows, res)
+        update_mappings_clan_creditwatch(rows, res)
     else:
         cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) ;'.format(TABLE_credits_watch_clans), [clantag])
         rows = cursor.fetchall()
-        populate_cr_registered_clans(rows, res)
+        update_mappings_clan_creditwatch(rows, res)
 
     con.close()
     return res
 
-def registered_clan(data_folder, guild_id, clantag, clanname, *values):
-    clan_guild_mapping[clantag]=guild_id
+#add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.add_war_updates outside this method
+def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *values):
+    #todo: clan and guild mapping needs to be updated and persisted
+    MEM_mappings_clan_guild[clantag]=guild_id
     with open(data_folder+'/clan2guild.json', 'w') as fp:
-        json.dump(clan_guild_mapping, fp)
+        json.dump(MEM_mappings_clan_guild, fp)
 
     con = connect_db(str(guild_id))
     cursor = con.cursor()
@@ -330,18 +329,18 @@ def registered_clan(data_folder, guild_id, clantag, clanname, *values):
     invalid_activity_types=""
 
     if len(values[0])<1:
-        for k, v in credit_watch_activities.items():
+        for k, v in CREDIT_WATCH_ACTIVITIES.items():
             cursor.execute('INSERT INTO {} (clan_tag, clan_name, credit_type, points) VALUES (?,?,?,?)'.
                            format(TABLE_credits_watch_clans),
                            [clantag, clanname, k, v])
     else:
-        credit_watch_activities_copy = credit_watch_activities.copy()
+        credit_watch_activities_copy = CREDIT_WATCH_ACTIVITIES.copy()
         for v in values[0]:
             if '=' not in v:
                 invalid_activity_types+="\n\t"+str(v)
                 continue
             parts=v.split("=")
-            if parts[0].strip() not in credit_watch_activities.keys():
+            if parts[0].strip() not in CREDIT_WATCH_ACTIVITIES.keys():
                 invalid_activity_types+="\n\t"+str(v)
                 continue
             try:
@@ -358,20 +357,21 @@ def registered_clan(data_folder, guild_id, clantag, clanname, *values):
                            [clantag, clanname, k, v])
     con.commit()
 
-    # re-populate credit_watch_points dictionary
+    # re-populate credit_watch_points
     if len(invalid_activity_types)==0:
         cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
         rows = cursor.fetchall()
-        populate_cr_registered_clans(rows, credit_watch_clans)
+        update_mappings_clan_creditwatch(rows, MEM_mappings_clan_creditwatch)
 
     con.close()
     return invalid_activity_types
 
-def remove_registered_clan(guild_id, clantag, data_folder):
-    del credit_watch_clans[clantag]
-    del clan_guild_mapping[clantag]
+#add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.remove_clan_updates outside this method
+def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
+    del MEM_mappings_clan_creditwatch[clantag]
+    del MEM_mappings_clan_guild[clantag]
     with open(data_folder+'/clan2guild.json', 'w') as fp:
-        json.dump(clan_guild_mapping, fp)
+        json.dump(MEM_mappings_clan_guild, fp)
 
     con = connect_db(str(guild_id))
     cursor = con.cursor()
@@ -387,16 +387,16 @@ def remove_registered_clan(guild_id, clantag, data_folder):
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
 def register_war_credits(clan_tag:str, clan_name:str):
-    if clan_tag in current_wars.keys() and clan_tag in clan_guild_mapping.keys():
+    if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
         time = str(datetime.datetime.now())
-        guild=clan_guild_mapping[clan_tag]
+        guild=MEM_mappings_clan_guild[clan_tag]
         con = connect_db(str(guild))
         cursor = con.cursor()
 
-        clan_war_participants = current_wars[clan_tag]
+        clan_war_participants = MEM_mappings_clan_currentwars[clan_tag]
         total_attacks=clan_war_participants[CLAN_WAR_ATTACKS]
         type = clan_war_participants[CLAN_WAR_TYPE]
-        points = list_registered_clans(clan_guild_mapping[clan_tag], clan_tag)
+        points = list_registered_clans_creditwatch(MEM_mappings_clan_guild[clan_tag], clan_tag)
         if type=="cwl":
             atk = points["cwl_attack"]
             miss = points["cwl_miss"]
@@ -426,16 +426,19 @@ def register_war_credits(clan_tag:str, clan_name:str):
 
         con.close()
 
-# record a war attack as it happens
-def record_attack():
-    pass
+#todo: this should be done by databases
+def save_mappings_clan_currentwars(folder):
+    try:
+        with open(folder+"/current_wars.pk", 'wb') as handle:
+            pickle.dump(MEM_mappings_clan_currentwars, handle)
+    except:
+        print("Unable to save current war data to file: {}".format(folder+"/current_wars.pk"))
 
-# guild_id=58686983354
-# check_database(guild_id)
-#
-# from_channel=5475688
-# to_channel=6869865
-# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-# add_channel_mappings_warmiss_db((from_channel,to_channel), guild_id, "DS")
-# print("done")
+#todo: this should be done by databases
+def load_mappings_clan_currentwars(folder):
+    try:
+        with open(folder+"/current_wars.pk", 'r') as handle:
+            MEM_mappings_clan_currentwars.update(pickle.load(handle))
+    except:
+        print("Unable to load current war data to file: {}".format(folder+"/current_wars.pk"))
+

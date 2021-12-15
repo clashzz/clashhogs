@@ -1,4 +1,4 @@
-import datetime, time, logging, pandas, sys, traceback, discord, coc
+import datetime, time, logging, pandas, sys, traceback, discord, coc, threading
 from pathlib import Path
 from discord.ext import commands
 from skassist import database, sidekickparser, models, util
@@ -66,6 +66,9 @@ async def on_ready():
     for clan in database.MEM_mappings_clan_creditwatch.keys():
         coc_client.add_war_updates(clan)
         log.info('\t{}'.format(clan))
+    log.info('The following wars are currently ongoing and monitored:')
+    for k, v in database.MEM_mappings_clan_currentwars.items():
+        log.info('\t{},\n\t\t{}'.format(k, v))
 
 @bot.event
 async def on_guild_join(guild):
@@ -636,6 +639,9 @@ async def on_clan_member_donation(old_member, new_member):
 @coc_client.event
 @coc.WarEvents.war_attack()
 async def current_war_stats(attack, war):
+    lock = threading.Lock()
+    lock.acquire()
+
     print(f"Attack number {attack.order}\n({attack.attacker.map_position}).{attack.attacker} of {attack.attacker.clan} "
           f"attacked ({attack.defender.map_position}).{attack.defender} of {attack.defender.clan}")
     attacker = attack.attacker
@@ -644,9 +650,11 @@ async def current_war_stats(attack, war):
         attacker_clan.tag in database.MEM_mappings_clan_currentwars.keys():
         #register an attack
         clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
-        key = (attacker.tag, attacker.name)
-        if key in clan_war_participants[database.CLAN_WAR_MEMBERS].keys():
+        key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
+        if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
             clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
+            database.save_mappings_clan_currentwars(rootfolder)
+    lock.release()
 
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
@@ -658,9 +666,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
         if old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():
-            database.register_war_credits(clan_home.tag, clan_home.name)
-            del database.MEM_mappings_clan_currentwars[clan_home.tag]
-            database.save_mappings_clan_currentwars(rootfolder)
+            database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
 
         ##########################
         # set up for the new war

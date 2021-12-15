@@ -386,7 +386,7 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
                            "player_clantag TEXT NOT NULL, player_clanname TEXT NOT NULL, " \
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
-def register_war_credits(clan_tag:str, clan_name:str):
+def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str):
     if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
         time = str(datetime.datetime.now())
         guild=MEM_mappings_clan_guild[clan_tag]
@@ -425,6 +425,9 @@ def register_war_credits(clan_tag:str, clan_name:str):
         #access database...
 
         con.close()
+
+        del MEM_mappings_clan_currentwars[clan_tag]
+        save_mappings_clan_currentwars(rootfolder)
 
 #todo: this should be done by databases
 #every time a war starts or ends, we must call this method

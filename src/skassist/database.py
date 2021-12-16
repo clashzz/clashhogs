@@ -4,6 +4,7 @@ Currently everything saved in member.
 
 Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
+from datetime import datetime
 import datetime, sqlite3, threading, json, pickle
 from pathlib import Path
 from skassist import models, util
@@ -318,6 +319,8 @@ def list_registered_clans_creditwatch(guild_id, clantag="*"):
 
 #add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.add_war_updates outside this method
 def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *values):
+    remove_registered_clan_creditwatch(guild_id, clantag,data_folder)
+
     #todo: clan and guild mapping needs to be updated and persisted
     MEM_mappings_clan_guild[clantag]=guild_id
     with open(data_folder+'/clan2guild.json', 'w') as fp:
@@ -387,6 +390,13 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
 def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str):
+    #temporary code for debugging
+    with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
+        pickle.dump(MEM_mappings_clan_currentwars, handle)
+    with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
+        pickle.dump(MEM_mappings_clan_guild, handle)
+    #
+
     if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
         time = str(datetime.datetime.now())
         guild=MEM_mappings_clan_guild[clan_tag]
@@ -423,7 +433,7 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str):
                                [mtag, mname, clan_tag, clan_name, used * int(miss), time,
                                 "Missing {} attacks in {}".format(remaining, war)])
         #access database...
-
+        con.commit()
         con.close()
 
         del MEM_mappings_clan_currentwars[clan_tag]
@@ -441,9 +451,56 @@ def save_mappings_clan_currentwars(folder):
 #todo: this should be done by databases
 #every time the bot starts, we must call this method
 def load_mappings_clan_currentwars(folder):
-    #try:
+    try:
         with open(folder+"current_wars.pk", 'rb') as handle:
             MEM_mappings_clan_currentwars.update(pickle.load(handle))
-    # except:
-    #     print("Unable to load current war data to file: {}".format(folder+"current_wars.pk"))
+    except:
+        print("Unable to load current war data to file: {}".format(folder+"current_wars.pk"))
 
+
+#player_tag, player_name, player_clantag, player_clanname, credits, time, reason
+def list_playercredits(guild_id, playertag:str):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {} WHERE (player_tag=?);'.format(TABLE_credits_watch_players), [playertag])
+    #cursor.execute('SELECT * FROM {} ;'.format(TABLE_credits_watch_players))
+
+    rows = cursor.fetchall()
+
+    records=[]
+    clantag=""
+    clanname=""
+    playername=""
+    for r in rows:
+        clantag=r[3]
+        clanname = r[4]
+        playername = r[2]
+
+        time=datetime.fromisoformat(r[6]).strftime("%Y-%m-%d %H:%M")
+        records.append({"credits":r[5], "time":time, "reason":r[7]})
+
+    con.close()
+    return clantag, clanname, playername, records
+
+
+#player_tag, player_name, player_clantag, player_clanname, credits, time, reason
+def sum_clan_playercredits(guild_id, clantag:str):
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {} WHERE (player_clantag=?) ;'.format(TABLE_credits_watch_players), [clantag])
+    #cursor.execute('SELECT * FROM {} ;'.format(TABLE_credits_watch_players))
+
+    rows = cursor.fetchall()
+    clanname=""
+    player_credits={}
+    player_name={}
+    for r in rows:
+        clanname=r[4]
+        if r[1] in player_credits.keys():
+            player_credits[r[1]]=player_credits[r[1]]+float(r[5])
+        else:
+            player_credits[r[1]] = float(r[5])
+            player_name[r[1]]=r[2]
+
+    con.close()
+    return clanname, player_credits, player_name

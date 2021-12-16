@@ -1,3 +1,4 @@
+import asyncio
 import datetime, time, logging, pandas, sys, traceback, discord, coc, threading
 from pathlib import Path
 from discord.ext import commands
@@ -99,8 +100,10 @@ async def help(context, command=None):
             util.prepare_warpersonal_help(BOT_NAME, PREFIX))
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
-    elif command == 'credit':
-        await context.send(util.prepare_credit_help(PREFIX, database.MEM_mappings_clan_creditwatch))
+    elif command == 'crclan':
+        await context.send(util.prepare_crclan_help(PREFIX, database.MEM_mappings_clan_creditwatch))
+    elif command == 'crplayer':
+        await context.send(util.prepare_crplayer_help(PREFIX))
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -521,12 +524,12 @@ async def warn_error(ctx, error):
 #########################################################
 # This method is used to set up clan credit watch system
 #########################################################
-@bot.command(name='credit')
+@bot.command(name='crclan')
 @commands.has_permissions(manage_guild=True)
-async def credit(ctx, option: str, tag: str, *values):
+async def crclan(ctx, option: str, tag: str, *values):
     tag=util.normalise_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=credit, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+    log.info("GUILD={}, {}, ACTION=crclan, arg={}".format(ctx.guild.id, ctx.guild.name, option))
 
     # list current registered clans
     if option == "-l":
@@ -542,7 +545,7 @@ async def credit(ctx, option: str, tag: str, *values):
             await ctx.send("This clan doesn't exist.")
             return
 
-        result=database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, clan.name, values)
+        result=database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, util.normalise_name(clan.name), values)
         if len(result)!=0:
             await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
                                    format(clan, result))
@@ -563,13 +566,89 @@ async def credit(ctx, option: str, tag: str, *values):
         await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
 
-@credit.error
-async def credit_error(ctx, error):
+@crclan.error
+async def crclan_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'credit' requires arguments. Run '{PREFIX}help credit' for details")
+        await ctx.channel.send(f"'crclan' requires arguments. Run '{PREFIX}help crclan' for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "Users of 'credit' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "Users of 'crclan' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
+#########################################################
+# This method is used to track player credits
+#########################################################
+@bot.command(name='crplayer')
+@commands.has_permissions(manage_guild=True)
+async def crplayer(ctx, option: str, tag: str, value=None, *note):
+    tag=util.normalise_tag(tag)
+
+    log.info("GUILD={}, {}, ACTION=crplayer, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+
+    # list credits of a clan's member
+    if option == "-lc":
+        clanname, playercredits, playername = database.sum_clan_playercredits(ctx.guild.id, tag)
+        await ctx.send(embed=util.format_playercredits(tag, clanname, playercredits, playername))
+        return
+
+    # list credits of a clan's member
+    if option == "-lp":
+        clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
+        await ctx.send(embed=util.format_playercreditrecords(tag, clantag, clanname, playername, records))
+        return
+
+    # manually add credits to a player
+    if option == "-a":
+        try:
+            player = await coc_client.get_player(tag)
+        except coc.NotFound:
+            await ctx.send("This player doesn't exist.")
+            return
+
+        if value is None:
+            await ctx.channel.send(
+                f"To manually add credits to a player, you must provide the value. Run '{PREFIX}help warn' for details")
+            return
+        try:
+            value = float(value)
+        except:
+            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
+            return
+
+        #todo: add to database
+        await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
+        return
+
+    # clear all records of a clan
+    if option == "-d":
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel and \
+                   msg.content in ["YES", "NO"]
+
+        await ctx.channel.send("This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
+        msg="NO"
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
+        except asyncio.TimeoutError:
+            await ctx.send("Sorry, you didn't reply in time!")
+
+        if msg.clean_content=="YES":
+            await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
+            #todo: delete from database
+        else:
+            await ctx.channel.send("Action cancelled.".format(tag))
+        return
+
+@crplayer.error
+async def crplayer_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'crplayer' requires arguments. Run '{PREFIX}help crplayer' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'crplayer' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

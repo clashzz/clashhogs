@@ -1,4 +1,4 @@
-import discord
+import discord, operator
 from datetime import datetime
 
 MONTHS_MAPPINGS={
@@ -84,6 +84,43 @@ def format_credit_systems(res:dict):
 
     return embedVar
 
+def format_playercredits(tag, clanname, playercredits, playernames):
+    if len(playercredits)==0:
+        embedVar = discord.Embed(title="Clan {}, {} currently does not have any player credits recorded.".format(tag, clanname),
+                                 description="Credit records are automatically added at war end, maybe try again later.")  # , color=0x00ff00
+    else:
+        embedVar = discord.Embed(title="Clan {}, {}".format(tag, clanname),
+                                 description="")  # , color=0x00ff00
+    playercredits_sorted = sorted(playercredits.items(), key=operator.itemgetter(1), reverse=True)
+    for pt, cr in playercredits_sorted.items():
+        pn = playernames[pt]
+        id="Player: {}, {}".format(pt, pn)
+        embedVar.add_field(name=f'**{id}**',
+                    value=str(cr),
+                    inline=False)
+
+    return embedVar
+
+def format_playercreditrecords(playertag, clantag, clanname, playername, creditrecords):
+    if len(creditrecords)==0:
+        embedVar = discord.Embed(title="Player {}, {} from {} currently does not have any credits recorded.".format(playertag, playername,clanname),
+                                 description="Credit records are automatically added at war end, maybe try again later.")  # , color=0x00ff00
+    else:
+        total=0
+        for rec in creditrecords:
+            total+=float(rec['credits'])
+        embedVar = discord.Embed(title="Player {}, {} from {}, {}".format(playertag, playername, clanname, clantag),
+                                 description="Total credits={}".format(total))  # , color=0x00ff00
+    #"credits":r[5], "time":time, "reason":r[7]
+    for rec in creditrecords:
+        id = "Time: {}".format(rec["time"])
+        string = f"> *credits={rec['credits']}*\t\t >*reason={rec['credits']}*"
+        embedVar.add_field(name=f'**{id}**',
+                    value=str(string),
+                    inline=False)
+
+    return embedVar
+
 def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands. Run **{prefix}help [command]** for how to use them. Also see ' \
     'details at https://github.com/clashzz/sidekickassist:\n' \
@@ -92,7 +129,8 @@ def prepare_help_menu(botname, prefix):
     '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'    \
     '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'   \
     '\t\t - **warn**: manage warnings for a clan/player\n'  \
-    '\t\t - **credit**: manage a clan members\' credits\n'
+    '\t\t - **crclan**: set up the credit watch system for a clan\n' \
+    '\t\t - **crplayer**: manage the credits of a specific player'
     return string
 
 def prepare_warmiss_help(prefix):
@@ -147,12 +185,12 @@ def prepare_warn_help(prefix):
     '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided'
     return string
 
-def prepare_credit_help(prefix, default_points:dict):
+def prepare_crclan_help(prefix, default_points:dict):
     default = ""
     for k, v in default_points.items():
         default += k + "=" + str(v) + " "
-    string='This command is used to manage credits of a clan\'s members.\n' \
-        f'**Usage:** {prefix}credit [option] [clantag or playertag] [*value] [note]\n'  \
+    string='This command is used to set up credit watch for a clan.\n' \
+        f'**Usage:** {prefix}crclan [option] [clantag] [*value] [note]\n'  \
         '- [option]: \n'    \
         '\t\t -l: If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: credit -l *\n'  \
         '\t\t -a: to register a clan for credit watch. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
@@ -162,3 +200,12 @@ def prepare_credit_help(prefix, default_points:dict):
         '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n'
     return string
 
+def prepare_crplayer_help(prefix):
+    string='This command is used to manage credits for a player.\n' \
+        f'**Usage:** {prefix}crplayer [option] [tag] [value] [note]\n'  \
+        '- [option]: \n'    \
+        '\t\t -lc: List all players\'s total credits in a clan, specified by the [tag] (must be a clan tag)\n' \
+           '\t\t -lp: List a specific player\'s credit records in a clan, specified by the [tag] (must be a player tag)\n' \
+           '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) \n' \
+           '\t\t -d: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
+    return string

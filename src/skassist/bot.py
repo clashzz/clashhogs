@@ -69,7 +69,7 @@ async def on_ready():
         log.info('\t{}'.format(clan))
     log.info('The following wars are currently ongoing and monitored:')
     for k, v in database.MEM_mappings_clan_currentwars.items():
-        log.info('\t{},\n\t\t{}'.format(k, v))
+        log.info('\t{},\t\t{}'.format(k, v))
 
 @bot.event
 async def on_guild_join(guild):
@@ -566,6 +566,27 @@ async def crclan(ctx, option: str, tag: str, *values):
         await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
 
+    # clear all records of a clan
+    if option == "-c":
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel and \
+                    msg.content in ["YES", "NO"]
+
+        await ctx.channel.send(
+                "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
+        msg = "NO"
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
+        except asyncio.TimeoutError:
+            await ctx.send("Sorry, you didn't reply in time!")
+
+        if msg.clean_content == "YES":
+            database.clear_credits_for_clan(ctx.guild.id, tag)
+            await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
+        else:
+            await ctx.channel.send("Action cancelled.".format(tag))
+        return
+
 @crclan.error
 async def crclan_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -615,31 +636,11 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
         try:
             value = float(value)
         except:
-            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
+            await ctx.channel.send("The value you entered does not look like a number, try agian.")
             return
 
-        #todo: add to database
+        database.add_player_credits(ctx.guild.id, tag, player.name, player.clan.tag, player.clan.name,value, note)
         await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
-        return
-
-    # clear all records of a clan
-    if option == "-d":
-        def check(msg):
-            return msg.author == ctx.author and msg.channel == ctx.channel and \
-                   msg.content in ["YES", "NO"]
-
-        await ctx.channel.send("This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
-        msg="NO"
-        try:
-            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
-        except asyncio.TimeoutError:
-            await ctx.send("Sorry, you didn't reply in time!")
-
-        if msg.clean_content=="YES":
-            await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
-            #todo: delete from database
-        else:
-            await ctx.channel.send("Action cancelled.".format(tag))
         return
 
 @crplayer.error
@@ -693,10 +694,10 @@ async def on_message(message):
                             message += "\t" + str(k) + "\t" + str(v) + "\n"
                     await to_channel.send(message)
             else:
-                log.info(
-                    "GUILD={},{}, captured Sidekick message from warfeed channel, does not contain war end...".format(
-                        message.guild.id,
-                        message.guild.name))
+                #log.info(
+                #    "GUILD={},{}, captured Sidekick message from warfeed channel, does not contain war end...".format(
+                #        message.guild.id,
+                #        message.guild.name))
                 return
         except:
             error = ''.join(traceback.format_stack())
@@ -708,12 +709,6 @@ async def on_message(message):
 #############################################
 # CoC api events
 #############################################
-@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
-@coc.ClanEvents.member_donations()
-async def on_clan_member_donation(old_member, new_member):
-    final_donated_troops = new_member.donations - old_member.donations
-    print(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
-
 """War Events"""
 @coc_client.event
 @coc.WarEvents.war_attack()
@@ -721,13 +716,14 @@ async def current_war_stats(attack, war):
     lock = threading.Lock()
     lock.acquire()
 
-    print(f"Attack number {attack.order}\n({attack.attacker.map_position}).{attack.attacker} of {attack.attacker.clan} "
-          f"attacked ({attack.defender.map_position}).{attack.defender} of {attack.defender.clan}")
     attacker = attack.attacker
     attacker_clan=attacker.clan
     if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys() and \
         attacker_clan.tag in database.MEM_mappings_clan_currentwars.keys():
         #register an attack
+        log.info(
+            f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan} ")
+
         clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
         key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
         if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
@@ -741,7 +737,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     if new_war.state=="warEnded": #new war started
         #, conclude credits for the previous war
         clan_home=old_war.clan
-        log.info(
+        print(
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
         if old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():

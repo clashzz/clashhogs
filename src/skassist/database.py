@@ -504,3 +504,29 @@ def sum_clan_playercredits(guild_id, clantag:str):
 
     con.close()
     return clanname, player_credits, player_name
+
+#player_tag, player_name, player_clantag, player_clanname, credits, time, reason
+def add_player_credits(guild_id, player_tag, player_name, player_clantag, player_clanname, credits, note=None):
+    if type(note) is tuple:
+        note = ' '.join(note)
+    elif note is not None:
+        note = str(note)
+
+    time = str(datetime.datetime.now())
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
+                   'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
+                   format(TABLE_credits_watch_players),
+                   [player_tag, player_name, player_clantag, player_clanname, credits, time,
+                    note])
+    con.commit()
+    con.close()
+
+def clear_credits_for_clan(guidid, clan_tag):
+    con = connect_db(str(guidid))
+    cursor = con.cursor()
+    cursor.execute('DELETE FROM {} WHERE player_clantag=?'.format(TABLE_credits_watch_players),
+                   [clan_tag])
+    con.commit()
+    con.close()

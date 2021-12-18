@@ -91,7 +91,8 @@ def format_playercredits(tag, clanname, playercredits, playernames):
     else:
         embedVar = discord.Embed(title="Clan {}, {}".format(tag, clanname),
                                  description="")  # , color=0x00ff00
-    playercredits_sorted = sorted(playercredits.items(), key=operator.itemgetter(1), reverse=True)
+    playercredits_sorted = dict( sorted(playercredits.items(), key=operator.itemgetter(1),reverse=True))
+
     for pt, cr in playercredits_sorted.items():
         pn = playernames[pt]
         id="Player: {}, {}".format(pt, pn)

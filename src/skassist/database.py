@@ -371,8 +371,10 @@ def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *value
 
 #add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.remove_clan_updates outside this method
 def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
-    del MEM_mappings_clan_creditwatch[clantag]
-    del MEM_mappings_clan_guild[clantag]
+    if clantag in MEM_mappings_clan_creditwatch.keys():
+        del MEM_mappings_clan_creditwatch[clantag]
+    if clantag in MEM_mappings_clan_guild.keys():
+        del MEM_mappings_clan_guild[clantag]
     with open(data_folder+'/clan2guild.json', 'w') as fp:
         json.dump(MEM_mappings_clan_guild, fp)
 
@@ -476,7 +478,7 @@ def list_playercredits(guild_id, playertag:str):
         clanname = r[4]
         playername = r[2]
 
-        time=datetime.fromisoformat(r[6]).strftime("%Y-%m-%d %H:%M")
+        time=datetime.datetime.fromisoformat(r[6]).strftime("%Y-%m-%d %H:%M")
         records.append({"credits":r[5], "time":time, "reason":r[7]})
 
     con.close()

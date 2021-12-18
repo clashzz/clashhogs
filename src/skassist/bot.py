@@ -743,9 +743,9 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():
             database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
 
-        ##########################
-        # set up for the new war
-        ##########################
+    ##########################
+    # set up for the new war
+    ##########################
     if new_war.state=="preparation" or new_war.state=="inWar":
         log.info(
             "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
@@ -763,7 +763,6 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                     continue
                 clanwar_participants[(util.normalise_tag(m.tag),util.normalise_name(m.name))] = total_attacks
             database.MEM_mappings_clan_currentwars[clan_home.tag] = {
-                database.CLAN_NAME:clan_home.name,
                 database.CLAN_WAR_TYPE:new_war.type,
                 database.CLAN_WAR_ATTACKS:total_attacks,
                 database.CLAN_WAR_MEMBERS: clanwar_participants

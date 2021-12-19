@@ -586,6 +586,14 @@ async def crclan(ctx, option: str, tag: str, *values):
         else:
             await ctx.channel.send("Action cancelled.".format(tag))
         return
+    # temporary debugging
+    if option == "-debug":
+        try:
+            clan = await coc_client.get_clan(tag)
+            database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
+        except coc.NotFound:
+            return
+
 
 @crclan.error
 async def crclan_error(ctx, error):
@@ -737,11 +745,13 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     if new_war.state=="warEnded": #new war started
         #, conclude credits for the previous war
         clan_home=old_war.clan
-        print(
+        log.info(
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
         if old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():
             database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
+            log.info(
+                "\tCredits registered for: {}".format(old_war.clan))
 
     ##########################
     # set up for the new war

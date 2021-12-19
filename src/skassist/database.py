@@ -391,7 +391,7 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
                            "player_clantag TEXT NOT NULL, player_clanname TEXT NOT NULL, " \
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
-def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str):
+def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cache=True):
     #temporary code for debugging
     with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
         pickle.dump(MEM_mappings_clan_currentwars, handle)
@@ -409,36 +409,39 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str):
         total_attacks=clan_war_participants[CLAN_WAR_ATTACKS]
         type = clan_war_participants[CLAN_WAR_TYPE]
         points = list_registered_clans_creditwatch(MEM_mappings_clan_guild[clan_tag], clan_tag)
-        if type=="cwl":
-            atk = points["cwl_attack"]
-            miss = points["cwl_miss"]
-            war="cwl"
-        else:
-            atk = points["cw_attack"]
-            miss = points["cw_miss"]
-            war="regular war"
 
-        for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
-            mtag=member[0]
-            mname=member[1]
-            used = total_attacks-remaining
-            if used>0:
-                cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
-                           'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
-                           format(TABLE_credits_watch_players),
-                           [mtag, mname, clan_tag, clan_name, used*int(atk), time,
-                            "Using {} attacks in {}".format(used,war)])
-            if remaining>0:
-                cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
+        if points is not None and len(points)>0:
+            points = points[clan_tag]
+            if type=="cwl":
+                atk = points["cwl_attack"]
+                miss = points["cwl_miss"]
+                war="cwl"
+            else:
+                atk = points["cw_attack"]
+                miss = points["cw_miss"]
+                war="regular war"
+
+            for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
+                mtag=member[0]
+                mname=member[1]
+                used = total_attacks-remaining
+                if used>0:
+                    cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
                                'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
                                format(TABLE_credits_watch_players),
-                               [mtag, mname, clan_tag, clan_name, used * int(miss), time,
-                                "Missing {} attacks in {}".format(remaining, war)])
+                               [mtag, mname, clan_tag, clan_name, used*int(atk), time,
+                                "Using {} attacks in {}".format(used,war)])
+                if remaining>0:
+                    cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
+                                   'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
+                                   format(TABLE_credits_watch_players),
+                                   [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
+                                    "Missing {} attacks in {}".format(remaining, war)])
         #access database...
         con.commit()
         con.close()
-
-        del MEM_mappings_clan_currentwars[clan_tag]
+        if clear_cache:
+            del MEM_mappings_clan_currentwars[clan_tag]
         save_mappings_clan_currentwars(rootfolder)
 
 #todo: this should be done by databases

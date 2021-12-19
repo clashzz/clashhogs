@@ -115,7 +115,7 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
     #"credits":r[5], "time":time, "reason":r[7]
     for rec in creditrecords:
         id = "Time: {}".format(rec["time"])
-        string = f"> *credits={rec['credits']}*\t\t >*reason={rec['credits']}*"
+        string = f"> *credits={rec['credits']}*\t\t >*reason={rec['reason']}*"
         embedVar.add_field(name=f'**{id}**',
                     value=str(string),
                     inline=False)

@@ -747,8 +747,14 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         clan_home=old_war.clan
         log.info(
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
-        if old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
-                and clan_home.tag in database.MEM_mappings_clan_currentwars.keys():
+        print("war type={}".format(old_war.type))
+        print("clan_home tag={}".format(clan_home.tag))
+        print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
+        print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
+        condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
+                and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+        print("condition={}".format(condition))
+        if condition:
             database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
             log.info(
                 "\tCredits registered for: {}".format(old_war.clan))

@@ -742,7 +742,8 @@ async def current_war_stats(attack, war):
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    if new_war.state=="warEnded": #new war started
+    if new_war.state=="warEnded" or new_war.state=="notInWar" \
+            or old_war.state=="warEnded" or old_war.state=="notInWar": #new war started
         #, conclude credits for the previous war
         clan_home=old_war.clan
         log.info(

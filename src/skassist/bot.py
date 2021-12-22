@@ -101,7 +101,7 @@ async def help(context, command=None):
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'crclan':
-        await context.send(util.prepare_crclan_help(PREFIX, database.MEM_mappings_clan_creditwatch))
+        await context.send(util.prepare_crclan_help(PREFIX, database.CREDIT_WATCH_ACTIVITIES))
     elif command == 'crplayer':
         await context.send(util.prepare_crplayer_help(PREFIX))
     else:

@@ -748,9 +748,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     if new_war.clan is not None:
         print("\t new war home clan is {}".format(old_war.clan))
 
-    if new_war.state=="warEnded" \
-            or old_war.state=="warEnded" or old_war.state=="notInWar": #new war started
-        #, conclude credits for the previous war
+    if new_war.state=="warEnded" and old_war.state=="inWar": #war ended
         clan_home=old_war.clan
         log.info(
             "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))

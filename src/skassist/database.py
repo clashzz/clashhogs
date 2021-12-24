@@ -275,10 +275,10 @@ def clear_warnings(guild_id, clan, person):
     con.close()
 
 
-def delete_warning(guild_id, clanname, warning_id):
+def delete_warning(guild_id, warning_id, clanname):
     con = connect_db(str(guild_id))
     cursor = con.cursor()
-    cursor.execute('SELECT FROM {} WHERE id=? AND clan=?'.
+    cursor.execute('SELECT * FROM {} WHERE id=? AND clan=?'.
                        format(TABLE_member_warnings), [warning_id, clanname])
     rows = cursor.fetchall()
     if len(rows)==0:

@@ -770,7 +770,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     ##########################
     # set up for the new war
     ##########################
-    if new_war.state=="preparation" or new_war.state=="inWar":
+    if old_war.state=="preparation" and new_war.state=="inWar":
         log.info(
             "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
         clan_home=new_war.clan

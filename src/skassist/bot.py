@@ -503,8 +503,11 @@ async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
         return
         # delete a warning
     if option == "-d":
-        database.delete_warning(ctx.guild.id, clan)
-        await ctx.channel.send("The warning with the ID {} has been deleted".format(clan))
+        deleted=database.delete_warning(ctx.guild.id, clan, name)
+        if deleted:
+            await ctx.channel.send("The warning with the ID {} has been deleted".format(clan))
+        else:
+            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database".format(name, clan))
 
 
 @warn.error
@@ -743,10 +746,10 @@ async def current_war_stats(attack, war):
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     print("war state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
-    if old_war.clan is not None:
+    if old_war.clan is not None and old_war.state!="notInWar":
         print("\t old war home clan is {}".format(old_war.clan))
-    if new_war.clan is not None:
-        print("\t new war home clan is {}".format(old_war.clan))
+    if new_war.clan is not None and new_war.state!="notInWar":
+        print("\t new war home clan is {}".format(new_war.clan))
 
     if new_war.state=="warEnded" and old_war.state=="inWar": #war ended
         clan_home=old_war.clan

@@ -1,8 +1,14 @@
-import logging
+import logging, pickle
 import sys
 import coc
 
 from coc import utils
+
+file = open("/home/zz/Work/sidekickassist/tmp/tmp_currentwards.pk",'rb')
+object_file = pickle.load(file)
+print(object_file)
+exit(1)
+
 '''
 coc 1.3, using tags works
 '''

@@ -6,3 +6,4 @@ src/skassist/db/*
 *.db
 *.json
 *.pk
+tmp/*

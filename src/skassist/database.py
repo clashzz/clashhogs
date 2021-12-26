@@ -430,7 +430,17 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                 miss = points["cw_miss"]
                 war="regular war"
 
+            #debug
+            print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
+            count=0
+            #
+
             for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
+                #
+                count+=1
+                print("\t {}, {}".format(member, remaining))
+                #
+
                 mtag=member[0]
                 mname=member[1]
                 used = total_attacks-remaining
@@ -440,12 +450,18 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                                format(TABLE_credits_watch_players),
                                [mtag, mname, clan_tag, clan_name, used*int(atk), time,
                                 "Using {} attacks in {}".format(used,war)])
+                    #
+                    print("\t\t has used {}".format(used))
+                    #
                 if remaining>0:
                     cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
                                    'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
                                    format(TABLE_credits_watch_players),
                                    [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
                                     "Missing {} attacks in {}".format(remaining, war)])
+                    #
+                    print("\t\t has missed {}".format(remaining))
+                    #
         #access database...
         con.commit()
         con.close()

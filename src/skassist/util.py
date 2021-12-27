@@ -181,9 +181,9 @@ def prepare_crclan_help(prefix, default_points:dict):
     for k, v in default_points.items():
         default += k + "=" + str(v) + " "
     string='This command is used to set up credit watch for a clan.\n' \
-        f'**Usage:** {prefix}crclan [option] [clantag] [*value] [note]\n'  \
+        f'**Usage:** {prefix}crclan [option] [clantag] [*value]\n'  \
         '- [option]: \n'    \
-        '\t\t -l: If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: credit -l *\n'  \
+        '\t\t -l: list clans currently registered. If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: crclan -l *\n'  \
         '\t\t -a: to register a clan for credit watch. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
         'If none provided, then: '  \
         f'*{default.strip()}*. '    \

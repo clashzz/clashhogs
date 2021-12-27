@@ -806,9 +806,9 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
 
 
-@tasks.loop(hours=24)
-async def test_scheduled_task():
-  print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(datetime.datetime.now(),
-                                                                                                 utils.get_season_end()))
+# @tasks.loop(hours=24)
+# async def test_scheduled_task():
+#   print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(datetime.datetime.now(),
+#                                                                                                  utils.get_season_end()))
 
 bot.run(TOKEN)

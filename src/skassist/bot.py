@@ -570,7 +570,7 @@ async def crclan(ctx, option: str, tag: str, *values):
             await ctx.send("This clan doesn't exist.")
             return
         database.remove_registered_clan_creditwatch(ctx.guild.id, tag, rootfolder)
-        coc_client.remove_clan_updates(tag)
+        coc_client.remove_war_updates(tag)
         await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
 

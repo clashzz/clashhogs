@@ -622,14 +622,14 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
 
     # list credits of a clan's member
     if option == "-lc":
-        clanname, playercredits, playername = database.sum_clan_playercredits(ctx.guild.id, tag)
-        await ctx.send(embed=util.format_playercredits(tag, clanname, playercredits, playername))
+        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
+        await ctx.send(util.format_playercredits(tag, clanname, playercredits, playername, last_updated))
         return
 
     # list credits of a clan's member
     if option == "-lp":
         clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-        await ctx.send(embed=util.format_playercreditrecords(tag, clantag, clanname, playername, records))
+        await ctx.send(util.format_playercreditrecords(tag, clantag, clanname, playername, records))
         return
 
     # manually add credits to a player
@@ -745,23 +745,23 @@ async def current_war_stats(attack, war):
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    print("war state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
+    log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
     if old_war.clan is not None and old_war.state!="notInWar":
-        print("\t old war home clan is {}".format(old_war.clan))
+        log.info("\t old war home clan is {}".format(old_war.clan))
     if new_war.clan is not None and new_war.state!="notInWar":
-        print("\t new war home clan is {}".format(new_war.clan))
+        log.info("\t new war home clan is {}".format(new_war.clan))
 
     if new_war.state=="warEnded" and old_war.state=="inWar": #war ended
         clan_home=old_war.clan
         log.info(
-            "\tWar ended between: {} and {}".format(old_war.clan, old_war.opponent))
-        print("war type={}".format(old_war.type))
-        print("clan_home tag={}".format(clan_home.tag))
-        print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
-        print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
+            "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent,old_war.type))
+        # print("war type={}".format(old_war.type))
+        # print("clan_home tag={}".format(clan_home.tag))
+        # print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
+        # print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
         condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
-        print("condition={}".format(condition))
+        # print("condition={}".format(condition))
         if condition:
             database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
             log.info(
@@ -772,7 +772,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     ##########################
     if old_war.state=="preparation" and new_war.state=="inWar":
         log.info(
-            "\tWar started between: {} and {}".format(new_war.clan, new_war.opponent))
+            "War started between: {} and {}, type={}".format(new_war.clan, new_war.opponent,new_war.type))
         clan_home=new_war.clan
 
         if new_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys():

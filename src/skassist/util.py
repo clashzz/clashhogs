@@ -84,43 +84,33 @@ def format_credit_systems(res:dict):
 
     return embedVar
 
-def format_playercredits(tag, clanname, playercredits, playernames):
+def format_playercredits(tag, clanname, playercredits, playernames, last_updated):
     if len(playercredits)==0:
-        embedVar = discord.Embed(title="Clan {}, {} currently does not have any player credits recorded.".format(tag, clanname),
-                                 description="Credit records are automatically added at war end, maybe try again later.")  # , color=0x00ff00
+        string="**Clan {}, {}** currently does not have any player credits recorded. Credit records are automatically added at war end, maybe try again later."
     else:
-        embedVar = discord.Embed(title="Clan {}, {}".format(tag, clanname),
-                                 description="")  # , color=0x00ff00
-    playercredits_sorted = dict( sorted(playercredits.items(), key=operator.itemgetter(1),reverse=True))
+        string ="**Clan {}, {}, last updated at {}**\n".format(tag, clanname, last_updated)  # , color=0x00ff00
+        playercredits_sorted = dict( sorted(playercredits.items(), key=operator.itemgetter(1),reverse=True))
 
-    for pt, cr in playercredits_sorted.items():
-        pn = playernames[pt]
-        id="Player: {}, {}".format(pt, pn)
-        embedVar.add_field(name=f'**{id}**',
-                    value=str(cr),
-                    inline=False)
+        for pt, cr in playercredits_sorted.items():
+            pn = playernames[pt]
+            string+="\t\t{}\t{}, {}\n".format(cr, pt, pn)
 
-    return embedVar
+    return string
 
 def format_playercreditrecords(playertag, clantag, clanname, playername, creditrecords):
     if len(creditrecords)==0:
-        embedVar = discord.Embed(title="Player {}, {} from {} currently does not have any credits recorded.".format(playertag, playername,clanname),
-                                 description="Credit records are automatically added at war end, maybe try again later.")  # , color=0x00ff00
+        string = "Player {}, {} from {} currently does not have any credits recorded. " \
+                 "Credit records are automatically added at war end, maybe try again later."
     else:
         total=0
         for rec in creditrecords:
             total+=float(rec['credits'])
-        embedVar = discord.Embed(title="Player {}, {} from {}, {}".format(playertag, playername, clanname, clantag),
-                                 description="Total credits={}".format(total))  # , color=0x00ff00
-    #"credits":r[5], "time":time, "reason":r[7]
-    for rec in creditrecords:
-        id = "Time: {}".format(rec["time"])
-        string = f"> *credits={rec['credits']}*\t\t >*reason={rec['reason']}*"
-        embedVar.add_field(name=f'**{id}**',
-                    value=str(string),
-                    inline=False)
+        string = "**Player {}, {}** from **{}, {}**, total credits=**{}**\n\n".format(playertag, playername, clanname, clantag, total)
+        #"credits":r[5], "time":time, "reason":r[7]
+        for rec in creditrecords:
+            string+="\t\t**{}**: {}, {}\n".format(rec["time"], rec['credits'],rec['reason'])
 
-    return embedVar
+    return string
 
 def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands. Run **{prefix}help [command]** for how to use them. Also see ' \

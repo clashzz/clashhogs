@@ -431,14 +431,14 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                 war="regular war"
 
             #debug
-            print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
-            count=0
+            # print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
+            # count=0
             #
 
             for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
                 #
-                count+=1
-                print("\t {}, {}".format(member, remaining))
+                # count+=1
+                # print("\t {}, {}".format(member, remaining))
                 #
 
                 mtag=member[0]
@@ -451,7 +451,7 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                                [mtag, mname, clan_tag, clan_name, used*int(atk), time,
                                 "Using {} attacks in {}".format(used,war)])
                     #
-                    print("\t\t has used {}".format(used))
+                    #print("\t\t has used {}".format(used))
                     #
                 if remaining>0:
                     cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
@@ -460,7 +460,7 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                                    [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
                                     "Missing {} attacks in {}".format(remaining, war)])
                     #
-                    print("\t\t has missed {}".format(remaining))
+                    #print("\t\t has missed {}".format(remaining))
                     #
         #access database...
         con.commit()
@@ -524,7 +524,13 @@ def sum_clan_playercredits(guild_id, clantag:str):
     clanname=""
     player_credits={}
     player_name={}
+
+    last_updated=None
     for r in rows:
+        time=datetime.datetime.fromisoformat(r[6]).strftime("%Y-%m-%d %H:%M")
+        if last_updated is None or last_updated<time:
+            last_updated=time
+
         clanname=r[4]
         if r[1] in player_credits.keys():
             player_credits[r[1]]=player_credits[r[1]]+float(r[5])
@@ -533,7 +539,7 @@ def sum_clan_playercredits(guild_id, clantag:str):
             player_name[r[1]]=r[2]
 
     con.close()
-    return clanname, player_credits, player_name
+    return clanname, player_credits, player_name, last_updated
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
 def add_player_credits(guild_id, player_tag, player_name, player_clantag, player_clanname, credits, note=None):

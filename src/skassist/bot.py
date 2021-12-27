@@ -1,8 +1,9 @@
 import asyncio
 import datetime, time, logging, pandas, sys, traceback, discord, coc, threading
 from pathlib import Path
-from discord.ext import commands
+from discord.ext import commands, tasks
 from skassist import database, sidekickparser, models, util
+from coc import utils
 
 ##########
 # Init   #
@@ -156,7 +157,7 @@ async def warmiss(ctx, option: str, from_channel=None, to_channel=None, clan=Non
     # checks complete, all good
     if option == "-a":  # adding a mapping
         pair = (from_channel_id, to_channel_id)
-        database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)  # TODO
+        database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)
         await ctx.channel.send(
             "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. Please ensure {} has "
             "access to these channels (read and write)".format(clan, from_channel, to_channel, BOT_NAME))
@@ -470,12 +471,16 @@ async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
     if option == "-l":
         if name is None:  # list all warnings of a clan
             res = database.list_warnings(ctx.guild.id, clan)
-            await ctx.send(embed=util.format_warnings(clan, res))
+            warnings=util.format_warnings(clan, res)
+            for w in warnings:
+                await ctx.send(w)
             # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
             return
         else:  # list all warnings of a person in a clan
             res = database.list_warnings(ctx.guild.id, clan, name)
-            await ctx.send(embed=util.format_warnings(clan, res, name))
+            warnings = util.format_warnings(clan, res,name)
+            for w in warnings:
+                await ctx.send(w)
 
     # add a warning
     if option == "-a":
@@ -623,13 +628,17 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
     # list credits of a clan's member
     if option == "-lc":
         clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
-        await ctx.send(util.format_playercredits(tag, clanname, playercredits, playername, last_updated))
+        msgs=util.format_playercredits(tag, clanname, playercredits, playername, last_updated)
+        for m in msgs:
+            await ctx.send(m)
         return
 
     # list credits of a clan's member
     if option == "-lp":
         clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-        await ctx.send(util.format_playercreditrecords(tag, clantag, clanname, playername, records))
+        msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+        for m in msgs:
+            await ctx.send(m)
         return
 
     # manually add credits to a player
@@ -722,7 +731,7 @@ async def on_message(message):
 #############################################
 """War Events"""
 @coc_client.event
-@coc.WarEvents.war_attack()
+@coc.WarEvents.war_attack() #only if the clan war is registered in MEM_mappings_clan_currentwars
 async def current_war_stats(attack, war):
     lock = threading.Lock()
     lock.acquire()
@@ -743,8 +752,9 @@ async def current_war_stats(attack, war):
     lock.release()
 
 @coc_client.event
-@coc.WarEvents.state() #notInWar, inWar, preparation, warEnded
+@coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
+    print("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
     log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
     if old_war.clan is not None and old_war.state!="notInWar":
         log.info("\t old war home clan is {}".format(old_war.clan))
@@ -793,6 +803,12 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             }
             database.save_mappings_clan_currentwars(rootfolder)
             log.info(
-                "\tClan registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
+                "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
+
+
+@tasks.loop(hours=24)
+async def test_scheduled_task():
+  print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(datetime.datetime.now(),
+                                                                                                 utils.get_season_end()))
 
 bot.run(TOKEN)

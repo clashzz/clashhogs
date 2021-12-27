@@ -3,6 +3,7 @@ import sys
 import coc
 
 from coc import utils
+t=utils.get_season_end()
 
 file = open("/home/zz/Work/sidekickassist/tmp/tmp_currentwards.pk",'rb')
 object_file = pickle.load(file)

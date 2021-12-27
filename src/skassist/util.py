@@ -1,5 +1,6 @@
 import discord, operator
 from datetime import datetime
+DISCORD_MSG_MAX_LENGTH=1500
 
 MONTHS_MAPPINGS={
     1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
@@ -46,8 +47,9 @@ def find_first_appearance(text:str, keywords:list):
         return -1
 
 def format_warnings(clan:str, records:list, player=None):
+    warnings=[]
     if player is None:
-        embedVar = discord.Embed(title="Current warning records", description="Clan: {}".format(clan)) #, color=0x00ff00
+        string = "**Current warning records for {}**\n\n".format(clan)
     else:
         total_points=0
         for r in records:
@@ -55,16 +57,22 @@ def format_warnings(clan:str, records:list, player=None):
                 total_points+=float(r[3])
             except:
                 pass
-        embedVar = discord.Embed(title="Current warning records",
-                                 description="Clan: {}, Player: {}, Total points: {}".format(clan, player, total_points))  # , color=0x00ff00
-    for r in records:
-        id="Warning ID: {}".format(r[0])
-        d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
-        embedVar.add_field(name=f'**{id}**',
-                    value=f'> *Player*: {r[2]}\t\t *Clan*: {r[1]}\n> *Points*: {r[3]}\t\t *Date*: {d} \n> *Note*: {r[5]}',
-                    inline=False)
+        string = "**Current warning records for {} from {}**, total points={}\n\n".format(clan, player, total_points)  # , color=0x00ff00
 
-    return embedVar
+    for r in records:
+        string+="**Warning ID: {}**\n".format(r[0])
+        d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
+        string+="\t\t*Player*: {} \t*Clan*: {}\n" \
+                "\t\t*Points*: {} \t*Date*: {}\n" \
+                "\t\t*Note*: {}\n".format(r[2], r[1],r[3],d,r[5])
+
+        if len(string)>DISCORD_MSG_MAX_LENGTH:
+            warnings.append(string)
+            string=""
+
+    if len(string)>0:
+        warnings.append(string)
+    return warnings
 
 def format_credit_systems(res:dict):
     if len(res)==0:
@@ -85,6 +93,7 @@ def format_credit_systems(res:dict):
     return embedVar
 
 def format_playercredits(tag, clanname, playercredits, playernames, last_updated):
+    msgs=[]
     if len(playercredits)==0:
         string="**Clan {}, {}** currently does not have any player credits recorded. Credit records are automatically added at war end, maybe try again later."
     else:
@@ -95,9 +104,16 @@ def format_playercredits(tag, clanname, playercredits, playernames, last_updated
             pn = playernames[pt]
             string+="\t\t{}\t{}, {}\n".format(cr, pt, pn)
 
-    return string
+            if len(string)>DISCORD_MSG_MAX_LENGTH:
+                msgs.append(string)
+                string=""
+
+    if len(string)>0:
+        msgs.append(string)
+    return msgs
 
 def format_playercreditrecords(playertag, clantag, clanname, playername, creditrecords):
+    msgs = []
     if len(creditrecords)==0:
         string = "Player {}, {} from {} currently does not have any credits recorded. " \
                  "Credit records are automatically added at war end, maybe try again later."
@@ -110,7 +126,13 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
         for rec in creditrecords:
             string+="\t\t**{}**: {}, {}\n".format(rec["time"], rec['credits'],rec['reason'])
 
-    return string
+            if len(string)>DISCORD_MSG_MAX_LENGTH:
+                msgs.append(string)
+                string=""
+
+    if len(string)>0:
+        msgs.append(string)
+    return msgs
 
 def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands. Run **{prefix}help [command]** for how to use them. Also see ' \

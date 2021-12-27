@@ -51,6 +51,9 @@ def connect_db(dbname):
 
 #check, initialise, and populate the database for a discord guild
 def check_database(guild_id, data_folder):
+    lock = threading.Lock()
+    lock.acquire()
+
     con = connect_db(guild_id)
     cursor = con.cursor()
 
@@ -102,7 +105,6 @@ def check_database(guild_id, data_folder):
     con.commit()
 
     # Populate MEM_mappings_clan_guild
-    # todo: replace file system with database
     if len(MEM_mappings_clan_guild) == 0:
         file = data_folder + "/clan2guild.json"
         try:
@@ -123,6 +125,7 @@ def check_database(guild_id, data_folder):
     update_mappings_clan_creditwatch(rows, MEM_mappings_clan_creditwatch)
     con.close()
 
+    lock.release()
 
 def update_mappings_guild_warmisschannel(guild_id, from_id, to_id, clan):
     lock = threading.Lock()
@@ -330,7 +333,6 @@ def list_registered_clans_creditwatch(guild_id, clantag="*"):
 def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *values):
     remove_registered_clan_creditwatch(guild_id, clantag,data_folder)
 
-    #todo: clan and guild mapping needs to be updated and persisted
     MEM_mappings_clan_guild[clantag]=guild_id
     with open(data_folder+'/clan2guild.json', 'w') as fp:
         json.dump(MEM_mappings_clan_guild, fp)

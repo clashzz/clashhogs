@@ -734,7 +734,7 @@ async def on_message(message):
 @coc.ClanEvents.member_donations()
 async def on_clan_member_donation(old_member, new_member):
     final_donated_troops = new_member.donations - old_member.donations
-    print(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
+    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
 
 """War Events"""

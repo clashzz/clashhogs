@@ -67,7 +67,7 @@ async def on_ready():
     log.info('The following clans are registered for clan credit watch:')
     for clan in database.MEM_mappings_clan_creditwatch.keys():
         coc_client.add_war_updates(clan)
-        coc_client.add_clan_updates(clan)
+        #coc_client.add_clan_updates(clan)
         log.info('\t{}'.format(clan))
     log.info('The following wars are currently ongoing and monitored:')
     for k, v in database.MEM_mappings_clan_currentwars.items():
@@ -511,9 +511,10 @@ async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
     if option == "-d":
         deleted=database.delete_warning(ctx.guild.id, clan, name)
         if deleted:
-            await ctx.channel.send("The warning with the ID {} has been deleted".format(clan))
+            await ctx.channel.send("The warning record(s) has/have been deleted".format(clan))
         else:
-            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database".format(name, clan))
+            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
+                                   " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
 
 
 @warn.error
@@ -730,11 +731,11 @@ async def on_message(message):
 #############################################
 # CoC api events
 #############################################
-@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
-@coc.ClanEvents.member_donations()
-async def on_clan_member_donation(old_member, new_member):
-    final_donated_troops = new_member.donations - old_member.donations
-    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
+# @coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
+# @coc.ClanEvents.member_donations()
+# async def on_clan_member_donation(old_member, new_member):
+#     final_donated_troops = new_member.donations - old_member.donations
+#     log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
 
 """War Events"""

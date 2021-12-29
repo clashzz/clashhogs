@@ -625,6 +625,8 @@ async def crclan_error(ctx, error):
 async def crplayer(ctx, option: str, tag: str, value=None, *note):
     tag=util.normalise_tag(tag)
 
+    #ctx.message.author.mention
+
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}".format(ctx.guild.id, ctx.guild.name, option))
 
     # list credits of a clan's member

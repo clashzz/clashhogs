@@ -129,12 +129,12 @@ This command is used to record warnings for a clan member. Options:
 ##### NOTE: this command can only be run by users with administrator access
 This command is used to **set up a clan** for the 'credit watch' system. Credit watch is a system that gives/reduces credits for members for certain actions, such as using/missing an attack in a war. This command is for setting up the system for a clan so that the following activities are monitored and credits registered automatically:
 
- -- Using an attack in a regular war (cw_attack)
- -- Missing an attack in a regular war (cw_miss)
- -- Using an attack in a CWL war (cwl_attack)
- -- Missing an attack in a CWL war (cwl_miss)
+ - Using an attack in a regular war (cw_attack)
+ - Missing an attack in a regular war (cw_miss)
+ - Using an attack in a CWL war (cwl_attack)
+ - Missing an attack in a CWL war (cwl_miss)
 
-Since the monitoring depends on the Clash of Clans API's 'events', currently these are the only activities that can be monitored automatically. Other activities (e.g., clan game no. 1, donation no. 1) must be credited manually (see below the `crplayer` command.
+**Friendly wars are excluded**. Since the monitoring depends on the Clash of Clans API's 'events', currently these are the only activities that can be monitored automatically. Other activities (e.g., clan game no. 1, donation no. 1) must be credited manually (see below the `crplayer` command.
 
 Options:
  - -l: List clans currently registered for the credit system. The result will list the credits configured for each of the four events above. If [clantag] is supplied, only that clan will be shown. E.g., `crclan -l #SOMETAG`. If you want to see all registered clans, use `crclan -l *`

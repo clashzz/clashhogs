@@ -1,4 +1,5 @@
 
+
 # Sidekick Assist
 
 Sidekick Assist is a bot for **Clash of Clans**. It implements a few handy utilities for analysing clan data, and making clan management easier. Some of the utilities will require data from the [Sidekick](https://clashsidekick.com/) bot.
@@ -120,7 +121,9 @@ This command is used to record warnings for a clan member. Options:
  - -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored). E.g., `?warn -l MyClan` , `?warn -l MyClan playername1`
  - -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter). E.g., `?warn -a MyClan playername1 1.5 missing one CWL attack`
  - -c: to remove all warnings of a player in a clan (clanname and playername mandatory). E.g., `?warn -c MyClan playername1`
- -  -d: to delete a specific warning record. Provide [clanname] and an ID of the record to replace [playername]. If the ID and the provided clan name do not match existing records in the database, no records will be deleted. E.g., `warn -d 1 MyClan`
+ -  -d: to delete a specific warning record or a set of records. You can delete records in two ways.
+   - Delete a single record: provide [clanname] and an ID of the record to replace [playername]. If the ID and the provided clan name do not match existing records in the database, no records will be deleted. E.g., `warn -d MyClan 1`
+   - Delete a set of records before a certain date: this will delete ALL records earlier than a date you provide, in the format of YYYY-MM-DD (time is set to be 00h 00m 00s). E.g., `warn -d MyClan 2021-12-31` will delete ALL warning records entered before 2021 Dec 31
 
 ### ?crclan \[option\] \[clantag] \[*value\]  
 ##### NOTE: this command can only be run by users with administrator access

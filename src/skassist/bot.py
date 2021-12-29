@@ -815,9 +815,21 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
 
 
-# @tasks.loop(hours=24)
-# async def test_scheduled_task():
-#   print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(datetime.datetime.now(),
-#                                                                                                  utils.get_season_end()))
+@tasks.loop(hours=20)
+async def test_scheduled_task():
+    now = datetime.datetime.now()
+    season_end = utils.get_season_end()
+    print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now,season_end))
+    print("\t\t same year={} month equals={} day equals={}".format(now.year==season_end.year, now.month==season_end.month,
+                                                                   now.day==season_end.day))
+    print("\t\t clans in credit watch: {}".format(database.MEM_mappings_clan_creditwatch))
+    if len(database.MEM_mappings_clan_creditwatch)!=0:
+        tag=list(database.MEM_mappings_clan_creditwatch.keys())[0]
+        clan=await coc_client.get_clan(tag)
+        members=clan.members
+        for m in members:
+            print("\t\t\t member={} donations={}".format(m.name, m.donations))
 
+
+test_scheduled_task.start()
 bot.run(TOKEN)

@@ -625,8 +625,6 @@ async def crclan_error(ctx, error):
 async def crplayer(ctx, option: str, tag: str, value=None, *note):
     tag=util.normalise_tag(tag)
 
-    #ctx.message.author.mention
-
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}".format(ctx.guild.id, ctx.guild.name, option))
 
     # list credits of a clan's member
@@ -662,8 +660,8 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
         except:
             await ctx.channel.send("The value you entered does not look like a number, try agian.")
             return
-
-        database.add_player_credits(ctx.guild.id, tag, player.name, player.clan.tag, player.clan.name,value, note)
+        author= ctx.message.author.mention
+        database.add_player_credits(ctx.guild.id, author, tag, player.name, player.clan.tag, player.clan.name,value, note)
         await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
         return
 

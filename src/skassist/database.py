@@ -14,6 +14,7 @@ TABLE_member_attacks = "member_attacks"
 TABLE_member_warnings = "member_warnings"
 TABLE_credits_watch_clans = "credit_watch_clans"
 TABLE_credits_watch_players = "credit_watch_players"
+TABLE_current_wars="current_wars" #key: clan tag; value: a dictionary
 
 CLAN_NAME="clan_name"
 CLAN_WAR_TYPE="type"
@@ -425,10 +426,10 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
 '''
 def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cache=True):
     #temporary code for debugging
-    with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
-        pickle.dump(MEM_mappings_clan_currentwars, handle)
-    with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
-        pickle.dump(MEM_mappings_clan_guild, handle)
+    # with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
+    #     pickle.dump(MEM_mappings_clan_currentwars, handle)
+    # with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
+    #     pickle.dump(MEM_mappings_clan_guild, handle)
     #
 
     if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
@@ -565,11 +566,15 @@ def sum_clan_playercredits(guild_id, clantag:str):
     return clanname, player_credits, player_name, last_updated
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
-def add_player_credits(guild_id, player_tag, player_name, player_clantag, player_clanname, credits, note=None):
+def add_player_credits(guild_id, author, player_tag, player_name, player_clantag, player_clanname, credits, note=None):
     if type(note) is tuple:
         note = ' '.join(note)
+        note += " (Added by {})".format(author)
     elif note is not None:
         note = str(note)
+        note += " (Added by {})".format(author)
+    else:
+        note = "(Added by {})".format(author)
 
     time = str(datetime.datetime.now())
     con = connect_db(str(guild_id))

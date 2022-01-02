@@ -768,9 +768,9 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     if old_war.clan is not None and old_war.state!="notInWar":
         log.info("\t old war home clan is {}".format(old_war.clan))
     if new_war.clan is not None and new_war.state!="notInWar":
-        log.info("\t new war home clan is {}".format(new_war.clan))
+        log.info("\t new war home clan is {}, type is {}".format(new_war.clan, new_war.type))
 
-    if new_war.state=="warEnded" and old_war.state=="inWar": #war ended
+    if regular_war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(
             "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent,old_war.type))
@@ -789,9 +789,9 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     ##########################
     # set up for the new war
     ##########################
-    if old_war.state=="preparation" and new_war.state=="inWar":
+    if regular_war_started(old_war, new_war) or cwl_war_started(old_war,new_war):
         log.info(
-            "War started between: {} and {}, type={}".format(new_war.clan, new_war.opponent,new_war.type))
+            "Regular or Friendly war started between: {} and {}, type={}".format(new_war.clan, new_war.opponent,new_war.type))
         clan_home=new_war.clan
 
         if new_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys():
@@ -814,6 +814,14 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             log.info(
                 "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
 
+def regular_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
+    return old_war.state == "preparation" and new_war.state == "inWar"
+
+def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
+    return new_war.state=="warEnded" and old_war.state=="inWar"
+
+def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
+    return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
 @tasks.loop(hours=20)
 async def test_scheduled_task():

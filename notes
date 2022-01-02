@@ -1,0 +1,12 @@
+CWL
+
+- first queued: 
+
+War state changed, old war = warEnded, new war = notInWar
+2022-01-01 17:08:01 INFO     War state changed, old war = warEnded, new war = notInWa
+
+- day 1 start:
+War state changed, old war = notInWar, new war = inWar
+2022-01-02 17:18:08 INFO     War state changed, old war = notInWar, new war = inWar
+2022-01-02 17:18:08 INFO         new war home clan is DeadSages Elite
+~                                                                        

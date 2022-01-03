@@ -17,6 +17,7 @@ TABLE_credits_watch_players = "credit_watch_players"
 TABLE_current_wars="current_wars" #key: clan tag; value: a dictionary
 
 CLAN_NAME="clan_name"
+CLAN_WAR_TAG="war_tag"
 CLAN_WAR_TYPE="type"
 CLAN_WAR_MEMBERS="members"
 CLAN_WAR_ATTACKS="attacks"
@@ -40,7 +41,7 @@ MEM_mappings_clan_creditwatch = {}  # key: clan tag; value: {clan name, cw_attac
 
 # NB: this object is not persisted so if the bot crashes, data will be lost
 # This is updated every time an attack is made from a clan registered for war/credit watch
-## key: clan tag; value: {clan_name, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
+## key: clan tag; value: {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
 ## if the key is found in this mapping, it should also be present in the MEM_mappings_clan_creditwatch mapping
 MEM_mappings_clan_currentwars={}
 

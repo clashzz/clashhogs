@@ -752,7 +752,7 @@ async def current_war_stats(attack, war):
         is_new_war = war_tag_different(war, attacker_clan.tag)
         if is_new_war:
             log.info(
-                "Captured new war between: {} and {}, type={}. Old war credits were not registered, registering them now.".format(
+                "Captured war change between: {} and {}, type={}. Old war credits were not registered, registering them now.".format(
                     war.clan, war.opponent,
                     war.type))
             database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
@@ -788,6 +788,9 @@ async def current_war_stats(attack, war):
                 log.info(
                     "\tInitialised clan war for credit watch: {}".format(
                         database.MEM_mappings_clan_currentwars[war.clan.tag]))
+                log.info(
+                    "\tThe current wars are monitored for credit watch: {}".format(
+                        database.MEM_mappings_clan_currentwars))
 
         #register this attack to the right war
         log.info(

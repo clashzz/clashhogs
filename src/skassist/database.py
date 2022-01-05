@@ -432,8 +432,9 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
     # with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
     #     pickle.dump(MEM_mappings_clan_guild, handle)
     #
-
+    missed_attacks = {}
     if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
+
         time = str(datetime.datetime.now())
         guild=MEM_mappings_clan_guild[clan_tag]
         con = connect_db(str(guild))
@@ -484,6 +485,11 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                                    format(TABLE_credits_watch_players),
                                    [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
                                     "Missing {} attacks in {}".format(remaining, war)])
+                    key = (mtag, mname)
+                    if key in missed_attacks.keys():
+                        missed_attacks[key] =int(miss) + missed_attacks[key]
+                    else:
+                        missed_attacks[key] = int(miss)
                     #
                     #print("\t\t has missed {}".format(remaining))
                     #
@@ -493,6 +499,7 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
         if clear_cache:
             del MEM_mappings_clan_currentwars[clan_tag]
         save_mappings_clan_currentwars(rootfolder)
+    return missed_attacks
 
 #todo: this should be done by databases
 #every time a war starts or ends, we must call this method

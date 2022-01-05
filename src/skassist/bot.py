@@ -600,7 +600,7 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-debug":
         try:
             clan = await coc_client.get_clan(tag)
-            database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
+            missed_attacks=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
         except coc.NotFound:
             return
 
@@ -755,9 +755,11 @@ async def current_war_stats(attack, war):
                 "Captured war change between: {} and {}, type={}. Old war credits were not registered, registering them now.".format(
                     war.clan, war.opponent,
                     war.type))
-            database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
+            missed_attacks=database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
             log.info(
                 "\tCredits registered for: {}".format(attacker_clan))
+            log.info(
+                "\tMissed attacks: {}".format(missed_attacks))
 
         #if this war has not been registered, register the war
         if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
@@ -825,9 +827,11 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
         # print("condition={}".format(condition))
         if condition:
-            database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
+            missed_attacks=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
             log.info(
                 "\tCredits registered for: {}".format(old_war.clan))
+            log.info(
+                "\tMissed attacks: {}".format(missed_attacks))
 
     ##########################
     # set up for the new war

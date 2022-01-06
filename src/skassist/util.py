@@ -222,3 +222,13 @@ def prepare_crplayer_help(prefix):
            '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) \n' \
            '\t\t -d: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
     return string
+
+#data should conform to the format {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
+def format_war_participants(data:dict):
+    new_data={}
+    for k, v in data.items():
+        if type(v) is dict:
+            l = len(v)
+            new_data["total_members"]=l
+        else:
+            new_data[k]=v

@@ -487,9 +487,9 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                                     "Missing {} attacks in {}".format(remaining, war)])
                     key = (mtag, mname)
                     if key in missed_attacks.keys():
-                        missed_attacks[key] =int(miss) + missed_attacks[key]
+                        missed_attacks[key] =int(remaining) + missed_attacks[key]
                     else:
-                        missed_attacks[key] = int(miss)
+                        missed_attacks[key] = int(remaining)
                     #
                     #print("\t\t has missed {}".format(remaining))
                     #

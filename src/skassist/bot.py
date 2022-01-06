@@ -67,11 +67,11 @@ async def on_ready():
     log.info('The following clans are registered for clan credit watch:')
     for clan in database.MEM_mappings_clan_creditwatch.keys():
         coc_client.add_war_updates(clan)
-        coc_client.add_clan_updates(clan)
+        #coc_client.add_clan_updates(clan)
         log.info('\t{}'.format(clan))
     log.info('The following wars are currently ongoing and monitored:')
     for k, v in database.MEM_mappings_clan_currentwars.items():
-        log.info('\t{},\t\t{}'.format(k, v))
+        log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
 
 @bot.event
 async def on_guild_join(guild):
@@ -731,11 +731,11 @@ async def on_message(message):
 #############################################
 # CoC api events
 #############################################
-@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
-@coc.ClanEvents.member_donations()
-async def on_clan_member_donation(old_member, new_member):
-    final_donated_troops = new_member.donations - old_member.donations
-    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
+# @coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
+# @coc.ClanEvents.member_donations()
+# async def on_clan_member_donation(old_member, new_member):
+#     final_donated_troops = new_member.donations - old_member.donations
+#     log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
 
 """War Events"""
@@ -790,13 +790,13 @@ async def current_war_stats(attack, war):
                 log.info(
                     "\tInitialised clan war for credit watch: {}".format(
                         database.MEM_mappings_clan_currentwars[war.clan.tag]))
-                log.info(
-                    "\tThe current wars are monitored for credit watch: {}".format(
-                        database.MEM_mappings_clan_currentwars))
+                log.info('The following wars are currently ongoing and monitored:')
+                for k, v in database.MEM_mappings_clan_currentwars.items():
+                    log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
 
         #register this attack to the right war
         log.info(
-            f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan} ")
+            f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan.name}, clan tag {attack.attacker.clan.tag} ")
 
         clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
         key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
@@ -829,9 +829,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         if condition:
             missed_attacks=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
             log.info(
-                "\tCredits registered for: {}".format(old_war.clan))
-            log.info(
-                "\tMissed attacks: {}".format(missed_attacks))
+                "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
 
     ##########################
     # set up for the new war

@@ -232,3 +232,4 @@ def format_war_participants(data:dict):
             new_data["total_members"]=l
         else:
             new_data[k]=v
+    return new_data

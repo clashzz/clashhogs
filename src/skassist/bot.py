@@ -117,7 +117,7 @@ async def help(context, command=None):
 @bot.command(name='warmiss')
 @commands.has_permissions(manage_guild=True)
 async def warmiss(ctx, option: str, from_channel=None, to_channel=None, clan=None):
-    log.info("GUILD={}, {}, ACTION=warmiss, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+    log.info("GUILD={}, {}, ACTION=warmiss, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
     # list current mappings
     if option == "-l":
         mappings = database.get_warmiss_mappings_for_guild(ctx.guild.id)
@@ -180,7 +180,7 @@ async def warmiss_error(ctx, error):
     else:
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=warmiss\n{}".format(ctx.guild.id, ctx.guild.name, error))
+        log.error("GUILD={}, {}, ACTION=warmiss, \n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 
 #########################################################
@@ -189,7 +189,7 @@ async def warmiss_error(ctx, error):
 @bot.command(name='clandigest')
 # @commands.has_role('developers')
 async def clandigest(ctx, from_channel: str, to_channel: str, clanname: str):
-    log.info("GUILD={}, {}, ACTION=clandigest".format(ctx.guild.id, ctx.guild.name))
+    log.info("GUILD={}, {}, ACTION=clandigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
     # check if the channels already exist
     check_ok = True
     from_channel_id = sidekickparser.parse_channel_id(from_channel)
@@ -260,7 +260,7 @@ async def clandigest(ctx, error):
     else:
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
+        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name,error))
         traceback.print_stack()
 
 
@@ -269,7 +269,7 @@ async def clandigest(ctx, error):
 #########################################################
 @bot.command(name='wardigest')
 async def wardigest(ctx, from_channel: str, to_channel: str, clanname: str, fromdate: str, todate=None):
-    log.info("GUILD={}, {}, ACTION=wardigest".format(ctx.guild.id, ctx.guild.name))
+    log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
 
     # check if the channels already exist
     check_ok = True
@@ -466,7 +466,7 @@ async def warpersonal(ctx, error):
 @bot.command(name='warn')
 @commands.has_permissions(manage_guild=True)
 async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
-    log.info("GUILD={}, {}, ACTION=warn, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list current warnings
     if option == "-l":
@@ -539,7 +539,7 @@ async def warn_error(ctx, error):
 async def crclan(ctx, option: str, tag: str, *values):
     tag=util.normalise_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=crclan, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list current registered clans
     if option == "-l":
@@ -625,7 +625,7 @@ async def crclan_error(ctx, error):
 async def crplayer(ctx, option: str, tag: str, value=None, *note):
     tag=util.normalise_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=crplayer, arg={}".format(ctx.guild.id, ctx.guild.name, option))
+    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list credits of a clan's member
     if option == "-lc":
@@ -690,7 +690,7 @@ async def on_message(message):
             if database.has_warmiss_fromchannel(message.guild.id, message.channel.id):
                 # we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
                 if 'lost the war' in message.content.lower() or 'won the war' in message.content.lower():
-                    log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
+                    #log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
                     time.sleep(BOT_WAIT_TIME)
                     # print("\t waiting done")
 
@@ -698,10 +698,10 @@ async def on_message(message):
                     messages.reverse()
                     missed_attacks = sidekickparser.parse_warfeed_missed_attacks(messages)
 
-                    log.info(
-                        "GUILD={},{}, prepared war miss message, total={} war miss messages...".format(message.guild.id,
-                                                                                                       message.guild.name,
-                                                                                                       len(missed_attacks)))
+                    #log.info(
+                    #    "GUILD={},{}, prepared war miss message, total={} war miss messages...".format(message.guild.id,
+                    #                                                                                   message.guild.name,
+                    #                                                                                   len(missed_attacks)))
                     to_channel, clan = database.get_warmiss_tochannel(message.guild.id, message.channel.id)
                     to_channel = discord.utils.get(message.guild.channels, id=to_channel)
 
@@ -808,13 +808,7 @@ async def current_war_stats(attack, war):
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    print("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
     log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
-    if old_war.clan is not None and old_war.state!="notInWar":
-        log.info("\t old war home clan is {}".format(old_war.clan))
-    if new_war.clan is not None and new_war.state!="notInWar":
-        log.info("\t new war home clan is {}, type is {}".format(new_war.clan, new_war.type))
-
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(

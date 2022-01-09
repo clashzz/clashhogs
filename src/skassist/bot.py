@@ -857,8 +857,10 @@ def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "inWar" and new_war.state != "inWar"
 
 def war_tag_different(war:coc.ClanWar, clan_tag:str):
+    #clan tag already in clans_for_credit_watch, but no current war registered for it.
+    #here we detected an attack, it means war has started
     if clan_tag not in database.MEM_mappings_clan_currentwars.keys():
-        return False
+        return True
 
     clan_war = database.MEM_mappings_clan_currentwars[clan_tag]
     war_tag = clan_war[database.CLAN_WAR_TAG]

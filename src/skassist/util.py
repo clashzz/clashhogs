@@ -210,7 +210,8 @@ def prepare_crclan_help(prefix, default_points:dict):
         'If none provided, then: '  \
         f'*{default.strip()}*. '    \
         f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]' \
-        '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n'
+        '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n' \
+        '\t\t -c: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
     return string
 
 def prepare_crplayer_help(prefix):
@@ -219,8 +220,7 @@ def prepare_crplayer_help(prefix):
         '- [option]: \n'    \
         '\t\t -lc: List all players\'s total credits in a clan, specified by the [tag] (must be a clan tag)\n' \
            '\t\t -lp: List a specific player\'s credit records in a clan, specified by the [tag] (must be a player tag)\n' \
-           '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) \n' \
-           '\t\t -d: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
+           '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
     return string
 
 #data should conform to the format {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}

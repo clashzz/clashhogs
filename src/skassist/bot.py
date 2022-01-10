@@ -747,9 +747,12 @@ async def current_war_stats(attack, war):
 
     attacker = attack.attacker
     attacker_clan=attacker.clan
+    print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
     if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys():
         #check if there was already a war not ended due to no state change
         is_new_war = war_tag_different(war, attacker_clan.tag)
+        print("\tis new war={}".format(is_new_war))
+
         if is_new_war:
             log.info(
                 "Captured war change between: {} and {}, type={}. Old war credits were not registered, registering them now.".format(
@@ -808,7 +811,7 @@ async def current_war_stats(attack, war):
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
+    log.info("War state changed, old war = {}, new war = {}, clan={}".format(old_war.state, new_war.state, old_war.clan))
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(
@@ -859,7 +862,9 @@ def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def war_tag_different(war:coc.ClanWar, clan_tag:str):
     #clan tag already in clans_for_credit_watch, but no current war registered for it.
     #here we detected an attack, it means war has started
-    if clan_tag not in database.MEM_mappings_clan_currentwars.keys():
+    no_current_war=clan_tag not in database.MEM_mappings_clan_currentwars.keys()
+    print("\t clan tag not in current wars={}".format(no_current_war))
+    if no_current_war:
         return True
 
     clan_war = database.MEM_mappings_clan_currentwars[clan_tag]

@@ -223,6 +223,11 @@ def prepare_crplayer_help(prefix):
            '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
     return string
 
+def prepare_credit_help(prefix):
+    string='This command is used to view credits for a player.\n' \
+        f'**Usage:** {prefix}credit [tag], where [tag] must be a player tag\n'
+    return string
+
 #data should conform to the format {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
 def format_war_participants(data:dict):
     new_data={}

@@ -600,7 +600,7 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-debug":
         try:
             clan = await coc_client.get_clan(tag)
-            missed_attacks=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
+            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
         except coc.NotFound:
             return
 
@@ -677,6 +677,29 @@ async def crplayer_error(ctx, error):
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
+
+#########################################################
+# This method is used to track player credits
+#########################################################
+@bot.command(name='credit')
+async def credit(ctx, tag: str):
+    tag=util.normalise_tag(tag)
+
+    log.info("GUILD={}, {}, ACTION=credit, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
+
+    clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
+    msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+    for m in msgs:
+        await ctx.send(m)
+    return
+
+@credit.error
+async def credit_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'credit' requires arguments. Run '{PREFIX}help credit' for details")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 ###################################################################
 # This method is used to monitor to messages posted on the server, intercepts sidekick war feed,
 # extracts missed attacks, and post those data to a specific channel
@@ -684,7 +707,7 @@ async def crplayer_error(ctx, error):
 ###################################################################
 @bot.event
 async def on_message(message):
-    if SIDEKICK_NAME in message.author.name.lower() or message.content.startswith('TEST '):
+    if SIDEKICK_NAME in message.author.name.lower():
         # sidekick posted a message, let's check if it is war feed
         try:
             if database.has_warmiss_fromchannel(message.guild.id, message.channel.id):
@@ -747,22 +770,23 @@ async def current_war_stats(attack, war):
 
     attacker = attack.attacker
     attacker_clan=attacker.clan
-    print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
+    #print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
     if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys():
         #check if there was already a war not ended due to no state change
         is_new_war = war_tag_different(war, attacker_clan.tag)
-        print("\tis new war={}".format(is_new_war))
+        #print("\tis new war={}".format(is_new_war))
 
         if is_new_war:
             log.info(
-                "Captured war change between: {} and {}, type={}. Old war credits were not registered, registering them now.".format(
+                "Captured war change between: {} and {}, type={}. Old war credits may have not been registered, checking them now.".format(
                     war.clan, war.opponent,
                     war.type))
-            missed_attacks=database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
-            log.info(
-                "\tCredits registered for: {}".format(attacker_clan))
-            log.info(
-                "\tMissed attacks: {}".format(missed_attacks))
+            missed_attacks, registered=database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
+            if registered:
+                log.info(
+                    "\tCredits registered for: {}".format(attacker_clan))
+                log.info(
+                    "\tMissed attacks: {}".format(missed_attacks))
 
         #if this war has not been registered, register the war
         if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
@@ -824,9 +848,13 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
         # print("condition={}".format(condition))
         if condition:
-            missed_attacks=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
-            log.info(
-                "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
+            missed_attacks, registered=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
+            if registered:
+                log.info(
+                    "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
+            else:
+                log.info(
+                    "\tCredits not registered for: {}, something wrong... ".format(old_war.clan, missed_attacks))
 
     ##########################
     # set up for the new war
@@ -863,7 +891,7 @@ def war_tag_different(war:coc.ClanWar, clan_tag:str):
     #clan tag already in clans_for_credit_watch, but no current war registered for it.
     #here we detected an attack, it means war has started
     no_current_war=clan_tag not in database.MEM_mappings_clan_currentwars.keys()
-    print("\t clan tag not in current wars={}".format(no_current_war))
+    #print("\t clan tag not in current wars={}".format(no_current_war))
     if no_current_war:
         return True
 

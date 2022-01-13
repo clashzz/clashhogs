@@ -14,6 +14,8 @@ from coc import utils
 coc 1.3, using tags works
 '''
 
+print(str(None))
+
 client = coc.login(
     sys.argv[1], sys.argv[2],
     key_names="coc.py tests",

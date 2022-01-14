@@ -18,6 +18,7 @@ TABLE_current_wars="current_wars" #key: clan tag; value: a dictionary
 
 CLAN_NAME="clan_name"
 CLAN_WAR_TAG="war_tag"
+CLAN_WAR_END="war_end"
 CLAN_WAR_TYPE="type"
 CLAN_WAR_MEMBERS="members"
 CLAN_WAR_ATTACKS="attacks"

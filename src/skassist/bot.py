@@ -808,6 +808,7 @@ async def current_war_stats(attack, war):
                     clanwar_participants[(util.normalise_tag(m.tag), util.normalise_name(m.name))] = total_attacks
                 database.MEM_mappings_clan_currentwars[war.clan.tag] = {
                     database.CLAN_WAR_TAG:war.war_tag,
+                    database.CLAN_WAR_END:str(war.end_time),
                     database.CLAN_NAME:attacker_clan.name,
                     database.CLAN_WAR_TYPE: war.type,
                     database.CLAN_WAR_ATTACKS: total_attacks,
@@ -836,7 +837,11 @@ async def current_war_stats(attack, war):
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
-    print("new war clan="+str(new_war.clan))
+    if new_war.clan is None:
+        nwclan="None"
+    else:
+        nwclan=new_war.clan
+    print("new war clan="+nwclan)
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(

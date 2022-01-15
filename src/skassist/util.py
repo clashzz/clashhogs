@@ -135,7 +135,7 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
     return msgs
 
 def prepare_help_menu(botname, prefix):
-    string=f'{botname} supports the following commands. Run **{prefix}help [command]** for how to use them. Also see ' \
+    string=f'{botname} supports the following commands (requires admin privilege unless otherwise stated). Run **{prefix}help [command]** for how to use them. Also see ' \
     'details at https://github.com/clashzz/sidekickassist:\n' \
     '\t\t - **warmiss**: set up a channel for forwarding missed attacks\n' \
     '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n' \
@@ -143,7 +143,8 @@ def prepare_help_menu(botname, prefix):
     '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'   \
     '\t\t - **warn**: manage warnings for a clan/player\n'  \
     '\t\t - **crclan**: set up the credit watch system for a clan\n' \
-    '\t\t - **crplayer**: manage the credits of a specific player'
+    '\t\t - **crplayer**: manage the credits of a specific player \n' \
+    '\t\t - **credit**: view the credits of a specific player (available to any user)'
     return string
 
 def prepare_warmiss_help(prefix):

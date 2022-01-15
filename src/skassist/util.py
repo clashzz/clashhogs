@@ -194,7 +194,9 @@ def prepare_warn_help(prefix):
     '\t\t -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n' \
     '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n' \
     '\t\t -c: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'   \
-    '\t\t -d: to delete a specific warning record. Provide [clanname] and an ID of the record to replace [playername]\n'    \
+    '\t\t -d: to delete a specific warning record. Provide [clanname] and either an ID of a record, or a ' \
+           'date (yyyy-mm-dd) replace [playername]. If a date is provided, all records entered before the date' \
+           ' will be deleted\n'    \
     '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided'
     return string
 

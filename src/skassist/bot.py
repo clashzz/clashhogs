@@ -106,6 +106,8 @@ async def help(context, command=None):
         await context.send(util.prepare_crclan_help(PREFIX, database.CREDIT_WATCH_ACTIVITIES))
     elif command == 'crplayer':
         await context.send(util.prepare_crplayer_help(PREFIX))
+    elif command == 'credit':
+        await context.send(util.prepare_credit_help(PREFIX))
     else:
         await context.send(f'Command {command} does not exist.')
 

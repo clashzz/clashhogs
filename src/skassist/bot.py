@@ -839,11 +839,15 @@ async def current_war_stats(attack, war):
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
-    if new_war.clan is None:
-        nwclan="None"
-    else:
-        nwclan=new_war.clan
-    print("new war clan="+str(nwclan))
+    try:
+        if new_war.clan is None:
+            nwclan="None"
+        else:
+            nwclan=new_war.clan
+        print("new war clan="+str(nwclan))
+    except:
+        print("trying to print clan failed")
+        
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(

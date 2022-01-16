@@ -843,7 +843,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         nwclan="None"
     else:
         nwclan=new_war.clan
-    print("new war clan="+nwclan)
+    print("new war clan="+str(nwclan))
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(

@@ -428,11 +428,11 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
 '''
 def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cache=True):
     #temporary code for debugging
-    # with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
-    #     pickle.dump(MEM_mappings_clan_currentwars, handle)
-    # with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
-    #     pickle.dump(MEM_mappings_clan_guild, handle)
-    #
+    with open(rootfolder + "debug_currentwars.pk", 'wb') as handle:
+        pickle.dump(MEM_mappings_clan_currentwars, handle)
+    with open(rootfolder + "debug_clanguild.pk", 'wb') as handle:
+        pickle.dump(MEM_mappings_clan_guild, handle)
+
     added=False
     missed_attacks = {}
     if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():

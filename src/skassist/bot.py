@@ -602,7 +602,14 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-debug":
         try:
             clan = await coc_client.get_clan(tag)
-            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
+            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=True)
+            if registered:
+                print(
+                    "\tDEBUG: Credits registered for: {}".format(tag))
+                print(
+                    "\tDEBUG: Missed attacks: {}".format(missed_attacks))
+            else:
+                print("\t DEBUG: Manual credit registeration failed, reload the saved war data and try again")
         except coc.NotFound:
             return
 

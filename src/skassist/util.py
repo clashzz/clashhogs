@@ -81,10 +81,12 @@ def format_credit_systems(res:dict):
     else:
         embedVar = discord.Embed(title="Clans currently registered for the credit system",
                                  description="")  # , color=0x00ff00
-    for clantag, values in res.items():
+    for clanwatch in res:
+        clantag=clanwatch._tag
+        points = clanwatch._creditwatch_points
         id="Clan Tag: {}".format(clantag)
         string=""
-        for k, v in values.items():
+        for k, v in points.items():
             string+=f" *{k}*={v}\t\t "
         embedVar.add_field(name=f'**{id}**',
                     value=string,
@@ -134,10 +136,38 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
         msgs.append(string)
     return msgs
 
+def format_clanwatch_data(clan):
+    if clan is None:
+        embedVar = discord.Embed(title="Clan Setup",
+                                 description="This clan has not been linked to this discord server")  # , color=0x00ff00
+    else:
+        embedVar = discord.Embed(title="Clan Setup",
+                                 description="")  # , color=0x00ff00
+        embedVar.add_field(name='Tag',
+                    value=clan._tag,
+                    inline=True)
+        embedVar.add_field(name='Name',
+                           value=clan._name,
+                           inline=True)
+        embedVar.add_field(name='Discord server',
+                           value=clan._guildname,
+                           inline=True)
+        embedVar.add_field(name='Missed attacks channel',
+                           value=clan._channel_warmiss,
+                           inline=True)
+        embedVar.add_field(name='War summary channel',
+                           value=clan._channel_warsummary,
+                           inline=True)
+        embedVar.add_field(name='Clan summary channel',
+                           value=clan._channel_clansummary,
+                           inline=True)
+
+    return embedVar
+
 def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands (requires admin privilege unless otherwise stated). Run **{prefix}help [command]** for how to use them. Also see ' \
     'details at https://github.com/clashzz/sidekickassist:\n' \
-    '\t\t - **warmiss**: set up a channel for forwarding missed attacks\n' \
+    '\t\t - **link**: link a clan to this discord server. This must be done first before you use other commands with this bot\n' \
     '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n' \
     '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'    \
     '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'   \
@@ -145,6 +175,17 @@ def prepare_help_menu(botname, prefix):
     '\t\t - **crclan**: set up the credit watch system for a clan\n' \
     '\t\t - **crplayer**: manage the credits of a specific player \n' \
     '\t\t - **credit**: view the credits of a specific player (available to any user)'
+    return string
+
+def prepare_link_help(prefix):
+    'This command is used to map your sidekick war feed channel to another channel,'
+    string= 'This command must be run to link a clan to this discord server before other commands can be used Authentication needed: ' \
+            'your clan description must end with "CH22".\n ' \
+            '**Usage:** {}link [option] [clantag]. Options can be:\n' \
+            '\t\t\t -l: to list clans currently linked with this discord server. If [clantag] is provided, list details of that clan only\n'  \
+            '\t\t\t -a: to link a clan with this discord server. [clantag] must be provided\n'   \
+            '\t\t\t -r: to unlink a clan with this discord server. [clantag must be provided]'.format(prefix)
+
     return string
 
 def prepare_warmiss_help(prefix):
@@ -209,11 +250,10 @@ def prepare_crclan_help(prefix, default_points:dict):
         f'**Usage:** {prefix}crclan [option] [clantag] [*value]\n'  \
         '- [option]: \n'    \
         '\t\t -l: list clans currently registered. If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: crclan -l *\n'  \
-        '\t\t -a: to register a clan for credit watch. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
+        '\t\t -u: to update the points of credit watch for a clan. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
         'If none provided, then: '  \
         f'*{default.strip()}*. '    \
-        f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]' \
-        '\n\t\t -d: to remove a clan from credit watch. [clantag is mandatory]\n' \
+        f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]\n' \
         '\t\t -c: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
     return string
 

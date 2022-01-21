@@ -1,5 +1,5 @@
 import asyncio
-import datetime, time, logging, pandas, sys, traceback, discord, coc, threading
+import datetime, logging, pandas, sys, traceback, discord, coc, threading
 from pathlib import Path
 from discord.ext import commands, tasks
 from skassist import database, sidekickparser, models, util
@@ -30,7 +30,7 @@ if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys
 coc_client = coc.login(
     properties["CoC_API_EMAIL"],
     properties["CoC_API_PASS"],
-    key_names="Sidekick Assist v1",
+    key_names="Clash Hogs",
     client=coc.EventsClient,
 )
 
@@ -40,7 +40,6 @@ BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
 SIDEKICK_NAME = 'sidekick'
 PERMISSION_CLANDIGEST = 'developers'
-BOT_WAIT_TIME = 5
 bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
 #logging
@@ -55,20 +54,21 @@ log = logging.getLogger(BOT_NAME)
 ##################################################
 @bot.event
 async def on_ready():
-    database.load_mappings_clan_currentwars(rootfolder)
-    log.info(f'{bot.user.name} has connected to Discord! (prefix: {PREFIX})')
-    # register each connected guild to the bot database
-    log.info('The following guilds are connected with the bot:')
-    for guild in bot.guilds:
-        database.MEM_mappings_guild_id_name[guild.id] = guild.name
-        log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-        database.check_database(guild.id,rootfolder)
+    #check if master database exists
+    database.check_master_database()
+    #register clans for coc event watch
+    log.info('The following clans are linked with the bot:')
+    guild_database_check=set()
+    for clan in database.init_clanwatch_all():
+        coc_client.add_war_updates(clan._tag)
+        log.info("\t{}, {}, guild={}, {}".format(clan._tag, clan._name, clan._guildid, clan._guildname))
+        coc_client.add_war_updates(clan._tag)
+        if clan._guildid not in guild_database_check:
+            log.info("\t\t checking database for guild={}".format(clan._guildid))
+            database.check_database(clan._guildid, rootfolder)
+            guild_database_check.add(clan._guildid)
 
-    log.info('The following clans are registered for clan credit watch:')
-    for clan in database.MEM_mappings_clan_creditwatch.keys():
-        coc_client.add_war_updates(clan)
-        #coc_client.add_clan_updates(clan)
-        log.info('\t{}'.format(clan))
+    database.load_mappings_clan_currentwars(rootfolder)
     log.info('The following wars are currently ongoing and monitored:')
     for k, v in database.MEM_mappings_clan_currentwars.items():
         log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
@@ -88,9 +88,8 @@ async def help(context, command=None):
     if command is None:
         await context.send(
             util.prepare_help_menu(BOT_NAME,PREFIX))
-    elif command == 'warmiss':
-        await context.send(
-            util.prepare_warmiss_help(PREFIX))
+    elif command=='link':
+        await context.send(util.prepare_link_help(PREFIX))
     elif command == 'clandigest':
         await context.send(
             util.prepare_clandigest_help(BOT_NAME,PREFIX))
@@ -103,7 +102,7 @@ async def help(context, command=None):
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'crclan':
-        await context.send(util.prepare_crclan_help(PREFIX, database.CREDIT_WATCH_ACTIVITIES))
+        await context.send(util.prepare_crclan_help(PREFIX, models.STANDARD_CREDITS))
     elif command == 'crplayer':
         await context.send(util.prepare_crplayer_help(PREFIX))
     elif command == 'credit':
@@ -111,79 +110,128 @@ async def help(context, command=None):
     else:
         await context.send(f'Command {command} does not exist.')
 
-
 #########################################################
 # This method is used to configure the discord channels
 # to automatically tally missed attacks
 #########################################################
-@bot.command(name='warmiss')
+@bot.command(name='link')
 @commands.has_permissions(manage_guild=True)
-async def warmiss(ctx, option: str, from_channel=None, to_channel=None, clan=None):
-    log.info("GUILD={}, {}, ACTION=warmiss, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
-    # list current mappings
-    if option == "-l":
-        mappings = database.get_warmiss_mappings_for_guild(ctx.guild.id)
-        msg = "The follow channels are mapped for war missed attacks:\n"
-        for m in mappings:
-            fc = discord.utils.get(ctx.guild.channels, id=m[0])
-            tc = discord.utils.get(ctx.guild.channels, id=m[1])
-            clanname = m[2]
-            msg += "\t\tFrom: **{}**,\tTo: **{}**,\t Clan: **{}**\n".format(fc.mention, tc.mention, clanname)
-        await ctx.channel.send(msg)
+async def link(ctx, option: str, clantag=None):
+    log.info("GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
+
+    if clantag is not None:
+        try:
+            clan = await coc_client.get_clan(clantag)
+        except coc.NotFound:
+            await ctx.send("This clan doesn't exist.")
+            return
+
+    if option=='-a':
+        if clantag is None:
+            await ctx.send("Clan tag required.")
+            return
+
+        desc = clan.description
+        if desc is None:
+            desc = ""
+        if not desc.endswith("CH22"):
+            await ctx.send("Authentication failed. Please add 'CH22' to the end of your clan description. This is only "
+                           "needed once to verify you are the owner of the clan. Each clan can only be linked to one "
+                           "discord server.")
+            return
+
+        clanwatch=database.get_clanwatch(clantag)
+        if clanwatch is None:
+            clanwatch=models.ClanWatch(clantag, clan.name, ctx.guild.id, ctx.guild.name)
+        else:
+            clanwatch.clear()
+            clanwatch._tag = clantag
+            clanwatch._name=clan.name
+            clanwatch._guildid=ctx.guild.id
+            clanwatch._guildname=ctx.guild.name
+        database.add_clanwatch(clantag, clanwatch)
+        coc_client.add_war_updates(clantag)
+        await ctx.send("Clan linked to this discord server. You will need to re-add all the channel mappings for this clan.")
+    elif option=='-l':
+        if clantag is None:
+            clanwatches = database.get_clanwatch_all()
+            if len(clanwatches)==0:
+                await ctx.send("No clans have been linked to this discord server.")
+            else:
+                for cw in clanwatches:
+                    await ctx.send(embed=util.format_clanwatch_data(cw))
+            return
+
+        clanwatch = database.get_clanwatch(clantag)
+        await ctx.send(embed=util.format_clanwatch_data(clanwatch))
         return
-
-    # if other options, then the other three params are required
-    if from_channel is None or to_channel is None or clan is None:
-        await ctx.channel.send(f"'warmiss' requires arguments. Run {PREFIX}help warmiss for details")
+    elif option=='-r':
+        if clantag is None:
+            await ctx.send("Clan tag must be provided")
+            return
+        database.remove_clanwatch(clantag)
+        coc_client.remove_war_updates(clantag)
+        await ctx.send("Clan {} has been unlinked from this discord server.".format(clantag))
         return
+    else:
+        await ctx.send("Option not supported. Run help for details.")
 
-    # check if the channels already exist
-    check_ok = True
-    from_channel_id = sidekickparser.parse_channel_id(from_channel)
-    to_channel_id = sidekickparser.parse_channel_id(to_channel)
-    channel = discord.utils.get(ctx.guild.channels, id=from_channel_id)
-    if channel is None:
-        await ctx.channel.send(
-            f"The channel {from_channel} does not exist. Please create it first, and give {BOT_NAME} "
-            "'Send messages' and 'Read message history' permissions to that channel.")
-        check_ok = False
-    channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
-    if channel is None:
-        await ctx.channel.send(
-            f"The channel {to_channel} does not exist. Please create it first, and give {BOT_NAME} "
-            "'Send messages' and 'Read message history' permissions to that channel.")
-        check_ok = False
-
-    if not check_ok:
-        return
-
-    # checks complete, all good
-    if option == "-a":  # adding a mapping
-        pair = (from_channel_id, to_channel_id)
-        database.add_channel_mappings_warmiss(pair, ctx.guild.id, clan)
-        await ctx.channel.send(
-            "Okay. Missed attacks for **{}** from {} will be extracted and forwarded to {}. Please ensure {} has "
-            "access to these channels (read and write)".format(clan, from_channel, to_channel, BOT_NAME))
-
-    if option == "-r":  # remove a channel
-        database.remove_warmiss_mappings_for_guild(ctx.guild.id, from_channel_id)
-        await ctx.channel.send(
-            "Mapping removed")
-
-
-@warmiss.error
-async def warmiss_error(ctx, error):
+@link.error
+async def link_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'warmiss' requires arguments. Run {PREFIX}help warmiss for details")
+        await ctx.channel.send(f"'link' requires arguments. Run {PREFIX}help link for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "Users of 'warmiss' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "Users of 'link' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
-        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=warmiss, \n{}".format(ctx.guild.id, ctx.guild.name, error))
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+#########################################################
+# This method is used to set up the discord channels
+# for war missed attacks, clan summary and war summary feeds
+#########################################################
+@bot.command(name='channel')
+@commands.has_permissions(manage_guild=True)
+async def channel(ctx, option: str, clantag, to_channel):
+    log.info("GUILD={}, {}, ACTION=channel, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
+    # list current mappings
+    try:
+        clan = await coc_client.get_clan(clantag)
+        clanwatch = database.get_clanwatch(clantag)
+        if clanwatch is None:
+            await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
+            return
+    except coc.NotFound:
+        await ctx.send("This clan doesn't exist.")
+        return
+
+    if option == "-miss":
+        # check if the channels already exist
+        to_channel_id = sidekickparser.parse_channel_id(to_channel)
+        channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+        if channel is None:
+            await ctx.channel.send(
+                f"The channel {to_channel} does not exist. Please create it first, and give {BOT_NAME} "
+                "'Send messages' permission to that channel.")
+            return
+
+        clanwatch._channel_warmiss=to_channel
+        database.add_clanwatch(clantag, clanwatch)
+        await ctx.send("War missed attack channel has been added for this clan. Please make sure "
+                       f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
+
+
+@channel.error
+async def channel_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'channel' requires arguments. Run {PREFIX}help channel for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'channel' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
 # This method is used to process clan log summary
@@ -540,42 +588,35 @@ async def warn_error(ctx, error):
 @commands.has_permissions(manage_guild=True)
 async def crclan(ctx, option: str, tag: str, *values):
     tag=util.normalise_tag(tag)
-
     log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list current registered clans
     if option == "-l":
-        res = database.list_registered_clans_creditwatch(ctx.guild.id, tag)
+        if tag=="*":
+            res = database.get_clanwatch_by_guild(str(ctx.guild.id))
+        else:
+            res = [database.get_clanwatch(tag, str(ctx.guild.id))]
         await ctx.send(embed=util.format_credit_systems(res))
         return
 
     # register a clan
-    if option == "-a":
+    if option == "-u":
         try:
             clan = await coc_client.get_clan(tag)
         except coc.NotFound:
             await ctx.send("This clan doesn't exist.")
             return
 
-        result=database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, util.normalise_name(clan.name), values)
+        result=database.registered_clan_creditwatch(ctx.guild.id, tag, values)
+        if result is None:
+            await ctx.channel.send("The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+            return
         if len(result)!=0:
             await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
                                    format(clan, result))
         else:
             coc_client.add_war_updates(tag)
             await ctx.channel.send("The clan {} has been updated for the credit watch system.".format(tag))
-        return
-
-    # delete a clan
-    if option == "-d":
-        try:
-            clan = await coc_client.get_clan(tag)
-        except coc.NotFound:
-            await ctx.send("This clan doesn't exist.")
-            return
-        database.remove_registered_clan_creditwatch(ctx.guild.id, tag, rootfolder)
-        coc_client.remove_war_updates(tag)
-        await ctx.channel.send("The clan {} has been removed from the credit watch system.".format(tag))
         return
 
     # clear all records of a clan
@@ -593,7 +634,11 @@ async def crclan(ctx, option: str, tag: str, *values):
             await ctx.send("Sorry, you didn't reply in time!")
 
         if msg.clean_content == "YES":
-            database.clear_credits_for_clan(ctx.guild.id, tag)
+            result=database.clear_credits_for_clan(ctx.guild.id, tag)
+            if result is None:
+                await ctx.channel.send(
+                    "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+                return
             await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
         else:
             await ctx.channel.send("Action cancelled.".format(tag))
@@ -602,14 +647,7 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-debug":
         try:
             clan = await coc_client.get_clan(tag)
-            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=True)
-            if registered:
-                print(
-                    "\tDEBUG: Credits registered for: {}".format(tag))
-                print(
-                    "\tDEBUG: Missed attacks: {}".format(missed_attacks))
-            else:
-                print("\t DEBUG: Manual credit registeration failed, reload the saved war data and try again")
+            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
         except coc.NotFound:
             return
 
@@ -709,57 +747,6 @@ async def credit_error(ctx, error):
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-###################################################################
-# This method is used to monitor to messages posted on the server, intercepts sidekick war feed,
-# extracts missed attacks, and post those data to a specific channel
-# see also the 'config' command
-###################################################################
-@bot.event
-async def on_message(message):
-    if SIDEKICK_NAME in message.author.name.lower():
-        # sidekick posted a message, let's check if it is war feed
-        try:
-            if database.has_warmiss_fromchannel(message.guild.id, message.channel.id):
-                # we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
-                if 'lost the war' in message.content.lower() or 'won the war' in message.content.lower():
-                    #log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
-                    time.sleep(BOT_WAIT_TIME)
-                    # print("\t waiting done")
-
-                    messages = await message.channel.history(limit=10, oldest_first=False).flatten()
-                    messages.reverse()
-                    missed_attacks = sidekickparser.parse_warfeed_missed_attacks(messages)
-
-                    #log.info(
-                    #    "GUILD={},{}, prepared war miss message, total={} war miss messages...".format(message.guild.id,
-                    #                                                                                   message.guild.name,
-                    #                                                                                   len(missed_attacks)))
-                    to_channel, clan = database.get_warmiss_tochannel(message.guild.id, message.channel.id)
-                    to_channel = discord.utils.get(message.guild.channels, id=to_channel)
-
-                    message = "War missed attack for **{} on {}**:\n" \
-                              "(Double check your in-game data, Sidekick can lose attacks made in the last minutes)\n".format(
-                        clan, datetime.datetime.now())
-
-                    if len(missed_attacks) == 0:
-                        message += "\tNone, everyone attacked!"
-                    else:
-                        for k, v in missed_attacks.items():
-                            message += "\t" + str(k) + "\t" + str(v) + "\n"
-                    await to_channel.send(message)
-            else:
-                #log.info(
-                #    "GUILD={},{}, captured Sidekick message from warfeed channel, does not contain war end...".format(
-                #        message.guild.id,
-                #        message.guild.name))
-                return
-        except:
-            error = ''.join(traceback.format_stack())
-            log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
-    elif message.clean_content.strip().startswith(PREFIX):
-        await bot.process_commands(message)
-
-
 #############################################
 # CoC api events
 #############################################
@@ -780,7 +767,7 @@ async def current_war_stats(attack, war):
     attacker = attack.attacker
     attacker_clan=attacker.clan
     #print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
-    if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys():
+    if attacker_clan.tag in database.MEM_mappings_clanwatch.keys():
         #check if there was already a war not ended due to no state change
         is_new_war = war_tag_different(war, attacker_clan.tag)
         #print("\tis new war={}".format(is_new_war))
@@ -796,7 +783,9 @@ async def current_war_stats(attack, war):
                     "\tCredits registered for: {}".format(attacker_clan))
                 log.info(
                     "\tMissed attacks: {}".format(missed_attacks))
-
+                channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag)
+                if channel is not None and misses is not None:
+                    await channel.send(misses)
         #if this war has not been registered, register the war
         if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
             if war.type == "friendly":
@@ -854,7 +843,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         print("new war clan="+str(nwclan))
     except:
         print("trying to print clan failed")
-        
+
     if war_ended(old_war,new_war): #war ended
         clan_home=old_war.clan
         log.info(
@@ -863,7 +852,7 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         # print("clan_home tag={}".format(clan_home.tag))
         # print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
         # print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
-        condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
+        condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clanwatch.keys()\
                 and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
         # print("condition={}".format(condition))
         if condition:
@@ -875,33 +864,29 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 log.info(
                     "\tCredits not registered for: {}, something wrong... ".format(old_war.clan, missed_attacks))
 
-    ##########################
-    # set up for the new war
-    ##########################
-    # if regular_war_started(old_war, new_war) or cwl_war_started(old_war,new_war):
-    #     log.info(
-    #         "Regular or Friendly war started between: {} and {}, type={}".format(new_war.clan, new_war.opponent,new_war.type))
-    #     clan_home=new_war.clan
-    #
-    #     if new_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys():
-    #         total_attacks=2
-    #         if new_war.type=="cwl":
-    #             total_attacks=1
-    #
-    #         clanwar_participants={}
-    #         for m in new_war.members:
-    #             #check if the player clan is in the credit watch
-    #             if m.clan.tag !=clan_home.tag:
-    #                 continue
-    #             clanwar_participants[(util.normalise_tag(m.tag),util.normalise_name(m.name))] = total_attacks
-    #         database.MEM_mappings_clan_currentwars[clan_home.tag] = {
-    #             database.CLAN_WAR_TYPE:new_war.type,
-    #             database.CLAN_WAR_ATTACKS:total_attacks,
-    #             database.CLAN_WAR_MEMBERS: clanwar_participants
-    #         }
-    #         database.save_mappings_clan_currentwars(rootfolder)
-    #         log.info(
-    #             "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
+            channel, misses=send_missed_attacks(missed_attacks, clan_home.tag)
+            if channel is not None and misses is not None:
+                await channel.send(misses)
+
+def send_missed_attacks(misses:dict, clantag:str):
+    clanwatch = database.get_clanwatch(clantag)
+    guild=bot.get_guild(clanwatch._guildid)
+    if guild is not None:
+        channel = discord.utils.get(guild.channels, id=clanwatch._channel_warmiss)
+        if channel is not None:
+            message = "War missed attack for **{} on {}**:\n" \
+                      "(Double check your in-game data, Sidekick can lose attacks made in the last minutes)\n".format(
+                clanwatch._tag, datetime.datetime.now())
+
+            if len(misses) == 0:
+                message += "\tNone, everyone attacked!"
+            else:
+                for k, v in misses.items():
+                    message += "\t" + str(k) + "\t" + str(v) + "\n"
+            return channel, message
+    return None, None
+
+
 
 def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "inWar" and new_war.state != "inWar"
@@ -934,9 +919,9 @@ async def test_scheduled_task():
     print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now,season_end))
     print("\t\t same year={} month equals={} day equals={}".format(now.year==season_end.year, now.month==season_end.month,
                                                                    now.day==season_end.day))
-    print("\t\t clans in credit watch: {}".format(database.MEM_mappings_clan_creditwatch))
-    if len(database.MEM_mappings_clan_creditwatch)!=0:
-        tag=list(database.MEM_mappings_clan_creditwatch.keys())[0]
+    print("\t\t clans in clan watch: {}".format(database.MEM_mappings_clanwatch))
+    if len(database.MEM_mappings_clanwatch)!=0:
+        tag=list(database.MEM_mappings_clanwatch.keys())[0]
         clan=await coc_client.get_clan(tag)
         members=clan.members
         for m in members:

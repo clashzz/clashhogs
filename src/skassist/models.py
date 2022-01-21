@@ -110,6 +110,30 @@ def update_stats(star_freq: dict, stars: int):
         n += star_freq[stars]
     star_freq[stars] = n
 
+STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10}
+class ClanWatch:
+
+
+    def __init__(self, tag, name, guildid, guildname):
+        self._tag=tag
+        self._name=name
+        self._guildid=guildid #discord guild id
+        self._guildname=guildname
+        self._creditwatch=True
+        self._channel_warmiss=None #discord channel id for war missed attacks
+        self._channel_warsummary=None #discord channel id for monthly war summary
+        self._channel_clansummary=None #discord channel id for monthly clan feed summary
+        self._creditwatch_points = STANDARD_CREDITS.copy()
+
+    def clear(self):
+        self._creditwatch=True
+        self._channel_warmiss=None #discord channel id for war missed attacks
+        self._channel_warsummary=None #discord channel id for monthly war summary
+        self._channel_clansummary=None #discord channel id for monthly clan feed summary
+        self.reset_credits()
+
+    def reset_credits(self):
+        self._creditwatch_points = STANDARD_CREDITS.copy()
 
 class Attack:
     # id = an arbitrary id

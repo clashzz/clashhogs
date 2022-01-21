@@ -9,10 +9,12 @@ import datetime, sqlite3, threading, json, pickle
 from pathlib import Path
 from skassist import models, util
 
+DB_CLAN_SETUP= "master_clan_setup"
+TABLE_clanwatch="clanwatch"
+
 TABLE_channel_mapping_warmiss = "channel_mapping_warmiss"
 TABLE_member_attacks = "member_attacks"
 TABLE_member_warnings = "member_warnings"
-TABLE_credits_watch_clans = "credit_watch_clans"
 TABLE_credits_watch_players = "credit_watch_players"
 TABLE_current_wars="current_wars" #key: clan tag; value: a dictionary
 
@@ -23,27 +25,17 @@ CLAN_WAR_TYPE="type"
 CLAN_WAR_MEMBERS="members"
 CLAN_WAR_ATTACKS="attacks"
 
-CREDIT_WATCH_ACTIVITIES={"cw_attack":10, "cw_miss":-10, "cwl_attack":10, "cwl_miss":-10}
-
-# This is not persisted. It is populated everytime a guild connects to the bot
-MEM_mappings_guild_id_name = {}
+# This needs to be initialised every time the bot starts, or updated when a clan registers for/removed from war/credit watch
+MEM_mappings_clanwatch = {}  # key: clan tag; value: models.ClanWatch
 
 # key=guild id|clan name (e.g., 3492301120|myclan
 # value=a list of tuple (x, y) where x is the sidekick channel (name) of war feed, y is the channel (name) to tally
 # missed attacks. This needs to be initialised every time the bot starts, or when a guild connects
 MEM_mappings_guild_warmisschannel = {}
 
-# key:clan tag; value: discord guild id. Needed by the credit watch system
-# This needs to be initialised every time the bot starts, or updated when a clan registers for war/credit watch
-MEM_mappings_clan_guild={}
-
-# This needs to be initialised every time the bot starts, or updated when a clan registers for/removed from war/credit watch
-MEM_mappings_clan_creditwatch = {}  # key: clan tag; value: {clan name, cw_attack, cw_miss, cwl_attack,cwl_miss}
-
 # NB: this object is not persisted so if the bot crashes, data will be lost
 # This is updated every time an attack is made from a clan registered for war/credit watch
 ## key: clan tag; value: {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
-## if the key is found in this mapping, it should also be present in the MEM_mappings_clan_creditwatch mapping
 MEM_mappings_clan_currentwars={}
 
 def connect_db(dbname):
@@ -51,6 +43,24 @@ def connect_db(dbname):
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(targetfolder + str(dbname) + '.db')
     return con
+
+def check_master_database():
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    table_names = []
+    for t in cursor.fetchall():
+        table_names.append(t[0])
+    # if table does not exist, create them
+    if TABLE_clanwatch not in table_names:
+        create_statement = "CREATE TABLE {} (clantag text PRIMARY KEY, guildid text NOT NULL, " \
+                           "data BLOB NOT NULL);".format(TABLE_clanwatch)
+        cursor.execute(create_statement)
+    con.commit()
+    con.close()
+    lock.release()
 
 #check, initialise, and populate the database for a discord guild
 def check_database(guild_id, data_folder):
@@ -65,7 +75,7 @@ def check_database(guild_id, data_folder):
     table_names = []
     for t in cursor.fetchall():
         table_names.append(t[0])
-    # if table does not exist, create them
+
     if TABLE_channel_mapping_warmiss not in table_names:
         create_statement = "CREATE TABLE IF NOT EXISTS {} (from_id integer PRIMARY KEY, " \
                            "to_id integer NOT NULL," \
@@ -89,11 +99,6 @@ def check_database(guild_id, data_folder):
     #                        "date TEXT NOT NULL, note TEXT);".format(TABLE_member_warnings)
     #     cursor.execute(create_statement)
 
-    if TABLE_credits_watch_clans not in table_names:
-        create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
-                           "credit_type TEXT NOT NULL, clan_name TEXT NOT NULL," \
-                           "clan_tag TEXT NOT NULL, points INT NOT NULL);".format(TABLE_credits_watch_clans)
-        cursor.execute(create_statement)
     # else:
     #     print("deleting the wrong creditwatchpoints table")
     #     cursor.execute("DROP TABLE {}".format(TABLE_credits_watch_points))
@@ -107,27 +112,95 @@ def check_database(guild_id, data_folder):
 
     con.commit()
 
-    # Populate MEM_mappings_clan_guild
-    if len(MEM_mappings_clan_guild) == 0:
-        file = data_folder + "/clan2guild.json"
-        try:
-            with open(file) as json_file:
-                MEM_mappings_clan_guild.update(json.load(json_file))
-        except:
-            print("Unable to load the clan-guild mapping. Reset to empty. File does not exist: {}".format(file))
-
     # populate MEM_mappings_guild_warmisschannel
     cursor.execute("SELECT * FROM {};".format(TABLE_channel_mapping_warmiss))
     rows = cursor.fetchall()
     for row in rows:
         update_mappings_guild_warmisschannel(guild_id, row[0], row[1], row[2])
 
-    # populate MEM_mappings_clan_creditwatch
-    cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
-    rows = cursor.fetchall()
-    update_mappings_clan_creditwatch(rows, MEM_mappings_clan_creditwatch)
-    con.close()
+    lock.release()
 
+def get_clanwatch(clantag, guildid=None):
+    clanwatch=None
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    if guildid is None:
+        cursor.execute('SELECT * FROM {} WHERE (clantag=?);'.format(TABLE_clanwatch), [clantag])
+    else:
+        cursor.execute('SELECT * FROM {} WHERE (clantag=?) AND (guildid=?);'.format(TABLE_clanwatch), [clantag, guildid])
+    entry = cursor.fetchone()
+    if entry is not None and len(entry)>0:
+        clanwatch = pickle.loads(entry[2])
+    con.close()
+    lock.release()
+    return clanwatch
+
+def get_clanwatch_by_guild(guildid):
+    res=[]
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {} WHERE (guildid=?);'.format(TABLE_clanwatch), [guildid])
+    entry = cursor.fetchall()
+    for r in entry:
+        clanwatch = pickle.loads(r[2])
+        res.append(clanwatch)
+    con.close()
+    lock.release()
+    return res
+
+def get_clanwatch_all():
+    res=[]
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {};'.format(TABLE_clanwatch))
+    entry = cursor.fetchall()
+    for r in entry:
+        clanwatch = pickle.loads(r[2])
+        res.append(clanwatch)
+    con.close()
+    lock.release()
+    return res
+
+#put clan watch into memory
+def init_clanwatch_all():
+    clans=get_clanwatch_all()
+    for c in clans:
+        MEM_mappings_clanwatch[c._tag]=c
+    return clans
+
+
+def add_clanwatch(clantag, clanwatch):
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    dataobj = pickle.dumps(clanwatch)
+    cursor.execute('INSERT OR IGNORE INTO {} (clantag, guildid, data) VALUES (?, ?,?)'.
+                   format(TABLE_clanwatch), [clantag, clanwatch._guildid,dataobj])
+    cursor.execute('UPDATE {} SET data= ?, guildid=? WHERE clantag= ?'.
+                   format(TABLE_clanwatch), [dataobj, clanwatch._guildid, clantag])
+    con.commit()
+    con.close()
+    MEM_mappings_clanwatch[clantag]=clanwatch
+    lock.release()
+    return clanwatch
+
+def remove_clanwatch(clantag):
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('DELETE FROM {} WHERE clantag=?;'.format(TABLE_clanwatch), [clantag])
+    con.commit()
+    con.close()
+    if clantag in MEM_mappings_clanwatch.keys():
+        del MEM_mappings_clanwatch[clantag]
     lock.release()
 
 def update_mappings_guild_warmisschannel(guild_id, from_id, to_id, clan):
@@ -337,48 +410,25 @@ def update_mappings_clan_creditwatch(database_search_res, res: dict):
             res[clantag] = values
     return res
 
-def list_registered_clans_creditwatch(guild_id, clantag="*"):
-    con = connect_db(str(guild_id))
-    cursor = con.cursor()
-    res={}
-    if clantag =="*":
-        cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
-        rows = cursor.fetchall()
-        update_mappings_clan_creditwatch(rows, res)
-    else:
-        cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) ;'.format(TABLE_credits_watch_clans), [clantag])
-        rows = cursor.fetchall()
-        update_mappings_clan_creditwatch(rows, res)
-
-    con.close()
-    return res
-
 #add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.add_war_updates outside this method
-def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *values):
-    remove_registered_clan_creditwatch(guild_id, clantag,data_folder)
-
-    MEM_mappings_clan_guild[clantag]=guild_id
-    with open(data_folder+'/clan2guild.json', 'w') as fp:
-        json.dump(MEM_mappings_clan_guild, fp)
-
-    con = connect_db(str(guild_id))
-    cursor = con.cursor()
+def registered_clan_creditwatch(guild_id, clantag, *values):
+    clan_watch = get_clanwatch(clantag, guild_id)
+    if clan_watch is None:
+        return None
 
     invalid_activity_types=""
 
     if len(values[0])<1:
-        for k, v in CREDIT_WATCH_ACTIVITIES.items():
-            cursor.execute('INSERT INTO {} (clan_tag, clan_name, credit_type, points) VALUES (?,?,?,?)'.
-                           format(TABLE_credits_watch_clans),
-                           [clantag, clanname, k, v])
+        clan_watch.reset_credits()
+        add_clanwatch(clantag, clan_watch)
     else:
-        credit_watch_activities_copy = CREDIT_WATCH_ACTIVITIES.copy()
+        credit_watch_activities_copy = models.STANDARD_CREDITS.copy()
         for v in values[0]:
             if '=' not in v:
                 invalid_activity_types+="\n\t"+str(v)
                 continue
             parts=v.split("=")
-            if parts[0].strip() not in CREDIT_WATCH_ACTIVITIES.keys():
+            if parts[0].strip() not in credit_watch_activities_copy.keys():
                 invalid_activity_types+="\n\t"+str(v)
                 continue
             try:
@@ -389,36 +439,11 @@ def registered_clan_creditwatch(data_folder, guild_id, clantag, clanname, *value
             else:
                 credit_watch_activities_copy[parts[0].strip()]=parts[1].strip()
 
-        for k, v in credit_watch_activities_copy.items():
-            cursor.execute('INSERT INTO {} (clan_tag, clan_name, credit_type, points) VALUES (?,?,?,?)'.
-                           format(TABLE_credits_watch_clans),
-                           [clantag, clanname, k, v])
-    con.commit()
+        clan_watch._creditwatch_points=credit_watch_activities_copy
+        add_clanwatch(clantag, clan_watch)
 
-    # re-populate credit_watch_points
-    if len(invalid_activity_types)==0:
-        cursor.execute('SELECT * FROM {};'.format(TABLE_credits_watch_clans))
-        rows = cursor.fetchall()
-        update_mappings_clan_creditwatch(rows, MEM_mappings_clan_creditwatch)
-
-    con.close()
     return invalid_activity_types
 
-#add a clan to creditwatch. Whenever this method is called, you need to also call cocclient.remove_clan_updates outside this method
-def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
-    if clantag in MEM_mappings_clan_creditwatch.keys():
-        del MEM_mappings_clan_creditwatch[clantag]
-    if clantag in MEM_mappings_clan_guild.keys():
-        del MEM_mappings_clan_guild[clantag]
-    with open(data_folder+'/clan2guild.json', 'w') as fp:
-        json.dump(MEM_mappings_clan_guild, fp)
-
-    con = connect_db(str(guild_id))
-    cursor = con.cursor()
-    cursor.execute('DELETE FROM {} WHERE clan_tag=?'.
-                   format(TABLE_credits_watch_clans), [clantag])
-    con.commit()
-    con.close()
 
 # the clan_war_participants must conform to the format described above for the value of a current_wars entry
 '''
@@ -428,73 +453,72 @@ def remove_registered_clan_creditwatch(guild_id, clantag, data_folder):
 '''
 def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cache=True):
     #temporary code for debugging
-    with open(rootfolder + "debug_currentwars.pk", 'wb') as handle:
-        pickle.dump(MEM_mappings_clan_currentwars, handle)
-    with open(rootfolder + "debug_clanguild.pk", 'wb') as handle:
-        pickle.dump(MEM_mappings_clan_guild, handle)
-
+    # with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
+    #     pickle.dump(MEM_mappings_clan_currentwars, handle)
+    # with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
+    #     pickle.dump(MEM_mappings_clan_guild, handle)
+    #
     added=False
     missed_attacks = {}
-    if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clan_guild.keys():
-
+    if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clanwatch.keys():
+        clanwatch=MEM_mappings_clanwatch[clan_tag]
         time = str(datetime.datetime.now())
-        guild=MEM_mappings_clan_guild[clan_tag]
+        guild=clanwatch._guildid
         con = connect_db(str(guild))
         cursor = con.cursor()
 
         clan_war_participants = MEM_mappings_clan_currentwars[clan_tag]
         total_attacks=clan_war_participants[CLAN_WAR_ATTACKS]
         type = clan_war_participants[CLAN_WAR_TYPE]
-        points = list_registered_clans_creditwatch(MEM_mappings_clan_guild[clan_tag], clan_tag)
+        points = clanwatch._creditwatch_points
 
-        if points is not None and len(points)>0:
-            points = points[clan_tag]
-            if type=="cwl":
-                atk = points["cwl_attack"]
-                miss = points["cwl_miss"]
-                war="cwl"
-            else:
-                atk = points["cw_attack"]
-                miss = points["cw_miss"]
-                war="regular war"
+        if type == "cwl":
+            atk = points["cwl_attack"]
+            miss = points["cwl_miss"]
+            war = "cwl"
+        else:
+            atk = points["cw_attack"]
+            miss = points["cw_miss"]
+            war = "regular war"
 
-            #debug
-            # print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
-            # count=0
+        # debug
+        # print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
+        # count=0
+        #
+
+        for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
+            #
+            # count+=1
+            # print("\t {}, {}".format(member, remaining))
             #
 
-            for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
-                #
-                # count+=1
-                # print("\t {}, {}".format(member, remaining))
-                #
-
-                mtag=member[0]
-                mname=member[1]
-                used = total_attacks-remaining
-                if used>0:
-                    cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
+            mtag = member[0]
+            mname = member[1]
+            used = total_attacks - remaining
+            if used > 0:
+                cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
                                'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
                                format(TABLE_credits_watch_players),
-                               [mtag, mname, clan_tag, clan_name, used*int(atk), time,
-                                "Using {} attacks in {}".format(used,war)])
-                    #
-                    #print("\t\t has used {}".format(used))
-                    #
-                if remaining>0:
-                    cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
-                                   'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
-                                   format(TABLE_credits_watch_players),
-                                   [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
-                                    "Missing {} attacks in {}".format(remaining, war)])
-                    key = (mtag, mname)
-                    if key in missed_attacks.keys():
-                        missed_attacks[key] =int(remaining) + missed_attacks[key]
-                    else:
-                        missed_attacks[key] = int(remaining)
-                    #
-                    #print("\t\t has missed {}".format(remaining))
-                    #
+                               [mtag, mname, clan_tag, clan_name, used * int(atk), time,
+                                "Using {} attacks in {}".format(used, war)])
+                #
+                # print("\t\t has used {}".format(used))
+                #
+            if remaining > 0:
+                cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
+                               'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
+                               format(TABLE_credits_watch_players),
+                               [mtag, mname, clan_tag, clan_name, remaining * int(miss), time,
+                                "Missing {} attacks in {}".format(remaining, war)])
+                key = (mtag, mname)
+                if key in missed_attacks.keys():
+                    missed_attacks[key] = int(remaining) + missed_attacks[key]
+                else:
+                    missed_attacks[key] = int(remaining)
+                #
+                # print("\t\t has missed {}".format(remaining))
+                #
+
         #access database...
         con.commit()
         con.close()
@@ -520,7 +544,7 @@ def load_mappings_clan_currentwars(folder):
         with open(folder+"current_wars.pk", 'rb') as handle:
             MEM_mappings_clan_currentwars.update(pickle.load(handle))
     except:
-        print("Unable to load current war data to file: {}".format(folder+"current_wars.pk"))
+        print("Unable to load current war data to file: {}. This is normal if the bot is run for the first time".format(folder+"current_wars.pk"))
 
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
@@ -599,9 +623,13 @@ def add_player_credits(guild_id, author, player_tag, player_name, player_clantag
     con.close()
 
 def clear_credits_for_clan(guidid, clan_tag):
+    clanwatch = get_clanwatch(clan_tag, guidid)
+    if clanwatch is None:
+        return None
     con = connect_db(str(guidid))
     cursor = con.cursor()
     cursor.execute('DELETE FROM {} WHERE player_clantag=?'.format(TABLE_credits_watch_players),
                    [clan_tag])
     con.commit()
     con.close()
+    return True

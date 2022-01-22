@@ -13,10 +13,10 @@ from coc import utils
 if len(sys.argv) < 1:
     print("Please provide the path to the folder containing your .env file")
     exit(0)
-rootfolder=sys.argv[1]
+rootfolder = sys.argv[1]
 if not rootfolder.endswith("/"):
-    rootfolder+="/"
-properties = util.load_properties(rootfolder+".env")
+    rootfolder += "/"
+properties = util.load_properties(rootfolder + ".env")
 if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys() \
         or 'BOT_PREFIX' not in properties.keys() or 'CoC_API_EMAIL' not in properties.keys() \
         or 'CoC_API_PASS' not in properties.keys():
@@ -26,7 +26,7 @@ if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys
                                                 "CoC_API_EMAIL", "CoC_API_PASS"))
     exit(0)
 
-#CoC.py api client object
+# CoC.py api client object
 coc_client = coc.login(
     properties["CoC_API_EMAIL"],
     properties["CoC_API_PASS"],
@@ -34,7 +34,7 @@ coc_client = coc.login(
     client=coc.EventsClient,
 )
 
-#Bot information and properties
+# Bot information and properties
 TOKEN = properties['DISCORD_TOKEN']
 BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
@@ -43,12 +43,13 @@ PERMISSION_CLANDIGEST = 'developers'
 BOT_WAIT_TIME = 5
 bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
-#logging
+# logging
 logging.basicConfig(stream=sys.stdout,
                     format='%(asctime)s %(levelname)-8s %(message)s',
                     level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(BOT_NAME)
+
 
 ##################################################
 # Bot events
@@ -62,16 +63,17 @@ async def on_ready():
     for guild in bot.guilds:
         database.MEM_mappings_guild_id_name[guild.id] = guild.name
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
-        database.check_database(guild.id,rootfolder)
+        database.check_database(guild.id, rootfolder)
 
     log.info('The following clans are registered for clan credit watch:')
     for clan in database.MEM_mappings_clan_creditwatch.keys():
         coc_client.add_war_updates(clan)
-        #coc_client.add_clan_updates(clan)
+        # coc_client.add_clan_updates(clan)
         log.info('\t{}'.format(clan))
     log.info('The following wars are currently ongoing and monitored:')
     for k, v in database.MEM_mappings_clan_currentwars.items():
         log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
+
 
 @bot.event
 async def on_guild_join(guild):
@@ -87,16 +89,16 @@ async def on_guild_join(guild):
 async def help(context, command=None):
     if command is None:
         await context.send(
-            util.prepare_help_menu(BOT_NAME,PREFIX))
+            util.prepare_help_menu(BOT_NAME, PREFIX))
     elif command == 'warmiss':
         await context.send(
             util.prepare_warmiss_help(PREFIX))
     elif command == 'clandigest':
         await context.send(
-            util.prepare_clandigest_help(BOT_NAME,PREFIX))
+            util.prepare_clandigest_help(BOT_NAME, PREFIX))
     elif command == 'wardigest':
         await context.send(
-            util.prepare_wardigest_help(BOT_NAME,PREFIX))
+            util.prepare_wardigest_help(BOT_NAME, PREFIX))
     elif command == 'warpersonal':
         await context.send(
             util.prepare_warpersonal_help(BOT_NAME, PREFIX))
@@ -191,7 +193,7 @@ async def warmiss_error(ctx, error):
 @bot.command(name='clandigest')
 # @commands.has_role('developers')
 async def clandigest(ctx, from_channel: str, to_channel: str, clanname: str):
-    log.info("GUILD={}, {}, ACTION=clandigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
+    log.info("GUILD={}, {}, ACTION=clandigest, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
     # check if the channels already exist
     check_ok = True
     from_channel_id = sidekickparser.parse_channel_id(from_channel)
@@ -262,7 +264,7 @@ async def clandigest(ctx, error):
     else:
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name,error))
+        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
         traceback.print_stack()
 
 
@@ -271,7 +273,7 @@ async def clandigest(ctx, error):
 #########################################################
 @bot.command(name='wardigest')
 async def wardigest(ctx, from_channel: str, to_channel: str, clanname: str, fromdate: str, todate=None):
-    log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
+    log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
 
     # check if the channels already exist
     check_ok = True
@@ -468,20 +470,20 @@ async def warpersonal(ctx, error):
 @bot.command(name='warn')
 @commands.has_permissions(manage_guild=True)
 async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
-    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
 
     # list current warnings
     if option == "-l":
         if name is None:  # list all warnings of a clan
             res = database.list_warnings(ctx.guild.id, clan)
-            warnings=util.format_warnings(clan, res)
+            warnings = util.format_warnings(clan, res)
             for w in warnings:
                 await ctx.send(w)
             # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
             return
         else:  # list all warnings of a person in a clan
             res = database.list_warnings(ctx.guild.id, clan, name)
-            warnings = util.format_warnings(clan, res,name)
+            warnings = util.format_warnings(clan, res, name)
             for w in warnings:
                 await ctx.send(w)
 
@@ -511,12 +513,13 @@ async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
         return
         # delete a warning
     if option == "-d":
-        deleted=database.delete_warning(ctx.guild.id, clan, name)
+        deleted = database.delete_warning(ctx.guild.id, clan, name)
         if deleted:
             await ctx.channel.send("The warning record(s) has/have been deleted".format(clan))
         else:
-            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
-                                   " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
+            await ctx.channel.send(
+                "Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
+                " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
 
 
 @warn.error
@@ -539,9 +542,9 @@ async def warn_error(ctx, error):
 @bot.command(name='crclan')
 @commands.has_permissions(manage_guild=True)
 async def crclan(ctx, option: str, tag: str, *values):
-    tag=util.normalise_tag(tag)
+    tag = util.normalise_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
 
     # list current registered clans
     if option == "-l":
@@ -557,10 +560,12 @@ async def crclan(ctx, option: str, tag: str, *values):
             await ctx.send("This clan doesn't exist.")
             return
 
-        result=database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, util.normalise_name(clan.name), values)
-        if len(result)!=0:
-            await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
-                                   format(clan, result))
+        result = database.registered_clan_creditwatch(rootfolder, ctx.guild.id, tag, util.normalise_name(clan.name),
+                                                      values)
+        if len(result) != 0:
+            await ctx.channel.send(
+                "Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
+                format(clan, result))
         else:
             coc_client.add_war_updates(tag)
             await ctx.channel.send("The clan {} has been updated for the credit watch system.".format(tag))
@@ -582,10 +587,10 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-c":
         def check(msg):
             return msg.author == ctx.author and msg.channel == ctx.channel and \
-                    msg.content in ["YES", "NO"]
+                   msg.content in ["YES", "NO"]
 
         await ctx.channel.send(
-                "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
+            "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
         msg = "NO"
         try:
             msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
@@ -602,7 +607,7 @@ async def crclan(ctx, option: str, tag: str, *values):
     if option == "-debug":
         try:
             clan = await coc_client.get_clan(tag)
-            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=True)
+            missed_attacks, registered = database.register_war_credits(tag, clan.name, rootfolder, clear_cache=True)
             if registered:
                 print(
                     "\tDEBUG: Credits registered for: {}".format(tag))
@@ -632,14 +637,14 @@ async def crclan_error(ctx, error):
 @bot.command(name='crplayer')
 @commands.has_permissions(manage_guild=True)
 async def crplayer(ctx, option: str, tag: str, value=None, *note):
-    tag=util.normalise_tag(tag)
+    tag = util.normalise_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
 
     # list credits of a clan's member
     if option == "-lc":
         clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
-        msgs=util.format_playercredits(tag, clanname, playercredits, playername, last_updated)
+        msgs = util.format_playercredits(tag, clanname, playercredits, playername, last_updated)
         for m in msgs:
             await ctx.send(m)
         return
@@ -647,7 +652,7 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
     # list credits of a clan's member
     if option == "-lp":
         clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-        msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+        msgs = util.format_playercreditrecords(tag, clantag, clanname, playername, records)
         for m in msgs:
             await ctx.send(m)
         return
@@ -669,10 +674,12 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
         except:
             await ctx.channel.send("The value you entered does not look like a number, try agian.")
             return
-        author= ctx.message.author.mention
-        database.add_player_credits(ctx.guild.id, author, tag, player.name, player.clan.tag, player.clan.name,value, note)
+        author = ctx.message.author.mention
+        database.add_player_credits(ctx.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, value,
+                                    note)
         await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
         return
+
 
 @crplayer.error
 async def crplayer_error(ctx, error):
@@ -686,21 +693,21 @@ async def crplayer_error(ctx, error):
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
-
 #########################################################
 # This method is used to track player credits
 #########################################################
 @bot.command(name='credit')
 async def credit(ctx, tag: str):
-    tag=util.normalise_tag(tag)
+    tag = util.normalise_tag(tag)
 
     log.info("GUILD={}, {}, ACTION=credit, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
 
     clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-    msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+    msgs = util.format_playercreditrecords(tag, clantag, clanname, playername, records)
     for m in msgs:
         await ctx.send(m)
     return
+
 
 @credit.error
 async def credit_error(ctx, error):
@@ -708,6 +715,7 @@ async def credit_error(ctx, error):
         await ctx.channel.send(f"'credit' requires arguments. Run '{PREFIX}help credit' for details")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 ###################################################################
 # This method is used to monitor to messages posted on the server, intercepts sidekick war feed,
@@ -722,7 +730,7 @@ async def on_message(message):
             if database.has_warmiss_fromchannel(message.guild.id, message.channel.id):
                 # we captured a message from the sidekick war feed channel. Now check if it is about missed attackes
                 if 'lost the war' in message.content.lower() or 'won the war' in message.content.lower():
-                    #log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
+                    # log.info("GUILD={},{}, captured war end messages...".format(message.guild.id, message.guild.name))
                     time.sleep(BOT_WAIT_TIME)
                     # print("\t waiting done")
 
@@ -730,7 +738,7 @@ async def on_message(message):
                     messages.reverse()
                     missed_attacks = sidekickparser.parse_warfeed_missed_attacks(messages)
 
-                    #log.info(
+                    # log.info(
                     #    "GUILD={},{}, prepared war miss message, total={} war miss messages...".format(message.guild.id,
                     #                                                                                   message.guild.name,
                     #                                                                                   len(missed_attacks)))
@@ -748,7 +756,7 @@ async def on_message(message):
                             message += "\t" + str(k) + "\t" + str(v) + "\n"
                     await to_channel.send(message)
             else:
-                #log.info(
+                # log.info(
                 #    "GUILD={},{}, captured Sidekick message from warfeed channel, does not contain war end...".format(
                 #        message.guild.id,
                 #        message.guild.name))
@@ -771,40 +779,43 @@ async def on_message(message):
 
 
 """War Events"""
+
+
 @coc_client.event
-@coc.WarEvents.war_attack() #only if the clan war is registered in MEM_mappings_clan_currentwars
+@coc.WarEvents.war_attack()  # only if the clan war is registered in MEM_mappings_clan_currentwars
 async def current_war_stats(attack, war):
     lock = threading.Lock()
     lock.acquire()
 
     attacker = attack.attacker
-    attacker_clan=attacker.clan
-    #print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
+    attacker_clan = attacker.clan
+    # print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
     if attacker_clan.tag in database.MEM_mappings_clan_creditwatch.keys():
-        #check if there was already a war not ended due to no state change
+        # check if there was already a war not ended due to no state change
         is_new_war = war_tag_different(war, attacker_clan.tag)
-        #print("\tis new war={}".format(is_new_war))
+        # print("\tis new war={}".format(is_new_war))
 
         if is_new_war:
             log.info(
                 "Captured war change between: {} and {}, type={}. Old war credits may have not been registered, checking them now.".format(
                     war.clan, war.opponent,
                     war.type))
-            missed_attacks, registered=database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
+            missed_attacks, registered = database.register_war_credits(attacker_clan.tag, attacker_clan.name,
+                                                                       rootfolder)
             if registered:
                 log.info(
                     "\tCredits registered for: {}".format(attacker_clan))
                 log.info(
                     "\tMissed attacks: {}".format(missed_attacks))
 
-        #if this war has not been registered, register the war
+        # if this war has not been registered, register the war
         if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
             if war.type == "friendly":
                 log.info("This is a friendly war, ignored")
             else:
                 log.info(
                     "Captured first attack of war between: {} and {}, type={}".format(war.clan, war.opponent,
-                                                                                     war.type))
+                                                                                      war.type))
                 total_attacks = 2
                 if war.type == "cwl":
                     total_attacks = 1
@@ -816,9 +827,9 @@ async def current_war_stats(attack, war):
                         continue
                     clanwar_participants[(util.normalise_tag(m.tag), util.normalise_name(m.name))] = total_attacks
                 database.MEM_mappings_clan_currentwars[war.clan.tag] = {
-                    database.CLAN_WAR_TAG:war.war_tag,
-                    database.CLAN_WAR_END:str(war.end_time),
-                    database.CLAN_NAME:attacker_clan.name,
+                    database.CLAN_WAR_TAG: war.war_tag,
+                    database.CLAN_WAR_END: str(war.end_time),
+                    database.CLAN_NAME: attacker_clan.name,
                     database.CLAN_WAR_TYPE: war.type,
                     database.CLAN_WAR_ATTACKS: total_attacks,
                     database.CLAN_WAR_MEMBERS: clanwar_participants
@@ -831,43 +842,48 @@ async def current_war_stats(attack, war):
                 for k, v in database.MEM_mappings_clan_currentwars.items():
                     log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
 
-        #register this attack to the right war
-        log.info(
-            f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan.name}, clan tag {attack.attacker.clan.tag} ")
+        # register this attack to the right war
+        if war.type == "friendly":
+            log.info("This is a friendly war, ignore the attack")
+        else:
+            log.info(
+                f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan.name}, clan tag {attack.attacker.clan.tag} ")
 
-        clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
-        key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
-        if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
-            clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
-            database.save_mappings_clan_currentwars(rootfolder)
+            clan_war_participants = database.MEM_mappings_clan_currentwars[attacker_clan.tag]
+            key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
+            if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
+                clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][
+                                                                            key] - 1
+                database.save_mappings_clan_currentwars(rootfolder)
     lock.release()
 
+
 @coc_client.event
-@coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
-async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
+@coc.WarEvents.state()  # notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
+async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
     log.info("War state changed, old war = {}, new war = {}".format(old_war.state, new_war.state))
     try:
         if new_war.clan is None:
-            nwclan="None"
+            nwclan = "None"
         else:
-            nwclan=new_war.clan
-        print("new war clan="+str(nwclan))
+            nwclan = new_war.clan
+        print("new war clan=" + str(nwclan))
     except:
         print("trying to print clan failed")
-        
-    if war_ended(old_war,new_war): #war ended
-        clan_home=old_war.clan
+
+    if war_ended(old_war, new_war):  # war ended
+        clan_home = old_war.clan
         log.info(
-            "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent,old_war.type))
+            "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent, old_war.type))
         # print("war type={}".format(old_war.type))
         # print("clan_home tag={}".format(clan_home.tag))
         # print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
         # print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
-        condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys()\
-                and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+        condition = old_war.type != "friendly" and clan_home.tag in database.MEM_mappings_clan_creditwatch.keys() \
+                    and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
         # print("condition={}".format(condition))
         if condition:
-            missed_attacks, registered=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
+            missed_attacks, registered = database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
             if registered:
                 log.info(
                     "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
@@ -903,14 +919,16 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
     #         log.info(
     #             "\tClan war registered for credit watch: {}".format(database.MEM_mappings_clan_currentwars[clan_home.tag]))
 
-def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
+
+def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
     return old_war.state == "inWar" and new_war.state != "inWar"
 
-def war_tag_different(war:coc.ClanWar, clan_tag:str):
-    #clan tag already in clans_for_credit_watch, but no current war registered for it.
-    #here we detected an attack, it means war has started
-    no_current_war=clan_tag not in database.MEM_mappings_clan_currentwars.keys()
-    #print("\t clan tag not in current wars={}".format(no_current_war))
+
+def war_tag_different(war: coc.ClanWar, clan_tag: str):
+    # clan tag already in clans_for_credit_watch, but no current war registered for it.
+    # here we detected an attack, it means war has started
+    no_current_war = clan_tag not in database.MEM_mappings_clan_currentwars.keys()
+    # print("\t clan tag not in current wars={}".format(no_current_war))
     if no_current_war:
         return True
 
@@ -918,27 +936,32 @@ def war_tag_different(war:coc.ClanWar, clan_tag:str):
     war_tag = clan_war[database.CLAN_WAR_TAG]
     return war.war_tag != war_tag
 
-def regular_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
+
+def regular_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
     return old_war.state == "preparation" and new_war.state == "inWar"
 
-def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    return new_war.state=="warEnded" and old_war.state=="inWar"
 
-def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
+def regular_war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
+    return new_war.state == "warEnded" and old_war.state == "inWar"
+
+
+def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
+    return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type == "cwl"
+
 
 @tasks.loop(hours=20)
 async def test_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
-    print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now,season_end))
-    print("\t\t same year={} month equals={} day equals={}".format(now.year==season_end.year, now.month==season_end.month,
-                                                                   now.day==season_end.day))
+    print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now, season_end))
+    print("\t\t same year={} month equals={} day equals={}".format(now.year == season_end.year,
+                                                                   now.month == season_end.month,
+                                                                   now.day == season_end.day))
     print("\t\t clans in credit watch: {}".format(database.MEM_mappings_clan_creditwatch))
-    if len(database.MEM_mappings_clan_creditwatch)!=0:
-        tag=list(database.MEM_mappings_clan_creditwatch.keys())[0]
-        clan=await coc_client.get_clan(tag)
-        members=clan.members
+    if len(database.MEM_mappings_clan_creditwatch) != 0:
+        tag = list(database.MEM_mappings_clan_creditwatch.keys())[0]
+        clan = await coc_client.get_clan(tag)
+        members = clan.members
         for m in members:
             print("\t\t\t member={} donations={}".format(m.name, m.donations))
 

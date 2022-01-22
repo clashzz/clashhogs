@@ -788,7 +788,9 @@ async def current_war_stats(attack, war):
                     await channel.send(misses)
         #if this war has not been registered, register the war
         if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
-            if war.type == "friendly":
+            # if war.type == "friendly":
+            #     log.info("This is a friendly war, ignored")
+            if False:
                 log.info("This is a friendly war, ignored")
             else:
                 log.info(
@@ -852,8 +854,12 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         # print("clan_home tag={}".format(clan_home.tag))
         # print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
         # print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
-        condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clanwatch.keys()\
-                and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+
+        # condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clanwatch.keys()\
+        #         and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+        condition = clan_home.tag in database.MEM_mappings_clanwatch.keys() \
+                    and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+
         # print("condition={}".format(condition))
         if condition:
             missed_attacks, registered=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)

@@ -2,7 +2,7 @@ import asyncio
 import datetime, logging, pandas, sys, traceback, discord, coc, threading
 from pathlib import Path
 from discord.ext import commands, tasks
-from skassist import database, sidekickparser, models, util
+from clashhogs import database, sidekickparser, models, util
 from coc import utils
 
 ##########

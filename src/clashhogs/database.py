@@ -7,7 +7,7 @@ Each guild will have a unique DB. This is identified by the guild id when the bo
 from datetime import datetime
 import datetime, sqlite3, threading, json, pickle
 from pathlib import Path
-from skassist import models, util
+from clashhogs import models, util
 
 DB_CLAN_SETUP= "master_clan_setup"
 TABLE_clanwatch="clanwatch"

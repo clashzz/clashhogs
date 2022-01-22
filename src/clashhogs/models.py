@@ -1,6 +1,6 @@
 import datetime
 
-from skassist import util
+from clashhogs import util
 import csv, pandas
 
 

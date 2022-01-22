@@ -1,7 +1,7 @@
 import datetime
 import pandas as pd
 
-from skassist import util, models
+from clashhogs import util, models
 import re
 '''
 When client enters their channel using the format #channel-name, the value passed to the discord api will not be

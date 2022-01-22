@@ -58,15 +58,15 @@ async def on_ready():
     database.check_master_database()
     #register clans for coc event watch
     log.info('The following clans are linked with the bot:')
-    guild_database_check=set()
     for clan in database.init_clanwatch_all():
         coc_client.add_war_updates(clan._tag)
         log.info("\t{}, {}, guild={}, {}".format(clan._tag, clan._name, clan._guildid, clan._guildname))
         coc_client.add_war_updates(clan._tag)
-        if clan._guildid not in guild_database_check:
-            log.info("\t\t checking database for guild={}".format(clan._guildid))
-            database.check_database(clan._guildid, rootfolder)
-            guild_database_check.add(clan._guildid)
+
+    log.info('The following guilds are linked with the bot:')
+    for guild in bot.guilds:
+        log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
+        database.check_database(guild.id, rootfolder)
 
     database.load_mappings_clan_currentwars(rootfolder)
     log.info('The following wars are currently ongoing and monitored:')

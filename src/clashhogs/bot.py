@@ -61,7 +61,7 @@ async def on_ready():
     for clan in database.init_clanwatch_all():
         coc_client.add_war_updates(clan._tag)
         log.info("\t{}, {}, guild={}, {}".format(clan._tag, clan._name, clan._guildid, clan._guildname))
-        coc_client.add_war_updates(clan._tag)
+        #coc_client.add_war_updates(clan._tag)
 
     log.info('The following guilds are linked with the bot:')
     for guild in bot.guilds:
@@ -761,12 +761,12 @@ async def credit_error(ctx, error):
 @coc_client.event
 @coc.WarEvents.war_attack() #only if the clan war is registered in MEM_mappings_clan_currentwars
 async def current_war_stats(attack, war):
-    lock = threading.Lock()
-    lock.acquire()
-
     attacker = attack.attacker
     attacker_clan=attacker.clan
     #print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
+    if attacker.is_opponent: #not an attack from the home clan of this war
+        return
+
     if attacker_clan.tag in database.MEM_mappings_clanwatch.keys():
         #check if there was already a war not ended due to no state change
         is_new_war = war_tag_different(war, attacker_clan.tag)
@@ -831,7 +831,6 @@ async def current_war_stats(attack, war):
         if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
             clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
             database.save_mappings_clan_currentwars(rootfolder)
-    lock.release()
 
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
@@ -878,7 +877,10 @@ def send_missed_attacks(misses:dict, clantag:str):
     clanwatch = database.get_clanwatch(clantag)
     guild=bot.get_guild(clanwatch._guildid)
     if guild is not None:
-        channel = discord.utils.get(guild.channels, id=clanwatch._channel_warmiss)
+        channel_id=clanwatch._channel_warmiss
+        if channel_id is not None:
+            channel_id=sidekickparser.parse_channel_id(channel_id)
+        channel = discord.utils.get(guild.channels, id=channel_id)
         if channel is not None:
             message = "War missed attack for **{} on {}**:\n" \
                       "(Double check your in-game data, Sidekick can lose attacks made in the last minutes)\n".format(

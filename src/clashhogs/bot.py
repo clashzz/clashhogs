@@ -68,11 +68,6 @@ async def on_ready():
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id, rootfolder)
 
-    database.load_mappings_clan_currentwars(rootfolder)
-    log.info('The following wars are currently ongoing and monitored:')
-    for k, v in database.MEM_mappings_clan_currentwars.items():
-        log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
-
 @bot.event
 async def on_guild_join(guild):
     log.info('{} has been added to a new server: {}'.format(BOT_NAME, guild.id))
@@ -645,11 +640,7 @@ async def crclan(ctx, option: str, tag: str, *values):
         return
     # temporary debugging
     if option == "-debug":
-        try:
-            clan = await coc_client.get_clan(tag)
-            missed_attacks, registered=database.register_war_credits(tag, clan.name, rootfolder, clear_cache=False)
-        except coc.NotFound:
-            return
+        pass
 
 
 @crclan.error
@@ -756,82 +747,6 @@ async def credit_error(ctx, error):
 #     final_donated_troops = new_member.donations - old_member.donations
 #     log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
-
-"""War Events"""
-@coc_client.event
-@coc.WarEvents.war_attack() #only if the clan war is registered in MEM_mappings_clan_currentwars
-async def current_war_stats(attack, war):
-    attacker = attack.attacker
-    attacker_clan=attacker.clan
-    #print("new attack captured. clan={}, credit watch={}".format(attacker_clan.tag, database.MEM_mappings_clan_creditwatch.keys()))
-    if attacker.is_opponent: #not an attack from the home clan of this war
-        return
-
-    if attacker_clan.tag in database.MEM_mappings_clanwatch.keys():
-        #check if there was already a war not ended due to no state change
-        is_new_war = war_tag_different(war, attacker_clan.tag)
-        #print("\tis new war={}".format(is_new_war))
-
-        if is_new_war:
-            log.info(
-                "Captured war change between: {} and {}, type={}. Old war credits may have not been registered, checking them now.".format(
-                    war.clan, war.opponent,
-                    war.type))
-            missed_attacks, registered=database.register_war_credits(attacker_clan.tag, attacker_clan.name, rootfolder)
-            if registered:
-                log.info(
-                    "\tCredits registered for: {}".format(attacker_clan))
-                log.info(
-                    "\tMissed attacks: {}".format(missed_attacks))
-                channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag)
-                if channel is not None and misses is not None:
-                    await channel.send(misses)
-        #if this war has not been registered, register the war
-        if attacker_clan.tag not in database.MEM_mappings_clan_currentwars.keys():
-            # if war.type == "friendly":
-            #     log.info("This is a friendly war, ignored")
-            if False:
-                log.info("This is a friendly war, ignored")
-            else:
-                log.info(
-                    "Captured first attack of war between: {} and {}, type={}".format(war.clan, war.opponent,
-                                                                                     war.type))
-                total_attacks = 2
-                if war.type == "cwl":
-                    total_attacks = 1
-
-                clanwar_participants = {}
-                for m in war.members:
-                    # check if the player clan is in the credit watch
-                    if m.clan.tag != war.clan.tag:
-                        continue
-                    clanwar_participants[(util.normalise_tag(m.tag), util.normalise_name(m.name))] = total_attacks
-                database.MEM_mappings_clan_currentwars[war.clan.tag] = {
-                    database.CLAN_WAR_TAG:war.war_tag,
-                    database.CLAN_WAR_END:str(war.end_time),
-                    database.CLAN_NAME:attacker_clan.name,
-                    database.CLAN_WAR_TYPE: war.type,
-                    database.CLAN_WAR_ATTACKS: total_attacks,
-                    database.CLAN_WAR_MEMBERS: clanwar_participants
-                }
-                database.save_mappings_clan_currentwars(rootfolder)
-                log.info(
-                    "\tInitialised clan war for credit watch: {}".format(
-                        database.MEM_mappings_clan_currentwars[war.clan.tag]))
-                log.info('The following wars are currently ongoing and monitored:')
-                for k, v in database.MEM_mappings_clan_currentwars.items():
-                    log.info('\t{},\t\t{}'.format(k, util.format_war_participants(v)))
-
-        #register this attack to the right war
-        log.info(
-            f"\t\tAttack registered for {attack.attacker} of {attack.attacker.clan.name}, clan tag {attack.attacker.clan.tag} ")
-
-        clan_war_participants=database.MEM_mappings_clan_currentwars[attacker_clan.tag]
-        key = (util.normalise_tag(attacker.tag), util.normalise_name(attacker.name))
-        if key in clan_war_participants[database.CLAN_WAR_MEMBERS]:
-            clan_war_participants[database.CLAN_WAR_MEMBERS][key] = clan_war_participants[database.CLAN_WAR_MEMBERS][key]-1
-            database.save_mappings_clan_currentwars(rootfolder)
-
 @coc_client.event
 @coc.WarEvents.state() #notInWar, inWar, preparation, warEnded; should capture state change for any clans registered for credit watch
 async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
@@ -849,19 +764,40 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
         clan_home=old_war.clan
         log.info(
             "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent,old_war.type))
-        # print("war type={}".format(old_war.type))
-        # print("clan_home tag={}".format(clan_home.tag))
-        # print("credit watch={}".format(database.MEM_mappings_clan_creditwatch.keys()))
-        # print("wars={}".format(database.MEM_mappings_clan_currentwars.keys()))
 
-        # condition=old_war.type!="friendly" and clan_home.tag in database.MEM_mappings_clanwatch.keys()\
-        #         and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
-        condition = clan_home.tag in database.MEM_mappings_clanwatch.keys() \
-                    and clan_home.tag in database.MEM_mappings_clan_currentwars.keys()
+        condition = clan_home.tag in database.MEM_mappings_clanwatch.keys()
 
         # print("condition={}".format(condition))
         if condition:
-            missed_attacks, registered=database.register_war_credits(clan_home.tag, clan_home.name, rootfolder)
+            type = old_war.type
+            if type=="friendly":
+                log.info("Friendly war, ignored")
+                return
+            if type=="cwl":
+                total_attacks=1
+            else:
+                total_attacks=2
+
+            members = old_war.members
+            attacks = old_war.attacks
+
+            attack_data={}
+            for m in members:
+                if not m.is_opponent:
+                    attack_data[(m.name, m.tag)]=[]
+
+            for atk in attacks:
+                key = (atk.attacker.name, atk.attacker.tag)
+                if key in attack_data.keys():
+                    #id: str, target_thlvl: int, source_thlvl: int, stars: int, is_outgoing: bool,
+                    #time: datetime.datetime
+                    id = atk.attacker_tag+">"+atk.defender_tag
+                    atk_obj = models.Attack(id, atk.defender.town_hall, atk.attacker.town_hall,
+                                            atk.stars, True, old_war.end_time.now)
+                    attack_data[key].append(atk_obj)
+
+
+            missed_attacks, registered=database.save_war_attacks(clan_home.tag, clan_home.name, type, total_attacks, attack_data)
             if registered:
                 log.info(
                     "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
@@ -897,7 +833,10 @@ def send_missed_attacks(misses:dict, clantag:str):
 
 
 def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
-    return old_war.state == "inWar" and new_war.state != "inWar"
+    if old_war.state == "inWar" and new_war.state != "inWar":
+        return True
+    if old_war.state=="inWar" and old_war.war_tag is not None:
+        return True
 
 def war_tag_different(war:coc.ClanWar, clan_tag:str):
     #clan tag already in clans_for_credit_watch, but no current war registered for it.

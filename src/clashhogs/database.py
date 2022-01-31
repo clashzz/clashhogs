@@ -33,11 +33,6 @@ MEM_mappings_clanwatch = {}  # key: clan tag; value: models.ClanWatch
 # missed attacks. This needs to be initialised every time the bot starts, or when a guild connects
 MEM_mappings_guild_warmisschannel = {}
 
-# NB: this object is not persisted so if the bot crashes, data will be lost
-# This is updated every time an attack is made from a clan registered for war/credit watch
-## key: clan tag; value: {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
-MEM_mappings_clan_currentwars={}
-
 def connect_db(dbname):
     targetfolder = "db/"
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
@@ -444,14 +439,12 @@ def registered_clan_creditwatch(guild_id, clantag, *values):
 
     return invalid_activity_types
 
-
-# the clan_war_participants must conform to the format described above for the value of a current_wars entry
 '''
 "player_tag TEXT NOT NULL, player_name TEXT NOT NULL," \
                            "player_clantag TEXT NOT NULL, player_clanname TEXT NOT NULL, " \
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
-def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cache=True):
+def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:int, attack_data:dict, clear_cache=True):
     #temporary code for debugging
     # with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
     #     pickle.dump(MEM_mappings_clan_currentwars, handle)
@@ -460,19 +453,16 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
     #
     added=False
     missed_attacks = {}
-    if clan_tag in MEM_mappings_clan_currentwars.keys() and clan_tag in MEM_mappings_clanwatch.keys():
+    if clan_tag in MEM_mappings_clanwatch.keys():
         clanwatch=MEM_mappings_clanwatch[clan_tag]
         time = str(datetime.datetime.now())
         guild=clanwatch._guildid
         con = connect_db(str(guild))
         cursor = con.cursor()
 
-        clan_war_participants = MEM_mappings_clan_currentwars[clan_tag]
-        total_attacks=clan_war_participants[CLAN_WAR_ATTACKS]
-        type = clan_war_participants[CLAN_WAR_TYPE]
         points = clanwatch._creditwatch_points
 
-        if type == "cwl":
+        if war_type == "cwl":
             atk = points["cwl_attack"]
             miss = points["cwl_miss"]
             war = "cwl"
@@ -481,20 +471,11 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
             miss = points["cw_miss"]
             war = "regular war"
 
-        # debug
-        # print("registering credits for {} members".format(len(clan_war_participants[CLAN_WAR_MEMBERS])))
-        # count=0
-        #
-
-        for member, remaining in clan_war_participants[CLAN_WAR_MEMBERS].items():
-            #
-            # count+=1
-            # print("\t {}, {}".format(member, remaining))
-            #
-
-            mtag = member[0]
-            mname = member[1]
-            used = total_attacks - remaining
+        for member, attacks in attack_data.items():
+            mtag = member[1]
+            mname = member[0]
+            used = total_attacks - len(attacks)
+            remaining = total_attacks-used
             if used > 0:
                 cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
                                'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
@@ -515,36 +496,12 @@ def register_war_credits(clan_tag:str, clan_name:str, rootfolder:str, clear_cach
                     missed_attacks[key] = int(remaining) + missed_attacks[key]
                 else:
                     missed_attacks[key] = int(remaining)
-                #
-                # print("\t\t has missed {}".format(remaining))
-                #
 
         #access database...
         con.commit()
         con.close()
-        if clear_cache:
-            del MEM_mappings_clan_currentwars[clan_tag]
-        save_mappings_clan_currentwars(rootfolder)
         added=True
     return missed_attacks, added
-
-#todo: this should be done by databases
-#every time a war starts or ends, we must call this method
-def save_mappings_clan_currentwars(folder):
-    try:
-        with open(folder+"current_wars.pk", 'wb') as handle:
-            pickle.dump(MEM_mappings_clan_currentwars, handle)
-    except:
-        print("Unable to save current war data to file: {}".format(folder+"current_wars.pk"))
-
-#todo: this should be done by databases
-#every time the bot starts, we must call this method
-def load_mappings_clan_currentwars(folder):
-    try:
-        with open(folder+"current_wars.pk", 'rb') as handle:
-            MEM_mappings_clan_currentwars.update(pickle.load(handle))
-    except:
-        print("Unable to load current war data to file: {}. This is normal if the bot is run for the first time".format(folder+"current_wars.pk"))
 
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason

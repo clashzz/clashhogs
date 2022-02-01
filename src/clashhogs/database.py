@@ -15,8 +15,8 @@ TABLE_clanwatch="clanwatch"
 TABLE_channel_mapping_warmiss = "channel_mapping_warmiss"
 TABLE_member_attacks = "member_attacks"
 TABLE_member_warnings = "member_warnings"
+TABLE_war_attacks = "war_attacks"
 TABLE_credits_watch_players = "credit_watch_players"
-TABLE_current_wars="current_wars" #key: clan tag; value: a dictionary
 
 CLAN_NAME="clan_name"
 CLAN_WAR_TAG="war_tag"
@@ -80,6 +80,18 @@ def check_database(guild_id, data_folder):
         create_statement = "CREATE TABLE {} (id text PRIMARY KEY, " \
                            "name TEXT NOT NULL, " \
                            "data BLOB NOT NULL);".format(TABLE_member_attacks)
+        cursor.execute(create_statement)
+    if TABLE_war_attacks not in table_names:
+        create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
+                           "player_tag TEXT NOT NULL, " \
+                           "player_name TEXT NOT NULL, " \
+                           "clan_tag TEXT NOT NULL, " \
+                           "clan_name TEXT NOT NULL, " \
+                           "stars int NOT NULL, " \
+                           "attacker_th int NOT NULL, " \
+                           "defender_th int NOT NULL, " \
+                           "time TEXT NOT NULL," \
+                           "war_type TEXT NOT NULL);".format(TABLE_war_attacks)
         cursor.execute(create_statement)
     if TABLE_member_warnings not in table_names:
         create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
@@ -445,12 +457,6 @@ def registered_clan_creditwatch(guild_id, clantag, *values):
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
 def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:int, attack_data:dict, clear_cache=True):
-    #temporary code for debugging
-    # with open(rootfolder + "tmp_currentwards.pk", 'wb') as handle:
-    #     pickle.dump(MEM_mappings_clan_currentwars, handle)
-    # with open(rootfolder + "tmp_clanguild.pk", 'wb') as handle:
-    #     pickle.dump(MEM_mappings_clan_guild, handle)
-    #
     added=False
     missed_attacks = {}
     if clan_tag in MEM_mappings_clanwatch.keys():
@@ -474,7 +480,17 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
         for member, attacks in attack_data.items():
             mtag = member[1]
             mname = member[0]
-            used = total_attacks - len(attacks)
+            #adding attack record into database
+            for atk in attacks:
+                cursor.execute('INSERT INTO {} (player_tag, ' \
+                               'player_name, clan_tag, clan_name, stars, attacker_th,' \
+                               'defender_th, time) VALUES (?,?,?,?,?,?,?,?,?)'.
+                               format(TABLE_war_attacks),
+                               [mtag, mname, clan_tag, clan_name, atk._stars,
+                                atk._source_thlvl, atk.target_thlvl, time])
+
+            #saving credits and work out missed attacks
+            used = len(attacks)
             remaining = total_attacks-used
             if used > 0:
                 cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
@@ -502,7 +518,6 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
         con.close()
         added=True
     return missed_attacks, added
-
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
 def list_playercredits(guild_id, playertag:str):

@@ -33,6 +33,29 @@ MEM_mappings_clanwatch = {}  # key: clan tag; value: models.ClanWatch
 # missed attacks. This needs to be initialised every time the bot starts, or when a guild connects
 MEM_mappings_guild_warmisschannel = {}
 
+#current coc api isn't reliable in detecting war state change during cwl. as an alternative,
+#we store current cwl wars for each clan, and check for the change of war id to decide if a new war has started
+MEM_current_cwl_wars={} #key=clan ID, value= (war id, war object)
+
+def reset_cwl_war_data(clantag:str, warobj=None):
+    if warobj is None:
+        if clantag in MEM_current_cwl_wars.keys():
+            del MEM_current_cwl_wars[clantag]
+    else:
+        MEM_current_cwl_wars[clantag] = (warobj.war_tag, warobj)
+
+def update_if_same_cwl_war(clantag:str, warobj):
+    if clantag not in MEM_current_cwl_wars.keys():
+        MEM_current_cwl_wars[clantag] = (warobj.war_tag, warobj)
+        return True
+    else:
+        prev_war = MEM_current_cwl_wars[clantag]
+        if prev_war[0] == warobj.war_tag:
+            MEM_current_cwl_wars[clantag]= (warobj.war_tag, warobj)
+            return True
+        #this clan has a previous cwl war, and its tag is not the same as this one
+        return False
+
 def connect_db(dbname):
     targetfolder = "db/"
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
@@ -484,10 +507,10 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
             for atk in attacks:
                 cursor.execute('INSERT INTO {} (player_tag, ' \
                                'player_name, clan_tag, clan_name, stars, attacker_th,' \
-                               'defender_th, time) VALUES (?,?,?,?,?,?,?,?,?)'.
+                               'defender_th, time) VALUES (?,?,?,?,?,?,?,?)'.
                                format(TABLE_war_attacks),
                                [mtag, mname, clan_tag, clan_name, atk._stars,
-                                atk._source_thlvl, atk.target_thlvl, time])
+                                atk._source_thlvl, atk._target_thlvl, time])
 
             #saving credits and work out missed attacks
             used = len(attacks)

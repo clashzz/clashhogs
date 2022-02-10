@@ -775,29 +775,14 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
                 return
             if type=="cwl":
                 total_attacks=1
+                #cwl war state change, let's also reset the cache for current wars
+                database.reset_cwl_war_data(clan_home.tag)
             else:
                 total_attacks=2
 
             members = old_war.members
             attacks = old_war.attacks
-
-            attack_data={}
-            for m in members:
-                if not m.is_opponent:
-                    attack_data[(m.name, m.tag)]=[]
-
-            for atk in attacks:
-                key = (atk.attacker.name, atk.attacker.tag)
-                if key in attack_data.keys():
-                    #id: str, target_thlvl: int, source_thlvl: int, stars: int, is_outgoing: bool,
-                    #time: datetime.datetime
-                    id = atk.attacker_tag+">"+atk.defender_tag
-                    atk_obj = models.Attack(id, atk.defender.town_hall, atk.attacker.town_hall,
-                                            atk.stars, True, old_war.end_time.now)
-                    attack_data[key].append(atk_obj)
-
-
-            missed_attacks, registered=database.save_war_attacks(clan_home.tag, clan_home.name, type, total_attacks, attack_data)
+            missed_attacks, registered=register_war_attacks(members, attacks, old_war, clan_home, type, total_attacks)
             if registered:
                 log.info(
                     "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
@@ -808,6 +793,63 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             channel, misses=send_missed_attacks(missed_attacks, clan_home.tag)
             if channel is not None and misses is not None:
                 await channel.send(misses)
+
+@coc_client.event
+@coc.WarEvents.war_attack()  # only if the clan war is registered in MEM_mappings_clan_currentwars
+async def current_war_stats(attack, war):
+    attacker = attack.attacker
+    if attacker.is_opponent or not war.is_cwl:
+        return
+
+    attacker_clan = attacker.clan
+    #check if this is the start of a new cwl war
+    new_cwl_war=False
+    if not attacker_clan in database.MEM_current_cwl_wars.keys():
+        #clan does not have a cwl war previously
+        database.reset_cwl_war_data(attacker_clan.tag, war)
+    else:
+        #clan has a cwl war previously
+        samewar=database.update_if_same_cwl_war(attacker_clan.tag, war)
+        if not samewar:
+            #1. register previous cwl war attacks
+            members = war.members
+            attacks = war.attacks
+            missed_attacks, registered = register_war_attacks(members, attacks, war, attacker_clan, type, 1)
+            if registered:
+                log.info(
+                    "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.clan, missed_attacks))
+            else:
+                log.info(
+                    "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.clan, missed_attacks))
+
+            channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag)
+            if channel is not None and misses is not None:
+                await channel.send(misses)
+
+            #2. reset cwl war for this clan
+            database.reset_cwl_war_data(attacker_clan.tag, war)
+
+    print("new cwl attack captured. clan={}, attacker={}".format(attacker_clan.tag, attacker))
+
+def register_war_attacks(members:list, attacks:list, old_war, clan_home, type, total_attacks):
+    attack_data = {}
+    for m in members:
+        if not m.is_opponent:
+            attack_data[(m.name, m.tag)] = []
+
+    for atk in attacks:
+        key = (atk.attacker.name, atk.attacker.tag)
+        if key in attack_data.keys():
+            # id: str, target_thlvl: int, source_thlvl: int, stars: int, is_outgoing: bool,
+            # time: datetime.datetime
+            id = atk.attacker_tag + ">" + atk.defender_tag
+            atk_obj = models.Attack(id, atk.defender.town_hall, atk.attacker.town_hall,
+                                    atk.stars, True, old_war.end_time.now)
+            attack_data[key].append(atk_obj)
+
+    missed_attacks, registered = database.save_war_attacks(clan_home.tag, clan_home.name, type, total_attacks,
+                                                           attack_data)
+    return missed_attacks, registered
 
 def send_missed_attacks(misses:dict, clantag:str):
     clanwatch = database.get_clanwatch(clantag)

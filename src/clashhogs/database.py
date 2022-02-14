@@ -492,11 +492,11 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
         points = clanwatch._creditwatch_points
 
         if war_type == "cwl":
-            atk = points["cwl_attack"]
+            atkp = points["cwl_attack"]
             miss = points["cwl_miss"]
             war = "cwl"
         else:
-            atk = points["cw_attack"]
+            atkp = points["cw_attack"]
             miss = points["cw_miss"]
             war = "regular war"
 
@@ -504,13 +504,24 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
             mtag = member[1]
             mname = member[0]
             #adding attack record into database
+            '''
+            "player_tag TEXT NOT NULL, " \
+                           "player_name TEXT NOT NULL, " \
+                           "clan_tag TEXT NOT NULL, " \
+                           "clan_name TEXT NOT NULL, " \
+                           "stars int NOT NULL, " \
+                           "attacker_th int NOT NULL, " \
+                           "defender_th int NOT NULL, " \
+                           "time TEXT NOT NULL," \
+                           "war_type TEXT NOT NULL);
+            '''
             for atk in attacks:
                 cursor.execute('INSERT INTO {} (player_tag, ' \
                                'player_name, clan_tag, clan_name, stars, attacker_th,' \
-                               'defender_th, time) VALUES (?,?,?,?,?,?,?,?)'.
+                               'defender_th, time, war_type) VALUES (?,?,?,?,?,?,?,?,?)'.
                                format(TABLE_war_attacks),
                                [mtag, mname, clan_tag, clan_name, atk._stars,
-                                atk._source_thlvl, atk._target_thlvl, time])
+                                atk._source_thlvl, atk._target_thlvl, time, war_type])
 
             #saving credits and work out missed attacks
             used = len(attacks)
@@ -519,7 +530,7 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
                 cursor.execute('INSERT INTO {} (player_tag, player_name, ' \
                                'player_clantag, player_clanname, credits, time, reason) VALUES (?,?,?,?,?,?,?)'.
                                format(TABLE_credits_watch_players),
-                               [mtag, mname, clan_tag, clan_name, used * int(atk), time,
+                               [mtag, mname, clan_tag, clan_name, used * int(atkp), time,
                                 "Using {} attacks in {}".format(used, war)])
                 #
                 # print("\t\t has used {}".format(used))

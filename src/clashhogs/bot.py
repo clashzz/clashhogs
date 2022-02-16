@@ -862,7 +862,7 @@ def send_missed_attacks(misses:dict, clantag:str):
         if channel is not None:
             message = "War missed attack for **{} on {}**:\n" \
                       "(Double check your in-game data, Sidekick can lose attacks made in the last minutes)\n".format(
-                clanwatch._tag, datetime.datetime.now())
+                clanwatch._name, datetime.datetime.now())
 
             if len(misses) == 0:
                 message += "\tNone, everyone attacked!"

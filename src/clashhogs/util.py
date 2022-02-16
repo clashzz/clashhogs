@@ -84,7 +84,7 @@ def format_credit_systems(res:dict):
     for clanwatch in res:
         clantag=clanwatch._tag
         points = clanwatch._creditwatch_points
-        id="Clan Tag: {}".format(clantag)
+        id="Clan: {}".format(str(clantag)+", "+str(clanwatch._name) )
         string=""
         for k, v in points.items():
             string+=f" *{k}*={v}\t\t "

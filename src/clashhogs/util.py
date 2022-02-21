@@ -188,16 +188,14 @@ def prepare_link_help(prefix):
 
     return string
 
-def prepare_warmiss_help(prefix):
+def prepare_channel_help(prefix, botname):
     'This command is used to map your sidekick war feed channel to another channel,'
-    string= ' where missed attacks will be automatically tallied.\n'    \
-    f'**Usage:** {prefix}warmiss [option] #sidekick-war #missed-attacks [clanname]\n'   \
-    '\t\t - [option]: \n'   \
-    '\t\t\t\t -l: to list current channel mappings (ignore other parameters when using this option)\n'  \
-    '\t\t\t\t -a: to add a channel mapping\n'   \
-    '\t\t\t\t -r: to remove a channel mapping:\n'   \
-    '\t\t - [clanname] must be a single word\n' \
-    'All parameters must be a single word without space characters. The channels must have the # prefix'
+    string= 'This command is used to set up the discord channels for receiving different {} feeds".\n ' \
+            '**Usage:** {}channel [option] [clantag] [channel]. Options can be:\n' \
+            '\t\t\t -miss: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
+            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary\n'   \
+            '\t\t\t -feed: to add [channel] for the clan [clantag] to receive monthly clan feed summary'.format(botname, prefix)
+
     return string
 
 def prepare_clandigest_help(botname, prefix):

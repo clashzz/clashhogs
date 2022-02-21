@@ -85,6 +85,8 @@ async def help(context, command=None):
             util.prepare_help_menu(BOT_NAME,PREFIX))
     elif command=='link':
         await context.send(util.prepare_link_help(PREFIX))
+    elif command=='channel':
+        await context.send(util.prepare_channel_help(BOT_NAME, PREFIX))
     elif command == 'clandigest':
         await context.send(
             util.prepare_clandigest_help(BOT_NAME,PREFIX))

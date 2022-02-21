@@ -4,6 +4,7 @@ Currently everything saved in member.
 
 Each guild will have a unique DB. This is identified by the guild id when the bot connects to a discord server
 '''
+import time
 from datetime import datetime
 import datetime, sqlite3, threading, json, pickle
 from pathlib import Path
@@ -113,7 +114,7 @@ def check_database(guild_id, data_folder):
                            "stars int NOT NULL, " \
                            "attacker_th int NOT NULL, " \
                            "defender_th int NOT NULL, " \
-                           "time TEXT NOT NULL," \
+                           "time int NOT NULL," \
                            "war_type TEXT NOT NULL);".format(TABLE_war_attacks)
         cursor.execute(create_statement)
     if TABLE_member_warnings not in table_names:
@@ -484,7 +485,7 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
     missed_attacks = {}
     if clan_tag in MEM_mappings_clanwatch.keys():
         clanwatch=MEM_mappings_clanwatch[clan_tag]
-        time = str(datetime.datetime.now())
+        time = datetime.datetime.now()
         guild=clanwatch._guildid
         con = connect_db(str(guild))
         cursor = con.cursor()
@@ -546,12 +547,32 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
                     missed_attacks[key] = int(remaining) + missed_attacks[key]
                 else:
                     missed_attacks[key] = int(remaining)
+                #recording missed attacks in attack data
+                for i in range (0, remaining):
+                    cursor.execute('INSERT INTO {} (player_tag, ' \
+                                   'player_name, clan_tag, clan_name, stars, attacker_th,' \
+                                   'defender_th, time, war_type) VALUES (?,?,?,?,?,?,?,?,?)'.
+                                   format(TABLE_war_attacks),
+                                   [mtag, mname, clan_tag, clan_name, -1,
+                                    -1, -1, time, war_type])
 
         #access database...
         con.commit()
         con.close()
         added=True
     return missed_attacks, added
+
+def find_war_data(clan_tag:str, start:datetime, end:datetime):
+    if clan_tag in MEM_mappings_clanwatch.keys():
+        clanwatch=MEM_mappings_clanwatch[clan_tag]
+        guild=clanwatch._guildid
+        con = connect_db(str(guild))
+        cursor = con.cursor()
+        cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_credits_watch_players), [clan_tag,
+                                                                                                                                  start, end])
+        rows = cursor.fetchall()
+        return rows
+
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
 def list_playercredits(guild_id, playertag:str):
@@ -639,3 +660,40 @@ def clear_credits_for_clan(guidid, clan_tag):
     con.commit()
     con.close()
     return True
+
+
+if __name__ == "__main__":
+    con = connect_db("test_db")
+    cursor = con.cursor()
+    create_statement = "CREATE TABLE IF NOT EXISTS mytable (main_id int PRIMARY KEY, " \
+                           "time int NOT NULL);"
+    cursor.execute(create_statement)
+
+    cursor.execute('INSERT INTO mytable (time) VALUES (?)',
+                   [datetime.datetime.now()])
+    time.sleep(2)
+    cursor.execute('INSERT INTO mytable (time) VALUES (?)',
+                   [datetime.datetime.now()])
+    time.sleep(2)
+    cursor.execute('INSERT INTO mytable (time) VALUES (?)',
+                   [datetime.datetime.now()])
+    time.sleep(2)
+    cursor.execute('INSERT INTO mytable (time) VALUES (?)',
+                   [datetime.datetime.now()])
+    time.sleep(2)
+    cursor.execute('INSERT INTO mytable (time) VALUES (?)',
+                   [datetime.datetime.now()])
+    time.sleep(2)
+    con.commit()
+
+    cursor.execute('SELECT * FROM mytable')
+    rows=cursor.fetchall()
+    print("")
+
+    date_string = "2022-02-21 21:24:00"
+    start=datetime.datetime.fromisoformat(date_string)
+    cursor.execute('SELECT * FROM mytable WHERE time<? AND time >?',
+                   [datetime.datetime.now(), start])
+    rows=cursor.fetchall()
+    print("")
+

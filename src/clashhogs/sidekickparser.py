@@ -22,29 +22,28 @@ SIDEKICK_CLANBEST_TITLE="Gainers This Season"
 SIDEKICK_CLANACTIVITY_KEYWORDS=['upgraded','is now','boosted','pushed','unlocked']
 
 def parse_channel_id(value:str):
+    if value is None:
+        return -1
     try:
         hash = value.index("#")
         return int(value[hash+1:len(value)-1])
     except:
         return -1
 
-def parse_sidekick_war_data_export(in_csv, clanname, from_date,
-                                   missed_attacks:dict,
-                                   col_attacker_tag="tag",
-                                   col_attacker="name", col_stars="stars",
-                                   col_defenderth="defenderTH",
-                                   col_attackerth="thLevel",
-                                   col_ishomeclan="attacker_is_home_clan",
-                                   col_wartime="war_start_time",
-                                   col_defender="defenderName"
-                                   ):
-    player_mapping_by_name = {}
-
-    data = pd.read_csv(in_csv, header=0, delimiter=',', quoting=0, encoding="utf-8",
-                       ).fillna("none")
+def parse_war_data(rows:list, clantag, from_date,
+                   col_attacker_tag="tag",
+                   col_attacker="name", col_stars="stars",
+                   col_defenderth="defenderTH",
+                   col_attackerth="thLevel",
+                   col_ishomeclan="attacker_is_home_clan",
+                   col_wartime="war_start_time",
+                   col_defender="defenderName"
+                   ):
+    player_mapping_by_tag = {}
+    missed_attacks={}
 
     attack_id=0
-    for index, row in data.iterrows():
+    for row in rows:
         ishomeclan = row[col_ishomeclan]
         if ishomeclan!=1:
             continue #for now ignore defence
@@ -61,30 +60,31 @@ def parse_sidekick_war_data_export(in_csv, clanname, from_date,
         player_name = util.normalise_name(player_name)
         stars=row[col_stars]
 
-        if player_name in player_mapping_by_name.keys():
-            player = player_mapping_by_name[player_name]
+        if player_tag in player_mapping_by_tag.keys():
+            player = player_mapping_by_tag[player_tag]
         else:
             player = models.Player(player_tag,player_name)
 
-        attack = models.Attack(str(attack_id), defenderth,
+        if stars==-1:
+            player._unused_attacks+=1
+            key = (player_tag, player_name)
+            if key in missed_attacks.keys():
+                missed_attacks[key]+=1
+            else:
+                missed_attacks[key]=1
+        else:
+            attack = models.Attack(str(attack_id), defenderth,
                             player_th, stars, True,time)
-        player._attacks[time]=attack
+            player._attacks[time]=attack
 
-        player_mapping_by_name[player_name] = player
+        player_mapping_by_tag[player_tag] = player
         attack_id += 1
 
-    for k, v in missed_attacks.items():
-        if k in player_mapping_by_name.keys():
-            player = player_mapping_by_name[k]
-            player._unused_attacks=v
-        else:
-            player = models.Player('UNKNOWN',k)
-            player._unused_attacks=v
-            player_mapping_by_name[k]=player
+    clan = models.ClanWarData(clantag)
+    clan._players = list(player_mapping_by_tag.values())
 
-    clan = models.ClanWarData(clanname)
-    clan._players = list(player_mapping_by_name.values())
-    return clan
+    data = dict(sorted(missed_attacks.items(), key=lambda item: item[1], reverse=True))
+    return clan, data
 
 
 def parse_warfeed_missed_attacks(messages:list, sidekick_name=None):

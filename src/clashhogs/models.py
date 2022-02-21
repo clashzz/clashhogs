@@ -200,8 +200,8 @@ class Player:
 class ClanWarData:
     # name: clan name, as collected from sidekick discord war feed
     #
-    def __init__(self, name: str):
-        self._name = name
+    def __init__(self, tag: str):
+        self._tag = tag
         self._players = []
 
         self._clan_total_attacks = 0

@@ -117,6 +117,7 @@ async def link(ctx, option: str, clantag=None):
     log.info("GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
 
     if clantag is not None:
+        clantag=util.normalise_tag(clantag)
         try:
             clan = await coc_client.get_clan(clantag)
         except coc.NotFound:
@@ -191,6 +192,7 @@ async def link_error(ctx, error):
 @bot.command(name='channel')
 @commands.has_permissions(manage_guild=True)
 async def channel(ctx, option: str, clantag, to_channel):
+    clantag=util.normalise_tag(clantag)
     log.info("GUILD={}, {}, ACTION=channel, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
     # list current mappings
     try:
@@ -247,6 +249,7 @@ async def channel_error(ctx, error):
 @bot.command(name='clandigest')
 # @commands.has_role('developers')
 async def clandigest(ctx, clantag: str):
+    clantag=util.normalise_tag(clantag)
     log.info("GUILD={}, {}, ACTION=clandigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
     try:
         clan = await coc_client.get_clan(clantag)
@@ -291,6 +294,7 @@ async def clandigest(ctx, error):
 #########################################################
 @bot.command(name='wardigest')
 async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
+    clantag=util.normalise_tag(clantag)
     log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
 
     try:
@@ -384,6 +388,7 @@ async def wardigest(ctx, error):
 #########################################################
 @bot.command(name='warpersonal')
 async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
+    playertag=util.normalise_tag(playertag)
     # check if the channels already exist
     try:
         fromdate = datetime.datetime.strptime(fromdate, "%d/%m/%Y")
@@ -713,6 +718,8 @@ async def current_war_state(old_war:coc.ClanWar, new_war:coc.ClanWar):
             "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent,old_war.type))
 
         condition = clan_home.tag in database.MEM_mappings_clanwatch.keys()
+        log.info("debug {}".format(database.MEM_mappings_clanwatch.keys()))
+        log.info("debug {}".format(condition))
 
         # print("condition={}".format(condition))
         if condition:
@@ -826,18 +833,6 @@ def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
         return True
     if old_war.state=="inWar" and old_war.war_tag is not None:
         return True
-
-def war_tag_different(war:coc.ClanWar, clan_tag:str):
-    #clan tag already in clans_for_credit_watch, but no current war registered for it.
-    #here we detected an attack, it means war has started
-    no_current_war=clan_tag not in database.MEM_mappings_clan_currentwars.keys()
-    #print("\t clan tag not in current wars={}".format(no_current_war))
-    if no_current_war:
-        return True
-
-    clan_war = database.MEM_mappings_clan_currentwars[clan_tag]
-    war_tag = clan_war[database.CLAN_WAR_TAG]
-    return war.war_tag != war_tag
 
 def regular_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "preparation" and new_war.state == "inWar"

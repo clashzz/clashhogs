@@ -1,10 +1,4 @@
-import discord, operator
-from datetime import datetime
-DISCORD_MSG_MAX_LENGTH=1500
 
-MONTHS_MAPPINGS={
-    1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
-}
 
 def load_properties(file):
     params={}
@@ -17,152 +11,9 @@ def load_properties(file):
             params[values[0].strip()]=values[1].strip()
     return params
 
-
-def normalise_name(text):
-    text = text.encode('ascii', 'ignore').decode("utf-8")
-    return text.strip().replace(" ","_")
-
 #letter O > number 0
 def normalise_tag(tag):
     return tag.replace("O","0").upper()
-
-def value_found_in_text(text:str, values:list):
-    for v in values:
-        if v in text:
-            return True
-    return False
-
-def find_first_appearance(text:str, keywords:list):
-    index=len(text)
-    found=False
-    for k in keywords:
-        if k in text:
-            found = True
-            idx = text.index(k)
-            if idx<index:
-                index=idx
-    if found:
-        return index
-    else:
-        return -1
-
-def format_warnings(clan:str, records:list, player=None):
-    warnings=[]
-    if player is None:
-        string = "**Current warning records for {}**\n\n".format(clan)
-    else:
-        total_points=0
-        for r in records:
-            try:
-                total_points+=float(r[3])
-            except:
-                pass
-        string = "**Current warning records for {} from {}**, total points={}\n\n".format(clan, player, total_points)  # , color=0x00ff00
-
-    for r in records:
-        string+="**Warning ID: {}**\n".format(r[0])
-        d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
-        string+="\t\t*Player*: {} \t*Clan*: {}\n" \
-                "\t\t*Points*: {} \t*Date*: {}\n" \
-                "\t\t*Note*: {}\n".format(r[2], r[1],r[3],d,r[5])
-
-        if len(string)>DISCORD_MSG_MAX_LENGTH:
-            warnings.append(string)
-            string=""
-
-    if len(string)>0:
-        warnings.append(string)
-    return warnings
-
-def format_credit_systems(res:dict):
-    if len(res)==0:
-        embedVar = discord.Embed(title="Clan(s) is/are not currently registered for the credit system",
-                                 description="")  # , color=0x00ff00
-    else:
-        embedVar = discord.Embed(title="Clans currently registered for the credit system",
-                                 description="")  # , color=0x00ff00
-    for clanwatch in res:
-        clantag=clanwatch._tag
-        points = clanwatch._creditwatch_points
-        id="Clan: {}".format(str(clantag)+", "+str(clanwatch._name) )
-        string=""
-        for k, v in points.items():
-            string+=f" *{k}*={v}\t\t "
-        embedVar.add_field(name=f'**{id}**',
-                    value=string,
-                    inline=False)
-
-    return embedVar
-
-def format_playercredits(tag, clanname, playercredits, playernames, last_updated):
-    msgs=[]
-    if len(playercredits)==0:
-        string="**Clan {}, {}** currently does not have any player credits recorded. Credit records are automatically added at war end, maybe try again later."
-    else:
-        string ="**Clan {}, {}, last updated at {}**\n".format(tag, clanname, last_updated)  # , color=0x00ff00
-        playercredits_sorted = dict( sorted(playercredits.items(), key=operator.itemgetter(1),reverse=True))
-
-        for pt, cr in playercredits_sorted.items():
-            pn = playernames[pt]
-            string+="\t\t{}\t{}, {}\n".format(cr, pt, pn)
-
-            if len(string)>DISCORD_MSG_MAX_LENGTH:
-                msgs.append(string)
-                string=""
-
-    if len(string)>0:
-        msgs.append(string)
-    return msgs
-
-def format_playercreditrecords(playertag, clantag, clanname, playername, creditrecords):
-    msgs = []
-    if len(creditrecords)==0:
-        string = "Player {}, {} from {} currently does not have any credits recorded. " \
-                 "Credit records are automatically added at war end, maybe try again later."
-    else:
-        total=0
-        for rec in creditrecords:
-            total+=float(rec['credits'])
-        string = "**Player {}, {}** from **{}, {}**, total credits=**{}**\n\n".format(playertag, playername, clanname, clantag, total)
-        #"credits":r[5], "time":time, "reason":r[7]
-        for rec in creditrecords:
-            string+="\t\t**{}**: {}, {}\n".format(rec["time"], rec['credits'],rec['reason'])
-
-            if len(string)>DISCORD_MSG_MAX_LENGTH:
-                msgs.append(string)
-                string=""
-
-    if len(string)>0:
-        msgs.append(string)
-    return msgs
-
-def format_clanwatch_data(clan):
-    if clan is None:
-        embedVar = discord.Embed(title="Clan Setup",
-                                 description="This clan has not been linked to this discord server")  # , color=0x00ff00
-    else:
-        embedVar = discord.Embed(title="Clan Setup",
-                                 description="")  # , color=0x00ff00
-        embedVar.add_field(name='Tag',
-                    value=clan._tag,
-                    inline=True)
-        embedVar.add_field(name='Name',
-                           value=clan._name,
-                           inline=True)
-        embedVar.add_field(name='Discord server',
-                           value=clan._guildname,
-                           inline=True)
-        embedVar.add_field(name='Missed attacks channel',
-                           value=clan._channel_warmiss,
-                           inline=True)
-        embedVar.add_field(name='War summary channel',
-                           value=clan._channel_warsummary,
-                           inline=True)
-        embedVar.add_field(name='Clan summary channel',
-                           value=clan._channel_clansummary,
-                           inline=True)
-
-    return embedVar
 
 def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands (requires admin privilege unless otherwise stated). Run **{prefix}help [command]** for how to use them. Also see ' \
@@ -269,13 +120,3 @@ def prepare_credit_help(prefix):
         f'**Usage:** {prefix}credit [tag], where [tag] must be a player tag\n'
     return string
 
-#data should conform to the format {clan_name, war_tag, type (cwl,reg, friendly), member_attacks {(tag,name):remaining attacks}}
-def format_war_participants(data:dict):
-    new_data={}
-    for k, v in data.items():
-        if type(v) is dict:
-            l = len(v)
-            new_data["total_members"]=l
-        else:
-            new_data[k]=v
-    return new_data

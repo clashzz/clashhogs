@@ -3,6 +3,11 @@ import datetime
 from clashhogs import util
 import csv, pandas
 
+MONTHS_MAPPINGS={
+    1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
+}
+STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10}
+
 
 def summarise_by_townhalls(thlvl_attacks, thlvl_attackstars, writer=None):
     data_as_list=[]
@@ -47,7 +52,7 @@ def summarise_by_months(attacks:dict, writer=None):
 
 
     months = sorted(list(attacks_by_months.keys()))
-    indeces = [util.MONTHS_MAPPINGS[m] for m in months]
+    indeces = [MONTHS_MAPPINGS[m] for m in months]
     zerostars=[]
     onestars=[]
     twostars=[]
@@ -110,10 +115,8 @@ def update_stats(star_freq: dict, stars: int):
         n += star_freq[stars]
     star_freq[stars] = n
 
-STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10}
+
 class ClanWatch:
-
-
     def __init__(self, tag, name, guildid, guildname):
         self._tag=tag
         self._name=name
@@ -195,8 +198,6 @@ class Player:
         # return total_stars, thlvl_attacks, thlvl_stars
         self._data_populated = True
 
-
-
 class ClanWarData:
     # name: clan name, as collected from sidekick discord war feed
     #
@@ -243,31 +244,6 @@ class ClanWarData:
                 self._clan_thlvl_attackstars[k] = clan_data
 
         self._data_populated = True
-
-    def output_player_war_data(self, out_folder, player: Player):
-        if out_folder is None:
-            pass
-
-        outFile = out_folder + "/" + util.normalise_name(player._name) + ".csv"
-
-        with open(outFile, 'w', newline='\n') as csvfile:
-            writer = csv.writer(csvfile, delimiter=',',
-                                quotechar='"', quoting=csv.QUOTE_ALL)
-            writer.writerow(["Total Stars Won", player._total_stars])
-            writer.writerow(["Total Unused Attacks", player._unused_attacks])
-            writer.writerow(["\n"])
-            writer.writerow(["Target town hall level", "Stars", "Frequency"])
-
-            ths = sorted(player._thlvl_attacks.keys())
-            total_attacks = 0
-            for th in ths:
-                stars_and_freq = player._thlvl_stars[th]
-                stars = sorted(stars_and_freq.keys())
-
-                for s in stars:
-                    total_attacks += stars_and_freq[s]
-                    writer.writerow([th, s, stars_and_freq[s]])
-            writer.writerow(["TOTAL", player._total_stars, total_attacks])
 
     def output_clan_war_data(self, out_csv: str):
         if not self._data_populated:

@@ -1,8 +1,8 @@
 import asyncio
-import datetime, logging, pandas, sys, traceback, discord, coc, threading
+import datetime, logging, pandas, sys, traceback, discord, coc
 from pathlib import Path
 from discord.ext import commands, tasks
-from clashhogs import database, sidekickparser, models, util
+from clashhogs import database, dataformatter, models, util
 from coc import utils
 
 ##########
@@ -157,11 +157,11 @@ async def link(ctx, option: str, clantag=None):
                 await ctx.send("No clans have been linked to this discord server.")
             else:
                 for cw in clanwatches:
-                    await ctx.send(embed=util.format_clanwatch_data(cw))
+                    await ctx.send(embed=dataformatter.format_clanwatch_data(cw))
             return
 
         clanwatch = database.get_clanwatch(clantag)
-        await ctx.send(embed=util.format_clanwatch_data(clanwatch))
+        await ctx.send(embed=dataformatter.format_clanwatch_data(clanwatch))
         return
     elif option=='-r':
         if clantag is None:
@@ -205,7 +205,7 @@ async def channel(ctx, option: str, clantag, to_channel):
         await ctx.send("This clan '{}' doesn't exist.".format(clan))
         return
 
-    to_channel_id = sidekickparser.parse_channel_id(to_channel)
+    to_channel_id = dataformatter.parse_channel_id(to_channel)
     channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
     if channel is None:
         await ctx.channel.send(
@@ -262,7 +262,7 @@ async def clandigest(ctx, clantag: str):
         await ctx.send("This clan doesn't exist.")
         return
 
-    to_channel_id = sidekickparser.parse_channel_id(clanwatch._channel_clansummary)
+    to_channel_id = dataformatter.parse_channel_id(clanwatch._channel_clansummary)
     if to_channel_id == -1:
         await ctx.channel.send(
             "The channel for clan feed digest has not been set. Run '/channel' to set this up first.")
@@ -308,7 +308,7 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
         await ctx.send("This clan tag '{}' doesn't exist.".format(clantag))
         return
 
-    to_channel_id = sidekickparser.parse_channel_id(clanwatch._channel_warsummary)
+    to_channel_id = dataformatter.parse_channel_id(clanwatch._channel_warsummary)
     if to_channel_id == -1:
         await ctx.channel.send(
             "The channel for war digest has not been set. Run '/channel' to set this up first.")
@@ -342,7 +342,7 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
         targetfolder = "db/" + clantag
         Path(targetfolder).mkdir(parents=True, exist_ok=True)
         # now process the file and extract data
-        clan_war_data, data_missed = sidekickparser.parse_war_data(war_data, clantag)
+        clan_war_data, data_missed = dataformatter.parse_war_data(war_data, clantag)
         msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clantag+", "+clanwatch._tag, fromdate, todate)
         for k, v in data_missed.items():
             msg += "\t" + str(k) + ": " + str(v) + "\n"
@@ -360,9 +360,6 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
         fileB = discord.File(targetfolder + "/clan_war_data.jpg")
         await channel_to.send(file=fileB,
                                   content="**Clan war data plot ready for download**:")
-
-        log.info("GUILD={}, {}, ACTION=wardigst\n\t\tsaving war data for individuals COMPLETE...".format(ctx.guild.id,
-                                                                                                             ctx.guild.name))
 
     await ctx.channel.send("Done. Please see your target channel for the output. ")
 
@@ -417,7 +414,7 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
         return
 
     player = models.Player(playertag, playertag)
-    player._attacks = war_data
+    dataformatter.parse_personal_war_data(war_data,player)
     player.summarize_attacks()
 
     # attack stars by town hall
@@ -467,14 +464,14 @@ async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
     if option == "-l":
         if name is None:  # list all warnings of a clan
             res = database.list_warnings(ctx.guild.id, clan)
-            warnings=util.format_warnings(clan, res)
+            warnings=dataformatter.format_warnings(clan, res)
             for w in warnings:
                 await ctx.send(w)
             # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
             return
         else:  # list all warnings of a person in a clan
             res = database.list_warnings(ctx.guild.id, clan, name)
-            warnings = util.format_warnings(clan, res,name)
+            warnings = dataformatter.format_warnings(clan, res,name)
             for w in warnings:
                 await ctx.send(w)
 
@@ -541,7 +538,7 @@ async def crclan(ctx, option: str, tag: str, *values):
             res = database.get_clanwatch_by_guild(str(ctx.guild.id))
         else:
             res = [database.get_clanwatch(tag, str(ctx.guild.id))]
-        await ctx.send(embed=util.format_credit_systems(res))
+        await ctx.send(embed=dataformatter.format_credit_systems(res))
         return
 
     # register a clan
@@ -618,7 +615,7 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
     # list credits of a clan's member
     if option == "-lc":
         clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
-        msgs=util.format_playercredits(tag, clanname, playercredits, playername, last_updated)
+        msgs=dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
         for m in msgs:
             await ctx.send(m)
         return
@@ -626,7 +623,7 @@ async def crplayer(ctx, option: str, tag: str, value=None, *note):
     # list credits of a clan's member
     if option == "-lp":
         clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-        msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+        msgs=dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
         for m in msgs:
             await ctx.send(m)
         return
@@ -676,7 +673,7 @@ async def credit(ctx, tag: str):
     log.info("GUILD={}, {}, ACTION=credit, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
 
     clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-    msgs=util.format_playercreditrecords(tag, clantag, clanname, playername, records)
+    msgs=dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
     for m in msgs:
         await ctx.send(m)
     return
@@ -756,7 +753,7 @@ async def current_war_stats(attack, war):
     attacker_clan = attacker.clan
     #check if this is the start of a new cwl war
     new_cwl_war=False
-    if not attacker_clan in database.MEM_current_cwl_wars.keys():
+    if not attacker_clan.tag in database.MEM_current_cwl_wars.keys():
         #clan does not have a cwl war previously
         database.reset_cwl_war_data(attacker_clan.tag, war)
     else:
@@ -809,7 +806,7 @@ def send_missed_attacks(misses:dict, clantag:str):
     if guild is not None:
         channel_id=clanwatch._channel_warmiss
         if channel_id is not None:
-            channel_id=sidekickparser.parse_channel_id(channel_id)
+            channel_id=dataformatter.parse_channel_id(channel_id)
         channel = discord.utils.get(guild.channels, id=channel_id)
         if channel is not None:
             message = "War missed attack for **{} on {}**:\n" \

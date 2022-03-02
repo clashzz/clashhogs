@@ -283,30 +283,17 @@ def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
     con.commit()
     con.close()
 
-#todo fix this using the new data table
 def load_individual_war_data(guild_id, player_tag, from_date, to_date):
     lock = threading.Lock()
     lock.acquire()
-    res = {}
-    player_tag = util.normalise_tag(player_tag)
     con = connect_db(str(guild_id))
     cursor = con.cursor()
 
-    cursor.execute('SELECT * FROM {} WHERE (id=?);'.format(TABLE_member_attacks), [player_tag])
-    entry = cursor.fetchone()
-
-    if entry is None:
-        return res
-    else:
-        war_data = entry[2]
-        player = pickle.loads(war_data)
-        for time, atk in player._attacks.items():
-            if time < to_date and time > from_date:
-                res[time] = atk
-
-    con.close()
-    lock.release()
-    return res
+    cursor.execute('SELECT * FROM {} WHERE (player_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks),
+                   [player_tag,
+                    from_date, to_date])
+    rows = cursor.fetchall()
+    return rows
 
 def has_warmiss_fromchannel(guild_id, channel_id):
     key = str(guild_id) + "|" + str(channel_id)

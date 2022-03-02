@@ -29,29 +29,21 @@ def parse_channel_id(value:str):
         return int(value[hash+1:len(value)-1])
     except:
         return -1
-
-def parse_war_data(rows:list, clantag, from_date,
-                   col_attacker_tag="tag",
-                   col_attacker="name", col_stars="stars",
-                   col_defenderth="defenderTH",
-                   col_attackerth="thLevel",
-                   col_ishomeclan="attacker_is_home_clan",
-                   col_wartime="war_start_time",
-                   col_defender="defenderName"
+#for index, see database.py line 188
+def parse_war_data(rows:list, clantag,
+                   col_attacker_tag=1,
+                   col_attacker=2,
+                   col_stars=5,
+                   col_defenderth=7,
+                   col_attackerth=6,
+                   col_wartime=8
                    ):
     player_mapping_by_tag = {}
     missed_attacks={}
 
     attack_id=0
     for row in rows:
-        ishomeclan = row[col_ishomeclan]
-        if ishomeclan!=1:
-            continue #for now ignore defence
-
-        time=datetime.datetime.strptime(row[col_wartime], '%Y-%m-%d %H:%M:%S')
-        if time < from_date:
-            continue
-
+        time=datetime.datetime.strptime(row[col_wartime], '%Y-%m-%d %H:%M:%S.%f')
         attack_id+=1
         player_tag=row[col_attacker_tag]
         player_name = row[col_attacker]

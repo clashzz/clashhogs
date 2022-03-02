@@ -283,31 +283,7 @@ def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
     con.commit()
     con.close()
 
-def save_individual_war_data(guild_id, clanwardata: models.ClanWarData):
-    con = connect_db(str(guild_id))
-    cursor = con.cursor()
-    for p in clanwardata._players:
-        cursor.execute('SELECT * FROM {} WHERE (id=?);'.format(TABLE_member_attacks), [p._tag])
-        entry = cursor.fetchone()
-
-        if entry is None:
-            b = pickle.dumps(p)
-            cursor.execute('INSERT INTO {} (id, name, data) VALUES (?,?,?)'.format(TABLE_member_attacks),
-                           [p._tag, p._name, b])
-        else:
-            past_data = entry[2]
-            past_p = pickle.loads(past_data)
-            for t, atk in p._attacks.items():
-                if t in past_p._attacks.keys():
-                    continue
-                past_p._attacks[t] = atk
-            b = pickle.dumps(past_p)
-            cursor.execute('UPDATE {} SET data = ? WHERE id = ?'.format(TABLE_member_attacks),
-                           [b, p._tag])
-
-    con.commit()
-    con.close()
-
+#todo fix this using the new data table
 def load_individual_war_data(guild_id, player_tag, from_date, to_date):
     lock = threading.Lock()
     lock.acquire()
@@ -568,7 +544,7 @@ def find_war_data(clan_tag:str, start:datetime, end:datetime):
         guild=clanwatch._guildid
         con = connect_db(str(guild))
         cursor = con.cursor()
-        cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_credits_watch_players), [clan_tag,
+        cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks), [clan_tag,
                                                                                                                                   start, end])
         rows = cursor.fetchall()
         return rows

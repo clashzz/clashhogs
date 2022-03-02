@@ -202,7 +202,7 @@ async def channel(ctx, option: str, clantag, to_channel):
             await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
             return
     except coc.NotFound:
-        await ctx.send("This clan doesn't exist.")
+        await ctx.send("This clan '{}' doesn't exist.".format(clan))
         return
 
     to_channel_id = sidekickparser.parse_channel_id(to_channel)
@@ -218,18 +218,19 @@ async def channel(ctx, option: str, clantag, to_channel):
         database.add_clanwatch(clantag, clanwatch)
         await ctx.send("War missed attack channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
-
-    if option == "-war":
+    elif option == "-war":
         clanwatch._channel_warsummary=to_channel
         database.add_clanwatch(clantag, clanwatch)
         await ctx.send("War summary channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
-
-    if option == "-feed":
+    elif option == "-feed":
         clanwatch._channel_clansummary=to_channel
         database.add_clanwatch(clantag, clanwatch)
         await ctx.send("Clan feed summary channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
+    else:
+        await ctx.send("Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
+        return
 
 
 @channel.error
@@ -304,13 +305,14 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
             await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
             return
     except coc.NotFound:
-        await ctx.send("This clan doesn't exist.")
+        await ctx.send("This clan tag '{}' doesn't exist.".format(clantag))
         return
 
     to_channel_id = sidekickparser.parse_channel_id(clanwatch._channel_warsummary)
     if to_channel_id == -1:
         await ctx.channel.send(
             "The channel for war digest has not been set. Run '/channel' to set this up first.")
+        return
     else:
         channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
         try:
@@ -340,10 +342,10 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
         targetfolder = "db/" + clantag
         Path(targetfolder).mkdir(parents=True, exist_ok=True)
         # now process the file and extract data
-        clan_war_data, data_missed = sidekickparser.parse_war_data(war_data, clantag, fromdate)
+        clan_war_data, data_missed = sidekickparser.parse_war_data(war_data, clantag)
         msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clantag+", "+clanwatch._tag, fromdate, todate)
         for k, v in data_missed.items():
-            msg += "\t" + k + ": " + str(v) + "\n"
+            msg += "\t" + str(k) + ": " + str(v) + "\n"
         await channel_to.send(msg + "\n")
 
         data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
@@ -359,10 +361,6 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
         await channel_to.send(file=fileB,
                                   content="**Clan war data plot ready for download**:")
 
-        # save individual war data
-        log.info("GUILD={}, {}, ACTION=wardigst\n\t\tsaving war data for individuals...".format(ctx.guild.id,
-                                                                                                    ctx.guild.name))
-        database.save_individual_war_data(ctx.guild.id, clan_war_data)
         log.info("GUILD={}, {}, ACTION=wardigst\n\t\tsaving war data for individuals COMPLETE...".format(ctx.guild.id,
                                                                                                              ctx.guild.name))
 

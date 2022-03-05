@@ -1,6 +1,8 @@
 import asyncio
 import datetime, logging, pandas, sys, traceback, discord, coc
 import operator
+import matplotlib.pyplot as plt
+
 from pathlib import Path
 from discord.ext import commands, tasks
 from clashhogs import database, dataformatter, models, util
@@ -569,6 +571,7 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
     fileA = discord.File(file)
     await ctx.channel.send("Data for **{}**, between **{}** and **{}**".format(playertag, fromdate, todate))
     await ctx.channel.send(file=fileA, content="**Attack stars by target town hall levels**:")
+    plt.close(figure)
 
     # attack stars by time
     dataframe = models.summarise_by_months(player._attacks)
@@ -577,6 +580,7 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
     figure.savefig(file, format='jpg')
     fileB = discord.File(file)
     await ctx.channel.send(file=fileB, content="**Attack stars by time**:")
+    plt.close(figure)
 
 @warpersonal.error
 async def warpersonal(ctx, error):
@@ -792,8 +796,8 @@ def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
-#@tasks.loop(hours=23)
-@tasks.loop(minutes=2)
+@tasks.loop(hours=23)
+#@tasks.loop(minutes=2)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()

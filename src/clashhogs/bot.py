@@ -1,5 +1,6 @@
 import asyncio
 import datetime, logging, pandas, sys, traceback, discord, coc
+import operator
 from pathlib import Path
 from discord.ext import commands, tasks
 from clashhogs import database, dataformatter, models, util
@@ -39,7 +40,6 @@ TOKEN = properties['DISCORD_TOKEN']
 BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
 SIDEKICK_NAME = 'sidekick'
-PERMISSION_CLANDIGEST = 'developers'
 bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 
 #logging
@@ -87,9 +87,6 @@ async def help(context, command=None):
         await context.send(util.prepare_link_help(PREFIX))
     elif command=='channel':
         await context.send(util.prepare_channel_help(BOT_NAME, PREFIX))
-    elif command == 'clandigest':
-        await context.send(
-            util.prepare_clandigest_help(BOT_NAME,PREFIX))
     elif command == 'wardigest':
         await context.send(
             util.prepare_wardigest_help(BOT_NAME,PREFIX))
@@ -172,7 +169,7 @@ async def link(ctx, option: str, clantag=None):
         await ctx.send("Clan {} has been unlinked from this discord server.".format(clantag))
         return
     else:
-        await ctx.send("Option not supported. Run help for details.")
+        await ctx.send("Option {} not supported. Run help for details.".format(option))
 
 @link.error
 async def link_error(ctx, error):
@@ -184,6 +181,7 @@ async def link_error(ctx, error):
             "command")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 #########################################################
 # This method is used to set up the discord channels
@@ -223,11 +221,11 @@ async def channel(ctx, option: str, clantag, to_channel):
         database.add_clanwatch(clantag, clanwatch)
         await ctx.send("War summary channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
-    elif option == "-feed":
-        clanwatch._channel_clansummary=to_channel
-        database.add_clanwatch(clantag, clanwatch)
-        await ctx.send("Clan feed summary channel has been added for this clan. Please make sure "
-                       f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
+    # elif option == "-feed":
+    #     clanwatch._channel_clansummary=to_channel
+    #     database.add_clanwatch(clantag, clanwatch)
+    #     await ctx.send("Clan feed summary channel has been added for this clan. Please make sure "
+    #                    f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
     else:
         await ctx.send("Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
         return
@@ -244,56 +242,12 @@ async def channel_error(ctx, error):
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-#########################################################
-# This method is used to process clan log summary
-#########################################################
-@bot.command(name='clandigest')
-# @commands.has_role('developers')
-async def clandigest(ctx, clantag: str):
-    clantag=util.normalise_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=clandigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
-    try:
-        clan = await coc_client.get_clan(clantag)
-        clanwatch = database.get_clanwatch(clantag)
-        if clanwatch is None:
-            await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
-            return
-    except coc.NotFound:
-        await ctx.send("This clan doesn't exist.")
-        return
-
-    to_channel_id = dataformatter.parse_channel_id(clanwatch._channel_clansummary)
-    if to_channel_id == -1:
-        await ctx.channel.send(
-            "The channel for clan feed digest has not been set. Run '/channel' to set this up first.")
-        check_ok = False
-    else:
-        channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
-        #todo
-
-    await ctx.send("This command has not been implemented.")
-
-
-
-@clandigest.error
-async def clandigest(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'clandigest' requires arguments. Run {PREFIX}help clandigest for details")
-    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
-        await ctx.channel.send(
-            "'clandigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(
-                PERMISSION_CLANDIGEST))
-    else:
-        # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=clandigest\n{}".format(ctx.guild.id, ctx.guild.name,error))
-        traceback.print_stack()
-
 
 #########################################################
 # This method is used to process clan war summary
 #########################################################
 @bot.command(name='wardigest')
+@commands.has_permissions(manage_guild=True)
 async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
     clantag=util.normalise_tag(clantag)
     log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
@@ -335,31 +289,11 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
                 "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
                 " will be used instead.")
 
-        # gather missed attacks data
-        war_data = database.find_war_data(clantag, fromdate, todate)
-
-        # gather war data
-        targetfolder = "db/" + clantag
-        Path(targetfolder).mkdir(parents=True, exist_ok=True)
-        # now process the file and extract data
-        clan_war_data, data_missed = dataformatter.parse_war_data(war_data, clantag)
-        msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clantag+", "+clanwatch._tag, fromdate, todate)
-        for k, v in data_missed.items():
-            msg += "\t" + str(k) + ": " + str(v) + "\n"
-        await channel_to.send(msg + "\n")
-
-        data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
-        msg = "\n**Clan Overview**:\n"
-        for k, v in clan_summary.items():
-            msg += "\t" + k + ": " + str(v) + "\n"
-        await channel_to.send(msg + "\n")
-
-        figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
-        figure.savefig(targetfolder + '/clan_war_data.jpg', format='jpg')
-        # now fetch that file and send it to the channel
-        fileB = discord.File(targetfolder + "/clan_war_data.jpg")
-        await channel_to.send(file=fileB,
-                                  content="**Clan war data plot ready for download**:")
+        war_miss, war_overview, war_plot=send_wardigest(fromdate, todate, clantag, clanwatch._name)
+        await channel_to.send(war_miss)
+        await channel_to.send(war_overview)
+        await channel_to.send(file=war_plot,
+                               content="**Clan war data plot ready for download**:")
 
     await ctx.channel.send("Done. Please see your target channel for the output. ")
 
@@ -370,12 +304,219 @@ async def wardigest(ctx, error):
         await ctx.channel.send(f"'wardigest' requires four arguments. Run {PREFIX}help wardigest for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "'wardigest' can only be used by the {} role(s). You do not seem to have permission to use this command".format(
-                PERMISSION_CLANDIGEST))
+            "Users of 'wardigest' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
         log.error("GUILD={}, {}, ACTION=wardigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
+
+
+#########################################################
+# This method is used to log warnings
+#########################################################
+@bot.command(name='warn')
+@commands.has_permissions(manage_guild=True)
+async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
+    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+
+    # list current warnings
+    if option == "-l":
+        if name is None:  # list all warnings of a clan
+            res = database.list_warnings(ctx.guild.id, clan)
+            warnings=dataformatter.format_warnings(clan, res)
+            for w in warnings:
+                await ctx.send(w)
+            # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
+            return
+        else:  # list all warnings of a person in a clan
+            res = database.list_warnings(ctx.guild.id, clan, name)
+            warnings = dataformatter.format_warnings(clan, res,name)
+            for w in warnings:
+                await ctx.send(w)
+    # add a warning
+    elif option == "-a":
+        if name is None or value is None:
+            await ctx.channel.send(
+                f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
+            return
+        try:
+            value = float(value)
+        except:
+            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
+            return
+        database.add_warning(ctx.guild.id, clan, name, value, note)
+        await ctx.channel.send("Warning added for {} from the {} clan.".format(name, clan))
+        return
+    # clear all warnings with a person
+    elif option == "-c":
+        if name is None:
+            await ctx.channel.send(
+                f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
+            return
+        database.clear_warnings(ctx.guild.id, clan, name)
+        await ctx.channel.send("All warnings for {} from the {} clan are deleted.".format(name, clan))
+        return
+        # delete a warning
+    elif option == "-d":
+        deleted=database.delete_warning(ctx.guild.id, clan, name)
+        if deleted:
+            await ctx.channel.send("The warning record(s) has/have been deleted".format(clan))
+        else:
+            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
+                                   " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
+    else:
+        await ctx.send("Option {} not supported. Run help for details.".format(option))
+
+@warn.error
+async def warn_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'warn' requires arguments. Run '{PREFIX}help warn' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        error = ''.join(traceback.format_stack())
+        log.error("GUILD={}, {}, ACTION=warn\n{}".format(ctx.guild.id, ctx.guild.name, error))
+
+
+#########################################################
+# This method is used to set up clan credit watch system
+#########################################################
+@bot.command(name='crclan')
+@commands.has_permissions(manage_guild=True)
+async def crclan(ctx, option: str, tag: str, *values):
+    tag=util.normalise_tag(tag)
+    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+
+    # list current registered clans
+    if option == "-l":
+        if tag=="*":
+            res = database.get_clanwatch_by_guild(str(ctx.guild.id))
+        else:
+            res = [database.get_clanwatch(tag, str(ctx.guild.id))]
+        await ctx.send(embed=dataformatter.format_credit_systems(res))
+        return
+    # register a clan
+    elif option == "-a":
+        try:
+            clan = await coc_client.get_clan(tag)
+        except coc.NotFound:
+            await ctx.send("This clan doesn't exist.")
+            return
+
+        result=database.registered_clan_creditwatch(ctx.guild.id, tag, values)
+        if result is None:
+            await ctx.channel.send("The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+            return
+        if len(result)!=0:
+            await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
+                                   format(clan, result))
+        else:
+            coc_client.add_war_updates(tag)
+            await ctx.channel.send("The clan {} has been updated for the credit watch system.".format(tag))
+        return
+    # clear all records of a clan
+    elif option == "-c":
+        def check(msg):
+            return msg.author == ctx.author and msg.channel == ctx.channel and \
+                    msg.content in ["YES", "NO"]
+
+        await ctx.channel.send(
+                "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
+        msg = "NO"
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
+        except asyncio.TimeoutError:
+            await ctx.send("Sorry, you didn't reply in time!")
+
+        if msg.clean_content == "YES":
+            result=database.clear_credits_for_clan(ctx.guild.id, tag)
+            if result is None:
+                await ctx.channel.send(
+                    "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+                return
+            await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
+        else:
+            await ctx.channel.send("Action cancelled.".format(tag))
+        return
+    # temporary debugging
+    else:
+        await ctx.send("Option {} not supported. Run help for details.".format(option))
+
+
+@crclan.error
+async def crclan_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'crclan' requires arguments. Run '{PREFIX}help crclan' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'crclan' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
+#########################################################
+# This method is used to track player credits
+#########################################################
+@bot.command(name='crplayer')
+@commands.has_permissions(manage_guild=True)
+async def crplayer(ctx, option: str, tag: str, value=None, *note):
+    tag=util.normalise_tag(tag)
+
+    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+
+    # list credits of a clan's member
+    if option == "-lc":
+        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
+        msgs=dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
+        for m in msgs:
+            await ctx.send(m)
+        return
+    # list credits of a clan's member
+    elif option == "-lp":
+        clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
+        msgs=dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
+        for m in msgs:
+            await ctx.send(m)
+        return
+    # manually add credits to a player
+    elif option == "-a":
+        try:
+            player = await coc_client.get_player(tag)
+        except coc.NotFound:
+            await ctx.send("This player doesn't exist.")
+            return
+
+        if value is None:
+            await ctx.channel.send(
+                f"To manually add credits to a player, you must provide the value. Run '{PREFIX}help warn' for details")
+            return
+        try:
+            value = float(value)
+        except:
+            await ctx.channel.send("The value you entered does not look like a number, try agian.")
+            return
+        author= ctx.message.author.mention
+        database.add_player_credits(ctx.guild.id, author, tag, player.name, player.clan.tag, player.clan.name,value, note)
+        await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
+        return
+    else:
+        await ctx.send("Option {} not supported. Run help for details.".format(option))
+
+@crplayer.error
+async def crplayer_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'crplayer' requires arguments. Run '{PREFIX}help crplayer' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'crplayer' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
 #########################################################
@@ -437,230 +578,14 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
     fileB = discord.File(file)
     await ctx.channel.send(file=fileB, content="**Attack stars by time**:")
 
-
 @warpersonal.error
 async def warpersonal(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send(f"'warpersonal' requires four arguments. Run {PREFIX}help warpersonal for details")
-    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
-        await ctx.channel.send(
-            f"'wardigest' can only be used by the {PERMISSION_CLANDIGEST} role(s). You do not seem to have permission "
-            "to use this command")
     else:
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
         log.error(f"GUILD={ctx.guild.id}, {ctx.guild.name}, ACTION=warpersonal\n{error}")
-
-
-#########################################################
-# This method is used to log warnings
-#########################################################
-@bot.command(name='warn')
-@commands.has_permissions(manage_guild=True)
-async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
-    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
-
-    # list current warnings
-    if option == "-l":
-        if name is None:  # list all warnings of a clan
-            res = database.list_warnings(ctx.guild.id, clan)
-            warnings=dataformatter.format_warnings(clan, res)
-            for w in warnings:
-                await ctx.send(w)
-            # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
-            return
-        else:  # list all warnings of a person in a clan
-            res = database.list_warnings(ctx.guild.id, clan, name)
-            warnings = dataformatter.format_warnings(clan, res,name)
-            for w in warnings:
-                await ctx.send(w)
-
-    # add a warning
-    if option == "-a":
-        if name is None or value is None:
-            await ctx.channel.send(
-                f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
-            return
-        try:
-            value = float(value)
-        except:
-            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
-            return
-        database.add_warning(ctx.guild.id, clan, name, value, note)
-        await ctx.channel.send("Warning added for {} from the {} clan.".format(name, clan))
-        return
-
-    # clear all warnings with a person
-    if option == "-c":
-        if name is None:
-            await ctx.channel.send(
-                f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
-            return
-        database.clear_warnings(ctx.guild.id, clan, name)
-        await ctx.channel.send("All warnings for {} from the {} clan are deleted.".format(name, clan))
-        return
-        # delete a warning
-    if option == "-d":
-        deleted=database.delete_warning(ctx.guild.id, clan, name)
-        if deleted:
-            await ctx.channel.send("The warning record(s) has/have been deleted".format(clan))
-        else:
-            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
-                                   " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
-
-
-@warn.error
-async def warn_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'warn' requires arguments. Run '{PREFIX}help warn' for details")
-    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
-        await ctx.channel.send(
-            "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
-            "command")
-    else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=warn\n{}".format(ctx.guild.id, ctx.guild.name, error))
-
-
-#########################################################
-# This method is used to set up clan credit watch system
-#########################################################
-@bot.command(name='crclan')
-@commands.has_permissions(manage_guild=True)
-async def crclan(ctx, option: str, tag: str, *values):
-    tag=util.normalise_tag(tag)
-    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
-
-    # list current registered clans
-    if option == "-l":
-        if tag=="*":
-            res = database.get_clanwatch_by_guild(str(ctx.guild.id))
-        else:
-            res = [database.get_clanwatch(tag, str(ctx.guild.id))]
-        await ctx.send(embed=dataformatter.format_credit_systems(res))
-        return
-
-    # register a clan
-    if option == "-u":
-        try:
-            clan = await coc_client.get_clan(tag)
-        except coc.NotFound:
-            await ctx.send("This clan doesn't exist.")
-            return
-
-        result=database.registered_clan_creditwatch(ctx.guild.id, tag, values)
-        if result is None:
-            await ctx.channel.send("The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
-            return
-        if len(result)!=0:
-            await ctx.channel.send("Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
-                                   format(clan, result))
-        else:
-            coc_client.add_war_updates(tag)
-            await ctx.channel.send("The clan {} has been updated for the credit watch system.".format(tag))
-        return
-
-    # clear all records of a clan
-    if option == "-c":
-        def check(msg):
-            return msg.author == ctx.author and msg.channel == ctx.channel and \
-                    msg.content in ["YES", "NO"]
-
-        await ctx.channel.send(
-                "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
-        msg = "NO"
-        try:
-            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
-        except asyncio.TimeoutError:
-            await ctx.send("Sorry, you didn't reply in time!")
-
-        if msg.clean_content == "YES":
-            result=database.clear_credits_for_clan(ctx.guild.id, tag)
-            if result is None:
-                await ctx.channel.send(
-                    "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
-                return
-            await ctx.channel.send("All credits for the clan {} has been removed.".format(tag))
-        else:
-            await ctx.channel.send("Action cancelled.".format(tag))
-        return
-    # temporary debugging
-    if option == "-debug":
-        pass
-
-
-@crclan.error
-async def crclan_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'crclan' requires arguments. Run '{PREFIX}help crclan' for details")
-    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
-        await ctx.channel.send(
-            "Users of 'crclan' must have 'Manage server' permission. You do not seem to have permission to use this "
-            "command")
-    else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
-
-#########################################################
-# This method is used to track player credits
-#########################################################
-@bot.command(name='crplayer')
-@commands.has_permissions(manage_guild=True)
-async def crplayer(ctx, option: str, tag: str, value=None, *note):
-    tag=util.normalise_tag(tag)
-
-    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
-
-    # list credits of a clan's member
-    if option == "-lc":
-        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(ctx.guild.id, tag)
-        msgs=dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
-        for m in msgs:
-            await ctx.send(m)
-        return
-
-    # list credits of a clan's member
-    if option == "-lp":
-        clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
-        msgs=dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
-        for m in msgs:
-            await ctx.send(m)
-        return
-
-    # manually add credits to a player
-    if option == "-a":
-        try:
-            player = await coc_client.get_player(tag)
-        except coc.NotFound:
-            await ctx.send("This player doesn't exist.")
-            return
-
-        if value is None:
-            await ctx.channel.send(
-                f"To manually add credits to a player, you must provide the value. Run '{PREFIX}help warn' for details")
-            return
-        try:
-            value = float(value)
-        except:
-            await ctx.channel.send("The value you entered does not look like a number, try agian.")
-            return
-        author= ctx.message.author.mention
-        database.add_player_credits(ctx.guild.id, author, tag, player.name, player.clan.tag, player.clan.name,value, note)
-        await ctx.channel.send("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
-        return
-
-@crplayer.error
-async def crplayer_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'crplayer' requires arguments. Run '{PREFIX}help crplayer' for details")
-    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
-        await ctx.channel.send(
-            "Users of 'crplayer' must have 'Manage server' permission. You do not seem to have permission to use this "
-            "command")
-    else:
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
 
 
 #########################################################
@@ -684,6 +609,7 @@ async def credit_error(ctx, error):
         await ctx.channel.send(f"'credit' requires arguments. Run '{PREFIX}help credit' for details")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 #############################################
 # CoC api events
@@ -821,7 +747,35 @@ def send_missed_attacks(misses:dict, clantag:str):
             return channel, message
     return None, None
 
+def send_wardigest(fromdate, todate, clantag, clanname):
+    # gather missed attacks data
+    war_data = database.find_war_data(clantag, fromdate, todate)
 
+    # gather war data
+    targetfolder = "db/" + clantag
+    Path(targetfolder).mkdir(parents=True, exist_ok=True)
+    # now process the file and extract data
+    clan_war_data, data_missed = dataformatter.parse_war_data(war_data, clantag)
+    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clantag + ", " + clanname,
+                                                                                        fromdate, todate)
+    for k, v in data_missed.items():
+        msg += "\t" + str(k) + ": " + str(v) + "\n"
+    msg_warmiss=msg + "\n"
+
+    data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
+    msg = "\n**Clan Overview**:\n"
+    for k, v in clan_summary.items():
+        msg += "\t" + k + ": " + str(v) + "\n"
+    war_overview=msg + "\n"
+
+    figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
+    figure.savefig(targetfolder + '/clan_war_data.jpg', format='jpg')
+    # now fetch that file and send it to the channel
+    fileB = discord.File(targetfolder + "/clan_war_data.jpg")
+    war_plot=fileB
+    return msg_warmiss, war_overview, war_plot
+    # await channel_to.send(file=fileB,
+    #                       content="**Clan war data plot ready for download**:")
 
 def war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
     if old_war.state == "inWar" and new_war.state != "inWar":
@@ -838,21 +792,64 @@ def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
-@tasks.loop(hours=23)
-async def test_scheduled_task():
+#@tasks.loop(hours=23)
+@tasks.loop(minutes=2)
+async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
-    print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now,season_end))
-    print("\t\t same year={} month equals={} day equals={}".format(now.year==season_end.year, now.month==season_end.month,
-                                                                   now.day==season_end.day))
-    print("\t\t clans in clan watch: {}".format(database.MEM_mappings_clanwatch))
-    if len(database.MEM_mappings_clanwatch)!=0:
-        tag=list(database.MEM_mappings_clanwatch.keys())[0]
-        clan=await coc_client.get_clan(tag)
-        members=clan.members
-        for m in members:
-            print("\t\t\t member={} donations={}".format(m.name, m.donations))
+    log.info("\t>>> Checking scheduled task every 23 hour. Time now is {}. The current season will end {}".format(now,season_end))
+    days_before_end=abs((season_end- now).days)
+#    if days_before_end <=1:
+    if days_before_end >= 1:
+        log.info("\t>>> End of season reached, running scheduled task.")
+
+        for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
+            #clan war digest
+            guild = bot.get_guild(clanwatch._guildid)
+            if guild is not None:
+                channel_id = clanwatch._channel_warsummary
+                if channel_id is not None:
+                    channel_id = dataformatter.parse_channel_id(channel_id)
+                channel = discord.utils.get(guild.channels, id=channel_id)
+                if channel is not None:
+                    fromdate=utils.get_season_start()
+                    war_miss, war_overview, war_plot=send_wardigest(fromdate,now, clantag, clanwatch._name)
+
+                    await channel.send(war_miss)
+                    await channel.send(war_overview)
+                    await channel.send(file=war_plot,
+                                          content="**Clan war data plot ready for download**:")
+
+            #credits for donations
+            clan = await coc_client.get_clan(clantag)
+            members = clan.members
+            donations={}
+            for m in members:
+                donations[(m.tag, m.name)] = m.donations
+            doantions_sorted = sorted(donations.items(), key=operator.itemgetter(1), reverse=True)
+            top=0
+            for p in doantions_sorted:
+                if top ==0 and 'donation#1' in clanwatch._creditwatch_points.keys():
+                    pts = int(clanwatch._creditwatch_points['donation#1'])
+                    database.add_player_credits(clanwatch._guildid,
+                                                'bot',p[0][0], p[0][1],clantag,clanwatch._name,pts,
+                                                'donation #1')
+                elif top==1 and 'donation#2' in clanwatch._creditwatch_points.keys():
+                    pts = int(clanwatch._creditwatch_points['donation#2'])
+                    database.add_player_credits(clanwatch._guildid,
+                                                'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
+                                                'donation #2')
+                elif top == 2 and 'donation#3' in clanwatch._creditwatch_points.keys():
+                    pts = int(clanwatch._creditwatch_points['donation#3'])
+                    database.add_player_credits(clanwatch._guildid,
+                                                'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
+                                                'donation #3')
+                top+=1
+                if top >=2:
+                    break
+    else:
+        log.info("\t>>> {} days till the end of season".format(days_before_end))
 
 
-test_scheduled_task.start()
+check_scheduled_task.start()
 bot.run(TOKEN)

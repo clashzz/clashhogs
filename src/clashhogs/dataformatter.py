@@ -118,6 +118,8 @@ def format_credit_systems(res:dict):
         embedVar = discord.Embed(title="Clans currently registered for the credit system",
                                  description="")  # , color=0x00ff00
     for clanwatch in res:
+        if clanwatch is None:
+            continue
         clantag=clanwatch._tag
         points = clanwatch._creditwatch_points
         id="Clan: {}".format(str(clantag)+", "+str(clanwatch._name) )

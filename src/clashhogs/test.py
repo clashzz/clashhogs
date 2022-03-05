@@ -56,6 +56,9 @@ async def current_war_state(old_war, new_war):
 
     print("finished")
 
+def check_player():
+    player = await client.get_player("#Q0P0RLYJV")
+    print("ok")
 
 @client.event
 @coc.WarEvents.war_attack()
@@ -69,5 +72,7 @@ clans=["#2YGUPUU82","#2L29RRJU9","#2998V8JG0","#2PYQOV822"]
 for c in clans:
     client.add_clan_updates(c)
     client.add_war_updates(c)
+
+check_player()
 
 client.loop.run_forever()

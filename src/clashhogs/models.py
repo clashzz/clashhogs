@@ -6,8 +6,8 @@ import csv, pandas
 MONTHS_MAPPINGS={
     1:"Jan", 2:"Feb", 3:"Mar",4:"Apr", 5:"May", 6:"Jun",7:"Jul", 8:"Aug", 9:"Sep",10:"Oct", 11:"Nov", 12:"Dec",
 }
-STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10}
-
+STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10,
+                  "donation#1":30,"donation#2":20, "donation#3":10}
 
 def summarise_by_townhalls(thlvl_attacks, thlvl_attackstars, writer=None):
     data_as_list=[]

@@ -20,7 +20,6 @@ def prepare_help_menu(botname, prefix):
     'details at https://github.com/clashzz/sidekickassist:\n' \
     '\t\t - **link**: link a clan to this discord server. This must be done first before you use other commands with this bot\n' \
     '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n' \
-    '\t\t - **clandigest**: analyse and produce a report for a clan\'s activities (excl. war)\n'    \
     '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'   \
     '\t\t - **warn**: manage warnings for a clan/player\n'  \
     '\t\t - **crclan**: set up the credit watch system for a clan\n' \
@@ -44,24 +43,15 @@ def prepare_channel_help(prefix, botname):
     string= 'This command is used to set up the discord channels for receiving different {} feeds".\n ' \
             '**Usage:** {}channel [option] [clantag] [channel]. Options can be:\n' \
             '\t\t\t -miss: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
-            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary\n'   \
-            '\t\t\t -feed: to add [channel] for the clan [clantag] to receive monthly clan feed summary'.format(botname, prefix)
+            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary'.format(botname, prefix)
 
-    return string
-
-def prepare_clandigest_help(botname, prefix):
-    'This command is used to generate clan digest for the current season using data from the Sidekick clan '
-    string='feed channel. \n'   \
-    f'**Usage**: {prefix}clandigest #sidekick-clan-feed-channel #output-target-channel [clanname]\n'    \
-    '\t\t - [clanname] must be a single word\n\n'   \
-    f'{botname} must have read and write permissions to both channels.'
     return string
 
 def prepare_wardigest_help(botname, prefix):
     'This command is used to generate clan war digest using data from the Sidekick clan war feed channel.\n'
-    string=f'**Usage**: {prefix}wardigest #sidekick-war-feed-channel #output-target-channel [clanname] [dd/mm/yyyy] '   \
+    string=f'**Usage**: {prefix}wardigest [clantag] [dd/mm/yyyy] '   \
     '[OPTIONAL:dd/mm/yyyy]\n'   \
-    '\t\t - [clanname]: must be one word\n' \
+    '\t\t - [clantag]: must be provided\n' \
     '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '  \
     'When the end date is not provided, the present date will be used\n\n'  \
     f'{botname} must have read and write permissions to both channels.'

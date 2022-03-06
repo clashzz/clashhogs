@@ -402,7 +402,7 @@ async def crclan(ctx, option: str, tag: str, *values):
         await ctx.send(embed=dataformatter.format_credit_systems(res))
         return
     # register a clan
-    elif option == "-a":
+    elif option == "-u":
         try:
             clan = await coc_client.get_clan(tag)
         except coc.NotFound:
@@ -691,9 +691,10 @@ async def current_war_stats(attack, war):
         samewar=database.update_if_same_cwl_war(attacker_clan.tag, war)
         if not samewar:
             #1. register previous cwl war attacks
-            members = war.members
-            attacks = war.attacks
-            missed_attacks, registered = register_war_attacks(members, attacks, war, attacker_clan, type, 1)
+            prev_war = database.MEM_current_cwl_wars[attacker_clan.tag][1]
+            members = prev_war.members
+            attacks = prev_war.attacks
+            missed_attacks, registered = register_war_attacks(members, attacks, prev_war, attacker_clan, prev_war.type, 1)
             if registered:
                 log.info(
                     "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.clan, missed_attacks))

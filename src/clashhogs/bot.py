@@ -291,8 +291,9 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
                 "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
                 " will be used instead.")
 
-        war_miss, war_overview, war_plot=send_wardigest(fromdate, todate, clantag, clanwatch._name)
+        war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate, todate, clantag, clanwatch._name)
         await channel_to.send(war_miss)
+        await channel_to.send(cwl_miss)
         await channel_to.send(war_overview)
         await channel_to.send(file=war_plot,
                                content="**Clan war data plot ready for download**:")
@@ -760,12 +761,19 @@ def send_wardigest(fromdate, todate, clantag, clanname):
     targetfolder = "db/" + clantag
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
     # now process the file and extract data
-    clan_war_data, data_missed = dataformatter.parse_war_data(war_data, clantag)
-    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks:** \n".format(clantag + ", " + clanname,
+    clan_war_data, data_missed, data_cwl_missed = dataformatter.parse_war_data(war_data, clantag)
+    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks - Total:** \n".format(clantag + ", " + clanname,
                                                                                         fromdate, todate)
     for k, v in data_missed.items():
         msg += "\t" + str(k) + ": " + str(v) + "\n"
     msg_warmiss=msg + "\n"
+
+    msg = "\n**Missed Attacks - CWL:** \n".format(
+        clantag + ", " + clanname,
+        fromdate, todate)
+    for k, v in data_cwl_missed.items():
+        msg += "\t" + str(k) + ": " + str(v) + "\n"
+    msg_cwlmiss = msg + "\n"
 
     data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
     msg = "\n**Clan Overview**:\n"
@@ -778,7 +786,7 @@ def send_wardigest(fromdate, todate, clantag, clanname):
     # now fetch that file and send it to the channel
     fileB = discord.File(targetfolder + "/clan_war_data.jpg")
     war_plot=fileB
-    return msg_warmiss, war_overview, war_plot
+    return msg_warmiss, msg_cwlmiss, war_overview, war_plot
     # await channel_to.send(file=fileB,
     #                       content="**Clan war data plot ready for download**:")
 
@@ -818,9 +826,10 @@ async def check_scheduled_task():
                 channel = discord.utils.get(guild.channels, id=channel_id)
                 if channel is not None:
                     fromdate=utils.get_season_start()
-                    war_miss, war_overview, war_plot=send_wardigest(fromdate,now, clantag, clanwatch._name)
+                    war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate,now, clantag, clanwatch._name)
 
                     await channel.send(war_miss)
+                    await channel.send(cwl_miss)
                     await channel.send(war_overview)
                     await channel.send(file=war_plot,
                                           content="**Clan war data plot ready for download**:")

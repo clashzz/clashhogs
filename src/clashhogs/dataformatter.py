@@ -18,10 +18,12 @@ def parse_war_data(rows:list, clantag,
                    col_stars=5,
                    col_defenderth=7,
                    col_attackerth=6,
-                   col_wartime=8
+                   col_wartime=8,
+                   col_wartype=9
                    ):
     player_mapping_by_tag = {}
     missed_attacks={}
+    missed_cwl_attacks={}
 
     attack_id=0
     for row in rows:
@@ -41,10 +43,18 @@ def parse_war_data(rows:list, clantag,
         if stars==-1:
             player._unused_attacks+=1
             key = (player_tag, player_name)
+            #missed attacks total
             if key in missed_attacks.keys():
                 missed_attacks[key]+=1
             else:
                 missed_attacks[key]=1
+            #missed attacks cwl
+            if row[col_wartype]=='cwl':
+                if key in missed_cwl_attacks.keys():
+                    missed_cwl_attacks[key] += 1
+                else:
+                    missed_cwl_attacks[key] = 1
+
         else:
             attack = models.Attack(str(attack_id), defenderth,
                             player_th, stars, True,time)
@@ -56,8 +66,10 @@ def parse_war_data(rows:list, clantag,
     clan = models.ClanWarData(clantag)
     clan._players = list(player_mapping_by_tag.values())
 
-    data = dict(sorted(missed_attacks.items(), key=lambda item: item[1], reverse=True))
-    return clan, data
+    data_miss = dict(sorted(missed_attacks.items(), key=lambda item: item[1], reverse=True))
+    data_cwl_miss = dict(sorted(missed_cwl_attacks.items(), key=lambda item: item[1], reverse=True))
+
+    return clan, data_miss, data_cwl_miss
 
 
 def parse_personal_war_data(rows:list, player:models.Player,

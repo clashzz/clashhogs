@@ -292,6 +292,10 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
                 " will be used instead.")
 
         war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate, todate, clantag, clanwatch._name)
+        if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
+            await channel_to.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
+            return
+
         await channel_to.send(war_miss)
         await channel_to.send(cwl_miss)
         await channel_to.send(war_overview)
@@ -698,10 +702,10 @@ async def current_war_stats(attack, war):
             missed_attacks, registered = register_war_attacks(members, attacks, prev_war, attacker_clan, prev_war.type, 1)
             if registered:
                 log.info(
-                    "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.clan, missed_attacks))
+                    "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.tag, missed_attacks))
             else:
                 log.info(
-                    "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.clan, missed_attacks))
+                    "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.tag, missed_attacks))
 
             channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag)
             if channel is not None and misses is not None:
@@ -756,6 +760,8 @@ def send_missed_attacks(misses:dict, clantag:str):
 def send_wardigest(fromdate, todate, clantag, clanname):
     # gather missed attacks data
     war_data = database.find_war_data(clantag, fromdate, todate)
+    if len(war_data)==0:
+        return None, None, None, None
 
     # gather war data
     targetfolder = "db/" + clantag
@@ -827,6 +833,10 @@ async def check_scheduled_task():
                 if channel is not None:
                     fromdate=utils.get_season_start()
                     war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate,now, clantag, clanwatch._name)
+
+                    if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
+                        await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
+                        return
 
                     await channel.send(war_miss)
                     await channel.send(cwl_miss)

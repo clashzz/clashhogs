@@ -686,6 +686,8 @@ async def current_war_stats(attack, war):
         return
 
     attacker_clan = attacker.clan
+    log.info("\t New cwl attack captured. clan={}, attacker={}".format(attacker_clan.tag, attacker))
+
     #check if this is the start of a new cwl war
     new_cwl_war=False
     if not attacker_clan.tag in database.MEM_current_cwl_wars.keys():
@@ -713,8 +715,6 @@ async def current_war_stats(attack, war):
 
             #2. reset cwl war for this clan
             database.reset_cwl_war_data(attacker_clan.tag, war)
-
-    print("new cwl attack captured. clan={}, attacker={}".format(attacker_clan.tag, attacker))
 
 def register_war_attacks(members:list, attacks:list, old_war, clan_home, type, total_attacks):
     attack_data = {}

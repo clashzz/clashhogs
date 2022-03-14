@@ -34,7 +34,7 @@ async def my_task():
 async def main():
     async with bot:
         my_task.start()
-        await bot.start('OTA0NDg0ODIyMTk2NTYzOTg5.YX8NIg.7Rf70b4QF9NgMxR34DgJEABOJzs')
+        await bot.start('replace')
 
 asyncio.run(main())
 

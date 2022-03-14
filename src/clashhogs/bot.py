@@ -42,7 +42,7 @@ TOKEN = properties['DISCORD_TOKEN']
 BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
 SIDEKICK_NAME = 'sidekick'
-bot = commands.Bot(command_prefix=PREFIX, help_command=None)
+bot = commands.Bot(command_prefix=PREFIX, help_command=None,intents=discord.Intents.all())
 
 #logging
 logging.basicConfig(stream=sys.stdout,
@@ -811,7 +811,7 @@ def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
-@tasks.loop(hours=23)
+@tasks.loop(minutes=23)
 #@tasks.loop(minutes=2)
 async def check_scheduled_task():
     now = datetime.datetime.now()
@@ -819,7 +819,7 @@ async def check_scheduled_task():
     log.info("\t>>> Checking scheduled task every 23 hour. Time now is {}. The current season will end {}".format(now,season_end))
     days_before_end=abs((season_end- now).days)
 #    if days_before_end <=1:
-    if days_before_end >= 1:
+    if days_before_end <= 1:
         log.info("\t>>> End of season reached, running scheduled task.")
 
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
@@ -874,6 +874,11 @@ async def check_scheduled_task():
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 
+async def main():
+    async with bot:
+        check_scheduled_task.start()
+        await bot.start(TOKEN)
 
-check_scheduled_task.start()
+asyncio.run(main())
+
 bot.run(TOKEN)

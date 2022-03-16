@@ -16,7 +16,7 @@ if len(sys.argv) < 1:
 rootfolder = sys.argv[1]
 if not rootfolder.endswith("/"):
     rootfolder += "/"
-properties = util.load_properties(rootfolder + ".env")
+properties = util.load_properties(rootfolder + "env.config")
 if 'DISCORD_TOKEN' not in properties.keys() or 'BOT_NAME' not in properties.keys() \
         or 'BOT_PREFIX' not in properties.keys() or 'CoC_API_EMAIL' not in properties.keys() \
         or 'CoC_API_PASS' not in properties.keys():
@@ -41,7 +41,7 @@ PREFIX = properties['BOT_PREFIX']
 SIDEKICK_NAME = 'sidekick'
 PERMISSION_CLANDIGEST = 'developers'
 BOT_WAIT_TIME = 5
-bot = commands.Bot(command_prefix=PREFIX, help_command=None)
+bot = commands.Bot(command_prefix=PREFIX, help_command=None,intents=discord.Intents.all())
 
 # logging
 logging.basicConfig(stream=sys.stdout,

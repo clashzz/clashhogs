@@ -949,22 +949,22 @@ def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type == "cwl"
 
 
-@tasks.loop(hours=20)
-async def test_scheduled_task():
-    now = datetime.datetime.now()
-    season_end = utils.get_season_end()
-    print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now, season_end))
-    print("\t\t same year={} month equals={} day equals={}".format(now.year == season_end.year,
-                                                                   now.month == season_end.month,
-                                                                   now.day == season_end.day))
-    print("\t\t clans in credit watch: {}".format(database.MEM_mappings_clan_creditwatch))
-    if len(database.MEM_mappings_clan_creditwatch) != 0:
-        tag = list(database.MEM_mappings_clan_creditwatch.keys())[0]
-        clan = await coc_client.get_clan(tag)
-        members = clan.members
-        for m in members:
-            print("\t\t\t member={} donations={}".format(m.name, m.donations))
-
-
-test_scheduled_task.start()
+# @tasks.loop(hours=20)
+# async def test_scheduled_task():
+#     now = datetime.datetime.now()
+#     season_end = utils.get_season_end()
+#     print(">>> checking time every 24 hour. Now time is {}. The current season will end {}".format(now, season_end))
+#     print("\t\t same year={} month equals={} day equals={}".format(now.year == season_end.year,
+#                                                                    now.month == season_end.month,
+#                                                                    now.day == season_end.day))
+#     print("\t\t clans in credit watch: {}".format(database.MEM_mappings_clan_creditwatch))
+#     if len(database.MEM_mappings_clan_creditwatch) != 0:
+#         tag = list(database.MEM_mappings_clan_creditwatch.keys())[0]
+#         clan = await coc_client.get_clan(tag)
+#         members = clan.members
+#         for m in members:
+#             print("\t\t\t member={} donations={}".format(m.name, m.donations))
+#
+#
+# test_scheduled_task.start()
 bot.run(TOKEN)

@@ -1,5 +1,5 @@
 .idea
-env/.env
+env/env
 *.pyc
 src/clashhogs/db/*
 *.jpg

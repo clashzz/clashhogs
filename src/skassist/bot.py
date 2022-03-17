@@ -762,8 +762,8 @@ async def on_message(message):
                 #        message.guild.name))
                 return
         except:
-            error = ''.join(traceback.format_stack())
-            log.error("GUILD={}, {}, ACTION=on_message\n{}".format(message.guild.id, message.guild.name, error))
+            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
     elif message.clean_content.strip().startswith(PREFIX):
         await bot.process_commands(message)
 

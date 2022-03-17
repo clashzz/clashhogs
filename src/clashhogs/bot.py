@@ -811,7 +811,7 @@ def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
-@tasks.loop(minutes=23)
+@tasks.loop(hours=23)
 #@tasks.loop(minutes=2)
 async def check_scheduled_task():
     now = datetime.datetime.now()

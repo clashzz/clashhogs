@@ -403,7 +403,8 @@ async def warn_error(ctx, error):
 @bot.command(name='crclan')
 @commands.has_permissions(manage_guild=True)
 async def crclan(ctx, option: str, tag: str, *values):
-    tag=utils.correct_tag(tag)
+    if tag !='*':
+        tag=utils.correct_tag(tag)
     log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list current registered clans
@@ -835,8 +836,8 @@ async def on_clan_trophy_change(old_clan, new_clan):
     log.info(f"{new_clan.name} total trophies changed from {old_clan.points} to {new_clan.points}")
 
 
-#@tasks.loop(hours=23)
-@tasks.loop(minutes=1)
+@tasks.loop(hours=23)
+#@tasks.loop(minutes=1)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()

@@ -19,12 +19,12 @@ def prepare_help_menu(botname, prefix):
     string=f'{botname} supports the following commands (requires admin privilege unless otherwise stated). Run **{prefix}help [command]** for how to use them. Also see ' \
     'details at https://github.com/clashzz/sidekickassist:\n' \
     '\t\t - **link**: link a clan to this discord server. This must be done first before you use other commands with this bot\n' \
-    '\t\t - **wardigest**: analyse and produce a report for a clan\'s past war peformance\n' \
-    '\t\t - **warpersonal**: analyse and produce a report for a player\'s past war performance\n'   \
+    '\t\t - **clanwar**: analyse and produce a report for a clan\'s past war peformance\n' \
+    '\t\t - **mywar**: analyse and produce a report for a player\'s past war performance\n'   \
     '\t\t - **warn**: manage warnings for a clan/player\n'  \
     '\t\t - **crclan**: set up the credit watch system for a clan\n' \
     '\t\t - **crplayer**: manage the credits of a specific player \n' \
-    '\t\t - **credit**: view the credits of a specific player (available to any user)'
+    '\t\t - **mycredit**: view the credits of a specific player (available to any user)'
     return string
 
 def prepare_link_help(prefix):
@@ -38,18 +38,18 @@ def prepare_link_help(prefix):
 
     return string
 
-def prepare_channel_help(prefix, botname):
+def prepare_channel_help(prefix):
     'This command is used to map your sidekick war feed channel to another channel,'
-    string= 'This command is used to set up the discord channels for receiving different {} feeds".\n ' \
+    string= 'This command is used to set up the discord channels for receiving different clan feeds".\n ' \
             '**Usage:** {}channel [option] [clantag] [channel]. Options can be:\n' \
             '\t\t\t -miss: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
-            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary'.format(botname, prefix)
+            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary'.format(prefix)
 
     return string
 
-def prepare_wardigest_help(botname, prefix):
+def prepare_clanwar_help(botname, prefix):
     'This command is used to generate clan war digest using data from the Sidekick clan war feed channel.\n'
-    string=f'**Usage**: {prefix}wardigest [clantag] [dd/mm/yyyy] '   \
+    string=f'**Usage**: {prefix}clanwar [clantag] [dd/mm/yyyy] '   \
     '[OPTIONAL:dd/mm/yyyy]\n'   \
     '\t\t - [clantag]: must be provided\n' \
     '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '  \
@@ -57,10 +57,10 @@ def prepare_wardigest_help(botname, prefix):
     f'{botname} must have read and write permissions to both channels.'
     return string
 
-def prepare_warpersonal_help(botname, prefix):
+def prepare_mywar_help(botname, prefix):
     'This command is used to generate personal war analysis using data from the Sidekick clan war feed '
     string= 'channel. You must have taken part in the wars to have any data for analysis.\n\n'  \
-    f'**Usage**: {prefix}warpersonal [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy]\n' \
+    f'**Usage**: {prefix}mywar [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy]\n' \
     '\t\t - [player_tag] your player tag (must include #)\n'    \
     '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for '    \
     'your data. When the end date is not provided, the present date will be used\n' \
@@ -105,8 +105,8 @@ def prepare_crplayer_help(prefix):
            '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
     return string
 
-def prepare_credit_help(prefix):
+def prepare_mycredit_help(prefix):
     string='This command is used to view credits for a player.\n' \
-        f'**Usage:** {prefix}credit [tag], where [tag] must be a player tag\n'
+        f'**Usage:** {prefix}mycredit [tag], where [tag] must be a player tag\n'
     return string
 

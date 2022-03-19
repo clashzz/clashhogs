@@ -1,4 +1,4 @@
-import discord, operator, datetime
+import disnake, operator, datetime
 from clashhogs import models
 
 DISCORD_MSG_MAX_LENGTH=1500
@@ -124,10 +124,10 @@ def format_warnings(clan:str, records:list, player=None):
 
 def format_credit_systems(res:dict):
     if len(res)==0:
-        embedVar = discord.Embed(title="Clan(s) is/are not currently registered for the credit system",
+        embedVar = disnake.Embed(title="Clan(s) is/are not currently registered for the credit system",
                                  description="")  # , color=0x00ff00
     else:
-        embedVar = discord.Embed(title="Clans currently registered for the credit system",
+        embedVar = disnake.Embed(title="Clans currently registered for the credit system",
                                  description="")  # , color=0x00ff00
     for clanwatch in res:
         if clanwatch is None:
@@ -188,10 +188,10 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
 
 def format_clanwatch_data(clan):
     if clan is None:
-        embedVar = discord.Embed(title="Clan Setup",
+        embedVar = disnake.Embed(title="Clan Setup",
                                  description="This clan has not been linked to this discord server")  # , color=0x00ff00
     else:
-        embedVar = discord.Embed(title="Clan Setup",
+        embedVar = disnake.Embed(title="Clan Setup",
                                  description="")  # , color=0x00ff00
         embedVar.add_field(name='Tag',
                     value=clan._tag,

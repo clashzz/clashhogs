@@ -1,17 +1,15 @@
-import asyncio
-import datetime, logging, pandas, sys, traceback, discord, coc
-import operator
+import datetime, disnake, pandas, sys, traceback, coc, logging, asyncio, operator
 import matplotlib.pyplot as plt
-
 from pathlib import Path
-from discord.ext import commands, tasks
 from clashhogs import database, dataformatter, models, util
 from coc import utils
+from disnake.ext import commands
+from disnake.ext import tasks
 
-##########
-# Init   #
-##########
-# There must be a .env file within the same folder of this source file, and this needs to have the following two
+######################################
+# Init                               #
+######################################
+# There must be a env.config file within the same folder of this source file, and this needs to have the following two
 # properties
 if len(sys.argv) < 1:
     print("Please provide the path to the folder containing your .env file")
@@ -41,8 +39,11 @@ coc_client = coc.login(
 TOKEN = properties['DISCORD_TOKEN']
 BOT_NAME = properties['BOT_NAME']
 PREFIX = properties['BOT_PREFIX']
-SIDEKICK_NAME = 'sidekick'
-bot = commands.Bot(command_prefix=PREFIX, help_command=None,intents=discord.Intents.all())
+DESCRIPTION = "A utility bot for Clash of Clans clan management"
+intents = disnake.Intents.all()
+bot = commands.Bot(
+    command_prefix=commands.when_mentioned_or("?"), help_command=None, description=DESCRIPTION, intents=intents
+)
 
 #logging
 logging.basicConfig(stream=sys.stdout,
@@ -50,6 +51,7 @@ logging.basicConfig(stream=sys.stdout,
                     level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(BOT_NAME)
+
 
 ##################################################
 # Bot events
@@ -62,6 +64,7 @@ async def on_ready():
     log.info('The following clans are linked with the bot:')
     for clan in database.init_clanwatch_all():
         coc_client.add_war_updates(clan._tag)
+        coc_client.add_clan_updates(clan._tag)
         log.info("\t{}, {}, guild={}, {}".format(clan._tag, clan._name, clan._guildid, clan._guildname))
         #coc_client.add_war_updates(clan._tag)
 
@@ -69,6 +72,10 @@ async def on_ready():
     for guild in bot.guilds:
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id, rootfolder)
+    log.info('Init completed')
+    # print("debugging")
+    # coc_client.add_war_updates("#2YGUPUU82")
+    # coc_client.add_clan_updates("#2YGUPUU82")
 
 @bot.event
 async def on_guild_join(guild):
@@ -88,21 +95,21 @@ async def help(context, command=None):
     elif command=='link':
         await context.send(util.prepare_link_help(PREFIX))
     elif command=='channel':
-        await context.send(util.prepare_channel_help(BOT_NAME, PREFIX))
-    elif command == 'wardigest':
+        await context.send(util.prepare_channel_help(PREFIX))
+    elif command == 'clanwar':
         await context.send(
-            util.prepare_wardigest_help(BOT_NAME,PREFIX))
-    elif command == 'warpersonal':
+            util.prepare_clanwar_help(BOT_NAME, PREFIX))
+    elif command == 'mywar':
         await context.send(
-            util.prepare_warpersonal_help(BOT_NAME, PREFIX))
+            util.prepare_mywar_help(BOT_NAME, PREFIX))
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'crclan':
         await context.send(util.prepare_crclan_help(PREFIX, models.STANDARD_CREDITS))
     elif command == 'crplayer':
         await context.send(util.prepare_crplayer_help(PREFIX))
-    elif command == 'credit':
-        await context.send(util.prepare_credit_help(PREFIX))
+    elif command == 'mycredit':
+        await context.send(util.prepare_mycredit_help(PREFIX))
     else:
         await context.send(f'Command {command} does not exist.')
 
@@ -116,7 +123,7 @@ async def link(ctx, option: str, clantag=None):
     log.info("GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
 
     if clantag is not None:
-        clantag=util.normalise_tag(clantag)
+        clantag=utils.correct_tag(clantag)
         try:
             clan = await coc_client.get_clan(clantag)
         except coc.NotFound:
@@ -131,7 +138,7 @@ async def link(ctx, option: str, clantag=None):
         desc = clan.description
         if desc is None:
             desc = ""
-        if not desc.endswith("CH22"):
+        if not desc.lower().endswith("ch22"):
             await ctx.send("Authentication failed. Please add 'CH22' to the end of your clan description. This is only "
                            "needed once to verify you are the owner of the clan. Each clan can only be linked to one "
                            "discord server.")
@@ -148,6 +155,7 @@ async def link(ctx, option: str, clantag=None):
             clanwatch._guildname=ctx.guild.name
         database.add_clanwatch(clantag, clanwatch)
         coc_client.add_war_updates(clantag)
+        coc_client.add_clan_updates(clantag)
         await ctx.send("Clan linked to this discord server. You will need to re-add all the channel mappings for this clan.")
     elif option=='-l':
         if clantag is None:
@@ -192,7 +200,7 @@ async def link_error(ctx, error):
 @bot.command(name='channel')
 @commands.has_permissions(manage_guild=True)
 async def channel(ctx, option: str, clantag, to_channel):
-    clantag=util.normalise_tag(clantag)
+    clantag=utils.correct_tag(clantag)
     log.info("GUILD={}, {}, ACTION=channel, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
     # list current mappings
     try:
@@ -206,7 +214,7 @@ async def channel(ctx, option: str, clantag, to_channel):
         return
 
     to_channel_id = dataformatter.parse_channel_id(to_channel)
-    channel = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+    channel = disnake.utils.get(ctx.guild.channels, id=to_channel_id)
     if channel is None:
         await ctx.channel.send(
             f"The channel {to_channel} does not exist. Please create it first, and give {BOT_NAME} "
@@ -248,11 +256,11 @@ async def channel_error(ctx, error):
 #########################################################
 # This method is used to process clan war summary
 #########################################################
-@bot.command(name='wardigest')
+@bot.command(name='clanwar')
 @commands.has_permissions(manage_guild=True)
-async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
-    clantag=util.normalise_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=wardigest, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
+async def clanwar(ctx, clantag: str, fromdate: str, todate=None):
+    clantag=utils.correct_tag(clantag)
+    log.info("GUILD={}, {}, ACTION=clanwar, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
 
     try:
         clan = await coc_client.get_clan(clantag)
@@ -270,7 +278,7 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
             "The channel for war digest has not been set. Run '/channel' to set this up first.")
         return
     else:
-        channel_to = discord.utils.get(ctx.guild.channels, id=to_channel_id)
+        channel_to = disnake.utils.get(ctx.guild.channels, id=to_channel_id)
         try:
             fromdate = datetime.datetime.strptime(fromdate, "%d/%m/%Y")
         except:
@@ -305,18 +313,18 @@ async def wardigest(ctx, clantag: str, fromdate: str, todate=None):
     await ctx.channel.send("Done. Please see your target channel for the output. ")
 
 
-@wardigest.error
-async def wardigest(ctx, error):
+@clanwar.error
+async def clanwar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'wardigest' requires four arguments. Run {PREFIX}help wardigest for details")
+        await ctx.channel.send(f"'clanwar' requires four arguments. Run {PREFIX}help clanwar for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
-            "Users of 'wardigest' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "Users of 'clanwar' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=wardigest\n{}".format(ctx.guild.id, ctx.guild.name, error))
+        log.error("GUILD={}, {}, ACTION=clanwar\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 
 #########################################################
@@ -395,7 +403,7 @@ async def warn_error(ctx, error):
 @bot.command(name='crclan')
 @commands.has_permissions(manage_guild=True)
 async def crclan(ctx, option: str, tag: str, *values):
-    tag=util.normalise_tag(tag)
+    tag=utils.correct_tag(tag)
     log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
     # list current registered clans
@@ -472,7 +480,7 @@ async def crclan_error(ctx, error):
 @bot.command(name='crplayer')
 @commands.has_permissions(manage_guild=True)
 async def crplayer(ctx, option: str, tag: str, value=None, *note):
-    tag=util.normalise_tag(tag)
+    tag=utils.correct_tag(tag)
 
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
 
@@ -529,9 +537,9 @@ async def crplayer_error(ctx, error):
 #########################################################
 # This method is used to produce personal war summary
 #########################################################
-@bot.command(name='warpersonal')
-async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
-    playertag=util.normalise_tag(playertag)
+@bot.command(name='mywar')
+async def mywar(ctx, playertag: str, fromdate: str, todate=None):
+    playertag=utils.correct_tag(playertag)
     # check if the channels already exist
     try:
         fromdate = datetime.datetime.strptime(fromdate, "%d/%m/%Y")
@@ -573,7 +581,7 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
     figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
     file = targetfolder + '/{}_byth.jpg'.format(playertag.replace('#', '_'))
     figure.savefig(file, format='jpg')
-    fileA = discord.File(file)
+    fileA = disnake.File(file)
     await ctx.channel.send("Data for **{}**, between **{}** and **{}**".format(playertag, fromdate, todate))
     await ctx.channel.send(file=fileA, content="**Attack stars by target town hall levels**:")
     plt.close(figure)
@@ -583,28 +591,28 @@ async def warpersonal(ctx, playertag: str, fromdate: str, todate=None):
     figure = dataframe.plot(kind='bar', rot=0).get_figure()
     file = targetfolder + '/{}_bytime.jpg'.format(playertag.replace('#', '_'))
     figure.savefig(file, format='jpg')
-    fileB = discord.File(file)
+    fileB = disnake.File(file)
     await ctx.channel.send(file=fileB, content="**Attack stars by time**:")
     plt.close(figure)
 
-@warpersonal.error
-async def warpersonal(ctx, error):
+@mywar.error
+async def mywar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'warpersonal' requires four arguments. Run {PREFIX}help warpersonal for details")
+        await ctx.channel.send(f"'mywar' requires four arguments. Run {PREFIX}help mywar for details")
     else:
         # traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
         error = ''.join(traceback.format_stack())
-        log.error(f"GUILD={ctx.guild.id}, {ctx.guild.name}, ACTION=warpersonal\n{error}")
+        log.error(f"GUILD={ctx.guild.id}, {ctx.guild.name}, ACTION=mywar\n{error}")
 
 
 #########################################################
 # This method is used to track player credits
 #########################################################
-@bot.command(name='credit')
-async def credit(ctx, tag: str):
-    tag=util.normalise_tag(tag)
+@bot.command(name='mycredit')
+async def mycredit(ctx, tag: str):
+    tag=utils.correct_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=credit, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
+    log.info("GUILD={}, {}, ACTION=mycredit, user={}".format(ctx.guild.id, ctx.guild.name, ctx.author))
 
     clantag, clanname, playername, records = database.list_playercredits(ctx.guild.id, tag)
     msgs=dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
@@ -612,10 +620,10 @@ async def credit(ctx, tag: str):
         await ctx.send(m)
     return
 
-@credit.error
-async def credit_error(ctx, error):
+@mycredit.error
+async def mycredit_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'credit' requires arguments. Run '{PREFIX}help credit' for details")
+        await ctx.channel.send(f"'mycredit' requires arguments. Run '{PREFIX}help mycredit' for details")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
@@ -743,7 +751,7 @@ def send_missed_attacks(misses:dict, clantag:str):
         channel_id=clanwatch._channel_warmiss
         if channel_id is not None:
             channel_id=dataformatter.parse_channel_id(channel_id)
-        channel = discord.utils.get(guild.channels, id=channel_id)
+        channel = disnake.utils.get(guild.channels, id=channel_id)
         if channel is not None:
             message = "War missed attack for **{} on {}**:\n" \
                       "(Double check your in-game data, Sidekick can lose attacks made in the last minutes)\n".format(
@@ -790,7 +798,7 @@ def send_wardigest(fromdate, todate, clantag, clanname):
     figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
     figure.savefig(targetfolder + '/clan_war_data.jpg', format='jpg')
     # now fetch that file and send it to the channel
-    fileB = discord.File(targetfolder + "/clan_war_data.jpg")
+    fileB = disnake.File(targetfolder + "/clan_war_data.jpg")
     war_plot=fileB
     return msg_warmiss, msg_cwlmiss, war_overview, war_plot
     # await channel_to.send(file=fileB,
@@ -811,8 +819,24 @@ def regular_war_ended(old_war:coc.ClanWar, new_war:coc.ClanWar):
 def cwl_war_started(old_war:coc.ClanWar, new_war:coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type=="cwl"
 
-@tasks.loop(hours=23)
-#@tasks.loop(minutes=2)
+
+####################################################
+# for debugging                                    #
+####################################################
+@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
+@coc.ClanEvents.member_donations()
+async def on_clan_member_donation(old_member, new_member):
+    final_donated_troops = new_member.donations - old_member.donations
+    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
+
+@coc_client.event
+@coc.ClanEvents.points()
+async def on_clan_trophy_change(old_clan, new_clan):
+    log.info(f"{new_clan.name} total trophies changed from {old_clan.points} to {new_clan.points}")
+
+
+#@tasks.loop(hours=23)
+@tasks.loop(minutes=1)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
@@ -829,7 +853,7 @@ async def check_scheduled_task():
                 channel_id = clanwatch._channel_warsummary
                 if channel_id is not None:
                     channel_id = dataformatter.parse_channel_id(channel_id)
-                channel = discord.utils.get(guild.channels, id=channel_id)
+                channel = disnake.utils.get(guild.channels, id=channel_id)
                 if channel is not None:
                     fromdate=utils.get_season_start()
                     war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate,now, clantag, clanwatch._name)
@@ -874,11 +898,11 @@ async def check_scheduled_task():
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 
-async def main():
-    async with bot:
-        check_scheduled_task.start()
-        await bot.start(TOKEN)
-
-asyncio.run(main())
-
+# async def main():
+#     async with bot:
+#         check_scheduled_task.start()
+#         await bot.start(TOKEN)
+#
+# asyncio.run(main())
+check_scheduled_task.start()
 bot.run(TOKEN)

@@ -32,9 +32,9 @@ def prepare_link_help(prefix):
     string= 'This command must be run to link a clan to this discord server before other commands can be used. Authentication needed: ' \
             'your clan description must end with "CH22".\n ' \
             '**Usage:** {}link [option] [clantag]. Options can be:\n' \
-            '\t\t\t -l: to list clans currently linked with this discord server. If [clantag] is provided, list details of that clan only\n'  \
-            '\t\t\t -a: to link a clan with this discord server. [clantag] must be provided\n'   \
-            '\t\t\t -r: to unlink a clan with this discord server. [clantag] must be provided'.format(prefix)
+            '\t\t\t list: to list clans currently linked with this discord server. If [clantag] is provided, list details of that clan only\n'  \
+            '\t\t\t add: to link a clan with this discord server. [clantag] must be provided\n'   \
+            '\t\t\t remove: to unlink a clan with this discord server. [clantag] must be provided'.format(prefix)
 
     return string
 
@@ -42,8 +42,8 @@ def prepare_channel_help(prefix):
     'This command is used to map your sidekick war feed channel to another channel,'
     string= 'This command is used to set up the discord channels for receiving different clan feeds.\n ' \
             '**Usage:** {}channel [option] [clantag] [channel]. Options can be:\n' \
-            '\t\t\t -miss: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
-            '\t\t\t -war: to add [channel] for the clan [clantag] to receive monthly war summary'.format(prefix)
+            '\t\t\t missed-attacks: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
+            '\t\t\t war-monthly: to add [channel] for the clan [clantag] to receive monthly war summary'.format(prefix)
 
     return string
 
@@ -68,12 +68,12 @@ def prepare_mywar_help(prefix):
 
 def prepare_warn_help(prefix):
     'This command is used to manage warnings of players in a clan.\n'
-    string=f'**Usage:** {prefix}warn [option] [clanname] [playername] [value] [note]\n' \
+    string=f'**Usage:** {prefix}warn [clanname] [option] [playername] [value] [note]\n' \
     '[option]: \n'    \
-    '\t\t -l: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n' \
-    '\t\t -a: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n' \
-    '\t\t -c: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'   \
-    '\t\t -d: to delete a specific warning record. Provide [clanname] and either an ID of a record, or a ' \
+    '\t\t list: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n' \
+    '\t\t add: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n' \
+    '\t\t clear: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'   \
+    '\t\t delete: to delete a specific warning record. Provide [clanname] and either an ID of a record, or a ' \
            'date (yyyy-mm-dd) replace [playername]. If a date is provided, all records entered before the date' \
            ' will be deleted\n'    \
     '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided'

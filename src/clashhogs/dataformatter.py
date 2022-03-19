@@ -109,7 +109,7 @@ def format_warnings(clan:str, records:list, player=None):
 
     for r in records:
         string+="**Warning ID: {}**\n".format(r[0])
-        d = datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
+        d = datetime.datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")
         string+="\t\t*Player*: {} \t*Clan*: {}\n" \
                 "\t\t*Points*: {} \t*Date*: {}\n" \
                 "\t\t*Note*: {}\n".format(r[2], r[1],r[3],d,r[5])

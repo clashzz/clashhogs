@@ -313,7 +313,7 @@ def add_warning(guild_id, clan, person, point, note=None):
 
     con = connect_db(str(guild_id))
     cursor = con.cursor()
-    cursor.execute('INSERT INTO {} (clan, name, value, date, note) VALUES (?,?,?,?,?)'.
+    cursor.execute('INSERT INTO {} (clan, name, total, date, note) VALUES (?,?,?,?,?)'.
                    format(TABLE_member_warnings),
                    [clan, person, point, datetime.datetime.now(), note])
     con.commit()

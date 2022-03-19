@@ -9,6 +9,9 @@ from disnake.ext import tasks
 ######################################
 # Init                               #
 ######################################
+#DSN=802849247179309067
+#Dev=880595096461004830
+
 # There must be a env.config file within the same folder of this source file, and this needs to have the following two
 # properties
 if len(sys.argv) < 1:
@@ -42,7 +45,9 @@ PREFIX = properties['BOT_PREFIX']
 DESCRIPTION = "A utility bot for Clash of Clans clan management"
 intents = disnake.Intents.all()
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or(PREFIX), help_command=None, description=DESCRIPTION, intents=intents
+    command_prefix=commands.when_mentioned_or(PREFIX), help_command=None, description=DESCRIPTION, intents=intents,
+    test_guilds=[880595096461004830,802849247179309067],
+    sync_commands_debug=True
 )
 
 #logging
@@ -83,103 +88,114 @@ async def on_guild_join(guild):
     log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
     database.check_database(guild.id, rootfolder)
 
-
 #########################################################
 # Register the help command
 #########################################################
-@bot.command()
-async def help(context, command=None):
-    if command is None:
-        await context.send(
+@bot.slash_command(description="Show the list of commands and a summary of their functions.")
+async def help(inter, command:str=commands.Param(choices={"show-all":"all",
+                                                          "link": "link",
+                                                          "channel": "channel",
+                                                            "clanwar": "clanwar",
+                                                          "mywar": "mywar",
+                                                          "warn": "warn",
+                                                          "crclan": "crclan",
+                                                          "crplayer": "crplayer",
+                                                          "mycredit": "mycredit"})):
+    if command =='all':
+        await inter.response.send_message(
             util.prepare_help_menu(BOT_NAME,PREFIX))
     elif command=='link':
-        await context.send(util.prepare_link_help(PREFIX))
+        await inter.response.send_message(util.prepare_link_help(PREFIX))
     elif command=='channel':
-        await context.send(util.prepare_channel_help(PREFIX))
+        await inter.response.send_message(util.prepare_channel_help(PREFIX))
     elif command == 'clanwar':
-        await context.send(
+        await inter.response.send_message(
             util.prepare_clanwar_help(PREFIX))
     elif command == 'mywar':
-        await context.send(
+        await inter.response.send_message(
             util.prepare_mywar_help(PREFIX))
     elif command == 'warn':
-        await context.send(util.prepare_warn_help(PREFIX))
+        await inter.response.send_message(util.prepare_warn_help(PREFIX))
     elif command == 'crclan':
-        await context.send(util.prepare_crclan_help(PREFIX, models.STANDARD_CREDITS))
+        await inter.response.send_message(util.prepare_crclan_help(PREFIX, models.STANDARD_CREDITS))
     elif command == 'crplayer':
-        await context.send(util.prepare_crplayer_help(PREFIX))
+        await inter.response.send_message(util.prepare_crplayer_help(PREFIX))
     elif command == 'mycredit':
-        await context.send(util.prepare_mycredit_help(PREFIX))
+        await inter.response.send_message(util.prepare_mycredit_help(PREFIX))
     else:
-        await context.send(f'Command {command} does not exist.')
+        await inter.response.send_message(f'Command {command} does not exist.')
 
 #########################################################
 # This method is used to configure the discord channels
 # to automatically tally missed attacks
 #########################################################
-@bot.command(name='link')
+@bot.slash_command(description="Link a clan to this discord server (requires admin access).")
 @commands.has_permissions(manage_guild=True)
-async def link(ctx, option: str, clantag=None):
-    log.info("GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
+async def link(inter, option: str=commands.Param(choices={"add":"-a",
+                                                          "list (clan tag not required)": "-l",
+                                                          "remove": "-r"}), clantag:str=None):
+    log.info("GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     if clantag is not None:
         clantag=utils.correct_tag(clantag)
         try:
             clan = await coc_client.get_clan(clantag)
         except coc.NotFound:
-            await ctx.send("This clan doesn't exist.")
+            await inter.response.send_message("This clan doesn't exist.")
             return
 
     if option=='-a':
         if clantag is None:
-            await ctx.send("Clan tag required.")
+            await inter.response.send_message("Clan tag required.")
             return
 
         desc = clan.description
         if desc is None:
             desc = ""
         if not desc.lower().endswith("ch22"):
-            await ctx.send("Authentication failed. Please add 'CH22' to the end of your clan description. This is only "
+            await inter.response.send_message("Authentication failed. Please add 'CH22' to the end of your clan description. This is only "
                            "needed once to verify you are the owner of the clan. Each clan can only be linked to one "
                            "discord server.")
             return
 
         clanwatch=database.get_clanwatch(clantag)
         if clanwatch is None:
-            clanwatch=models.ClanWatch(clantag, clan.name, ctx.guild.id, ctx.guild.name)
+            clanwatch=models.ClanWatch(clantag, clan.name, inter.guild.id, inter.guild.name)
         else:
             clanwatch.clear()
             clanwatch._tag = clantag
             clanwatch._name=clan.name
-            clanwatch._guildid=ctx.guild.id
-            clanwatch._guildname=ctx.guild.name
+            clanwatch._guildid=inter.guild.id
+            clanwatch._guildname=inter.guild.name
         database.add_clanwatch(clantag, clanwatch)
         coc_client.add_war_updates(clantag)
         coc_client.add_clan_updates(clantag)
-        await ctx.send("Clan linked to this discord server. You will need to re-add all the channel mappings for this clan.")
+        await inter.response.send_message("Clan linked to this discord server. You will need to re-add all the channel mappings for this clan.")
     elif option=='-l':
         if clantag is None:
             clanwatches = database.get_clanwatch_all()
             if len(clanwatches)==0:
-                await ctx.send("No clans have been linked to this discord server.")
+                await inter.response.send_message("No clans have been linked to this discord server.")
             else:
+                embed_list = []
                 for cw in clanwatches:
-                    await ctx.send(embed=dataformatter.format_clanwatch_data(cw))
+                    embed_list.append(dataformatter.format_clanwatch_data(cw))
+                await inter.response.send_message(embeds=embed_list)
             return
 
         clanwatch = database.get_clanwatch(clantag)
-        await ctx.send(embed=dataformatter.format_clanwatch_data(clanwatch))
+        await inter.response.send_message(embed=dataformatter.format_clanwatch_data(clanwatch))
         return
     elif option=='-r':
         if clantag is None:
-            await ctx.send("Clan tag must be provided")
+            await inter.response.send_message("Clan tag must be provided")
             return
         database.remove_clanwatch(clantag)
         coc_client.remove_war_updates(clantag)
-        await ctx.send("Clan {} has been unlinked from this discord server.".format(clantag))
+        await inter.response.send_message("Clan {} has been unlinked from this discord server.".format(clantag))
         return
     else:
-        await ctx.send("Option {} not supported. Run help for details.".format(option))
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
 @link.error
 async def link_error(ctx, error):
@@ -197,26 +213,27 @@ async def link_error(ctx, error):
 # This method is used to set up the discord channels
 # for war missed attacks, clan summary and war summary feeds
 #########################################################
-@bot.command(name='channel')
+@bot.slash_command(description="Set up channels for a clan's feeds (clan must be already linked to this discord server).")
 @commands.has_permissions(manage_guild=True)
-async def channel(ctx, option: str, clantag, to_channel):
+async def channel(inter, clantag, to_channel, option: str=commands.Param(choices={"war-monthly":"-war",
+                                                          "missed-attacks": "-miss"})):
     clantag=utils.correct_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=channel, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option, ctx.author))
+    log.info("GUILD={}, {}, ACTION=channel, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
     # list current mappings
     try:
         clan = await coc_client.get_clan(clantag)
         clanwatch = database.get_clanwatch(clantag)
         if clanwatch is None:
-            await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
+            await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
             return
     except coc.NotFound:
-        await ctx.send("This clan '{}' doesn't exist.".format(clan))
+        await inter.response.send_message("This clan '{}' doesn't exist.".format(clan))
         return
 
     to_channel_id = dataformatter.parse_channel_id(to_channel)
-    channel = disnake.utils.get(ctx.guild.channels, id=to_channel_id)
+    channel = disnake.utils.get(inter.guild.channels, id=to_channel_id)
     if channel is None:
-        await ctx.channel.send(
+        await inter.response.send_message(
             f"The channel {to_channel} does not exist. Please create it first, and give {BOT_NAME} "
             "'Send messages' permission to that channel.")
         return
@@ -224,12 +241,12 @@ async def channel(ctx, option: str, clantag, to_channel):
     if option == "-miss":
         clanwatch._channel_warmiss=to_channel
         database.add_clanwatch(clantag, clanwatch)
-        await ctx.send("War missed attack channel has been added for this clan. Please make sure "
+        await inter.response.send_message("War missed attack channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
     elif option == "-war":
         clanwatch._channel_warsummary=to_channel
         database.add_clanwatch(clantag, clanwatch)
-        await ctx.send("War summary channel has been added for this clan. Please make sure "
+        await inter.response.send_message("War summary channel has been added for this clan. Please make sure "
                        f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
     # elif option == "-feed":
     #     clanwatch._channel_clansummary=to_channel
@@ -237,7 +254,7 @@ async def channel(ctx, option: str, clantag, to_channel):
     #     await ctx.send("Clan feed summary channel has been added for this clan. Please make sure "
     #                    f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
     else:
-        await ctx.send("Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
+        await inter.response.send_message("Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
         return
 
 
@@ -256,61 +273,62 @@ async def channel_error(ctx, error):
 #########################################################
 # This method is used to process clan war summary
 #########################################################
-@bot.command(name='clanwar')
+@bot.slash_command(description="Product a summary of war performance for a clan that is linked with this discord server")
 @commands.has_permissions(manage_guild=True)
-async def clanwar(ctx, clantag: str, fromdate: str, todate=None):
+async def clanwar(inter, clantag: str, from_date: str, to_date=None):
     clantag=utils.correct_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=clanwar, user={}".format(ctx.guild.id, ctx.guild.name,ctx.author))
+    log.info("GUILD={}, {}, ACTION=clanwar, user={}".format(inter.guild.id, inter.guild.name,inter.author))
 
     try:
         clan = await coc_client.get_clan(clantag)
         clanwatch = database.get_clanwatch(clantag)
         if clanwatch is None:
-            await ctx.send("This clan has not been linked to this discord server. Run 'link' first.")
+            await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
             return
     except coc.NotFound:
-        await ctx.send("This clan tag '{}' doesn't exist.".format(clantag))
+        await inter.response.send_message("This clan tag '{}' doesn't exist.".format(clantag))
         return
 
     to_channel_id = dataformatter.parse_channel_id(clanwatch._channel_warsummary)
     if to_channel_id == -1:
-        await ctx.channel.send(
+        await inter.response.send_message(
             "The channel for war digest has not been set. Run '/channel' to set this up first.")
         return
     else:
-        channel_to = disnake.utils.get(ctx.guild.channels, id=to_channel_id)
+        channel_to = disnake.utils.get(inter.guild.channels, id=to_channel_id)
         try:
-            fromdate = datetime.datetime.strptime(fromdate, "%d/%m/%Y")
+            from_date = datetime.datetime.strptime(from_date, "%d/%m/%Y")
         except:
-            fromdate = datetime.datetime.now() - datetime.timedelta(30)
-            await ctx.channel.send(
+            from_date = datetime.datetime.now() - datetime.timedelta(30)
+            await inter.response.send_message(
                 "The start date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
                 " will be used instead.")
         try:
-            if todate is not None:
-                todate = datetime.datetime.strptime(todate, "%d/%m/%Y")
+            if to_date is not None:
+                to_date = datetime.datetime.strptime(to_date, "%d/%m/%Y")
             else:
-                todate = datetime.datetime.now()
-                await ctx.channel.send(
+                to_date = datetime.datetime.now()
+                await inter.response.send_message(
                     "End date not provided, using today's date as the end date")
         except:
-            todate = datetime.datetime.now()
-            await ctx.channel.send(
+            to_date = datetime.datetime.now()
+            await inter.response.send_message(
                 "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
                 " will be used instead.")
 
-        war_miss, cwl_miss, war_overview, war_plot=send_wardigest(fromdate, todate, clantag, clanwatch._name)
+        war_miss, cwl_miss, war_overview, war_plot=send_wardigest(from_date, to_date, clantag, clanwatch._name)
         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
             await channel_to.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
             return
 
+        #todo: test after data collected
         await channel_to.send(war_miss)
         await channel_to.send(cwl_miss)
         await channel_to.send(war_overview)
         await channel_to.send(file=war_plot,
                                content="**Clan war data plot ready for download**:")
 
-    await ctx.channel.send("Done. Please see your target channel for the output. ")
+    await inter.response.send_message("Done. Please see your target channel for the output. ")
 
 
 @clanwar.error
@@ -322,66 +340,71 @@ async def clanwar_error(ctx, error):
             "Users of 'clanwar' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        await ctx.channel.send(
+            "Looks like I can't send messages to the target channel. Did you give me 'Send Message' permission? "
+            "Run '/link list' to check the target channel you have set up for this clan.")
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=clanwar\n{}".format(ctx.guild.id, ctx.guild.name, error))
+
 
 
 #########################################################
 # This method is used to log warnings
 #########################################################
-@bot.command(name='warn')
+@bot.slash_command(description='Add a warning record to a member of a clan')
 @commands.has_permissions(manage_guild=True)
-async def warn(ctx, option: str, clan: str, name=None, value=None, *note):
-    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(ctx.guild.id, ctx.guild.name, option,ctx.author))
+async def warn(inter, clan: str, option: str=commands.Param(choices={"list":"-l",
+                                                          "add": "-a",
+                                                                     "clear": "-c",
+                                                                     "delete": "-d"}), name=None, value=None, *note):
+    log.info("GUILD={}, {}, ACTION=warn, arg={}, user={}".format(inter.guild.id, inter.guild.name, option,inter.author))
 
     # list current warnings
+    #todo: change these to embeds
     if option == "-l":
         if name is None:  # list all warnings of a clan
-            res = database.list_warnings(ctx.guild.id, clan)
+            res = database.list_warnings(inter.guild.id, clan)
             warnings=dataformatter.format_warnings(clan, res)
-            for w in warnings:
-                await ctx.send(w)
+            await inter.response.send_message(warnings)
             # await ctx.channel.send("The clan {} has a total of {} warnings:\n{}".format(clan, len(res), string))
             return
         else:  # list all warnings of a person in a clan
-            res = database.list_warnings(ctx.guild.id, clan, name)
+            res = database.list_warnings(inter.guild.id, clan, name)
             warnings = dataformatter.format_warnings(clan, res,name)
-            for w in warnings:
-                await ctx.send(w)
+            await inter.response.send_message(warnings)
+            return
     # add a warning
     elif option == "-a":
         if name is None or value is None:
-            await ctx.channel.send(
+            await inter.response.send_message(
                 f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
             return
         try:
             value = float(value)
         except:
-            await ctx.channel.send("The value you entered for this warning does not look like a number, try agian.")
+            await inter.response.send_messaged("The value you entered for this warning does not look like a number, try agian.")
             return
-        database.add_warning(ctx.guild.id, clan, name, value, note)
-        await ctx.channel.send("Warning added for {} from the {} clan.".format(name, clan))
+        database.add_warning(inter.guild.id, clan, name, value, note)
+        await inter.response.send_message("Warning added for {} from the {} clan.".format(name, clan))
         return
     # clear all warnings with a person
     elif option == "-c":
         if name is None:
-            await ctx.channel.send(
+            await inter.response.send_message(
                 f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
             return
-        database.clear_warnings(ctx.guild.id, clan, name)
-        await ctx.channel.send("All warnings for {} from the {} clan are deleted.".format(name, clan))
+        database.clear_warnings(inter.guild.id, clan, name)
+        await inter.response.send_message("All warnings for {} from the {} clan are deleted.".format(name, clan))
         return
         # delete a warning
     elif option == "-d":
-        deleted=database.delete_warning(ctx.guild.id, clan, name)
+        deleted=database.delete_warning(inter.guild.id, clan, name)
         if deleted:
-            await ctx.channel.send("The warning record(s) has/have been deleted".format(clan))
+            await inter.response.send_message("The warning record(s) has/have been deleted".format(clan))
         else:
-            await ctx.channel.send("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
+            await inter.response.send_message("Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
                                    " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
     else:
-        await ctx.send("Option {} not supported. Run help for details.".format(option))
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
 @warn.error
 async def warn_error(ctx, error):
@@ -393,8 +416,6 @@ async def warn_error(ctx, error):
             "command")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-        error = ''.join(traceback.format_stack())
-        log.error("GUILD={}, {}, ACTION=warn\n{}".format(ctx.guild.id, ctx.guild.name, error))
 
 
 #########################################################

@@ -42,7 +42,7 @@ PREFIX = properties['BOT_PREFIX']
 DESCRIPTION = "A utility bot for Clash of Clans clan management"
 intents = disnake.Intents.all()
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("?"), help_command=None, description=DESCRIPTION, intents=intents
+    command_prefix=commands.when_mentioned_or(PREFIX), help_command=None, description=DESCRIPTION, intents=intents
 )
 
 #logging
@@ -98,10 +98,10 @@ async def help(context, command=None):
         await context.send(util.prepare_channel_help(PREFIX))
     elif command == 'clanwar':
         await context.send(
-            util.prepare_clanwar_help(BOT_NAME, PREFIX))
+            util.prepare_clanwar_help(PREFIX))
     elif command == 'mywar':
         await context.send(
-            util.prepare_mywar_help(BOT_NAME, PREFIX))
+            util.prepare_mywar_help(PREFIX))
     elif command == 'warn':
         await context.send(util.prepare_warn_help(PREFIX))
     elif command == 'crclan':

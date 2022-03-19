@@ -6,8 +6,8 @@ import coc, sys
 from coc import utils
 
 client = coc.login(
-    sys.argv[1],
     sys.argv[2],
+    sys.argv[3],
     key_names="coc.py tests",
     client=coc.EventsClient,
 )

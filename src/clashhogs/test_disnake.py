@@ -9,9 +9,13 @@ There are a number of utility commands being showcased here."""
 
 intents = disnake.Intents.all()
 
-
 bot = commands.Bot(
-    command_prefix=commands.when_mentioned_or("?"), description=description, intents=intents
+    command_prefix='!',
+    test_guilds=[880595096461004830],
+    # In the list above you can specify the IDs of your test guilds.
+    # Why is this kwarg called test_guilds? This is because you're not meant to use
+    # local registration in production, since you may exceed the rate limits.
+    sync_commands_debug=True
 )
 
 client = coc.login(
@@ -36,52 +40,9 @@ async def add(ctx, left: int, right: int):
     clan = await client.get_clan("#2YGUPUU82")
     print("done")
 
-
-@bot.command()
-async def roll(ctx, dice: str):
-    """Rolls a dice in NdN format."""
-    try:
-        rolls, limit = map(int, dice.split("d"))
-    except Exception:
-        await ctx.send("Format has to be in NdN!")
-        return
-
-    result = ", ".join(str(random.randint(1, limit)) for r in range(rolls))
-    await ctx.send(result)
-
-
-@bot.command(description="For when you wanna settle the score some other way")
-async def choose(ctx, *choices: str):
-    """Chooses between multiple choices."""
-    await ctx.send(random.choice(choices))
-
-
-@bot.command()
-async def repeat(ctx, times: int, content="repeating..."):
-    """Repeats a message multiple times."""
-    for i in range(times):
-        await ctx.send(content)
-
-
-@bot.command()
-async def joined(ctx, member: disnake.Member):
-    """Says when a member joined."""
-    await ctx.send(f"{member.name} joined in {member.joined_at}")
-
-
-@bot.group()
-async def cool(ctx):
-    """Says if a user is cool.
-    In reality this just checks if a subcommand is being invoked.
-    """
-    if ctx.invoked_subcommand is None:
-        await ctx.send(f"No, {ctx.subcommand_passed} is not cool")
-
-
-@cool.command(name="bot")
-async def bot_(ctx):
-    """Is the bot cool?"""
-    await ctx.send("Yes, the bot is cool.")
+@bot.slash_command(description="Responds with 'World'")
+async def hello(inter):
+    await inter.response.send_message("World")
 
 @client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
 @coc.ClanEvents.member_donations()

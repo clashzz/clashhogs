@@ -86,21 +86,21 @@ def prepare_crclan_help(prefix, default_points:dict):
     string='This command is used to set up credit watch for a clan.\n' \
         f'**Usage:** {prefix}crclan [option] [clantag] [*value]\n'  \
         '[option]: \n'    \
-        '\t\t -l: list clans currently registered. If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: crclan -l *\n'  \
-        '\t\t -u: to update the points of credit watch for a clan. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
+        '\t\t list: list clans currently registered. If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: crclan -l *\n'  \
+        '\t\t update: to update the points of credit watch for a clan. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
         'If none provided, then: '  \
         f'*{default.strip()}*. '    \
         f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]\n' \
-        '\t\t -c: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
+        '\t\t clear: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
     return string
 
 def prepare_crplayer_help(prefix):
     string='This command is used to manage credits for a player.\n' \
         f'**Usage:** {prefix}crplayer [option] [tag] [value] [note]\n'  \
         '- [option]: \n'    \
-        '\t\t -lc: List all players\'s total credits in a clan, specified by the [tag] (must be a clan tag)\n' \
-           '\t\t -lp: List a specific player\'s credit records in a clan, specified by the [tag] (must be a player tag)\n' \
-           '\t\t -a: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
+        '\t\t list_clan: List all players\'s total credits in a clan, specified by the [tag] (must be a clan tag)\n' \
+           '\t\t list_player: List a specific player\'s credit records in a clan, specified by the [tag] (must be a player tag)\n' \
+           '\t\t add: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
     return string
 
 def prepare_mycredit_help(prefix):

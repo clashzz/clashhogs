@@ -412,12 +412,12 @@ def registered_clan_creditwatch(guild_id, clantag, *values):
 
     invalid_activity_types=""
 
-    if len(values[0])<1:
+    if values[0] is None or len(values[0])<1:
         clan_watch.reset_credits()
         add_clanwatch(clantag, clan_watch)
     else:
         credit_watch_activities_copy = models.STANDARD_CREDITS.copy()
-        for v in values[0]:
+        for v in values[0].split(" "):
             if '=' not in v:
                 invalid_activity_types+="\n\t"+str(v)
                 continue

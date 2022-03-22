@@ -68,7 +68,7 @@ def prepare_mywar_help(prefix):
 
 def prepare_warn_help(prefix):
     'This command is used to manage warnings of players in a clan.\n'
-    string=f'**Usage:** {prefix}warn [clanname] [option] [playername] [value] [note]\n' \
+    string=f'**Usage:** {prefix}warn [clanname] [option] [name_or_id] [points] [reason]\n' \
     '[option]: \n'    \
     '\t\t list: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n' \
     '\t\t add: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n' \
@@ -76,7 +76,7 @@ def prepare_warn_help(prefix):
     '\t\t delete: to delete a specific warning record. Provide [clanname] and either an ID of a record, or a ' \
            'date (yyyy-mm-dd) replace [playername]. If a date is provided, all records entered before the date' \
            ' will be deleted\n'    \
-    '\nAll parameters (except [note]) must be a single word without space characters. [value] must be a number when provided'
+    '\[name_or_id] a player name if add/clear/list; a warning record id if delete'
     return string
 
 def prepare_crclan_help(prefix, default_points:dict):

@@ -179,7 +179,7 @@ async def link(inter, option: str = commands.Param(choices={"add": "-a",
             "Clan linked to this discord server. You will need to re-add all the channel mappings for this clan.")
     elif option == '-l':
         if clantag is None:
-            clanwatches = database.get_clanwatch_all()
+            clanwatches = database.get_clanwatch_by_guild(inter.guild.id)
             if len(clanwatches) == 0:
                 await inter.response.send_message("No clans have been linked to this discord server.")
             else:
@@ -371,21 +371,21 @@ async def clanwar_error(ctx, error):
 async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "-l",
                                                                        "add": "-a",
                                                                        "clear": "-c",
-                                                                       "delete": "-d"}), name=None, value=None, **note):
+                                                                       "delete": "-d"}), name_or_id=None, points=None, reason=None):
     log.info(
         "GUILD={}, {}, ACTION=warn, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list current warnings
     # todo: change warning records - first as header, rest as records
     if option == "-l":
-        if name is None:  # list all warnings of a clan
+        if name_or_id is None:  # list all warnings of a clan
             res = database.list_warnings(inter.guild.id, clan)
             warnings = dataformatter.format_warnings(clan, res)
             for w in warnings:
                 await inter.channel.send(w)
         else:  # list all warnings of a person in a clan
-            res = database.list_warnings(inter.guild.id, clan, name)
-            warnings = dataformatter.format_warnings(clan, res, name)
+            res = database.list_warnings(inter.guild.id, clan, name_or_id)
+            warnings = dataformatter.format_warnings(clan, res, name_or_id)
             for w in warnings:
                 await inter.channel.send(w)
 
@@ -393,37 +393,37 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
         return
     # add a warning
     elif option == "-a":
-        if name is None or value is None:
+        if name_or_id is None or points is None:
             await inter.response.send_message(
                 f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
             return
         try:
-            value = float(value)
+            points = float(points)
         except:
             await inter.response.send_message(
                 "The value you entered for this warning does not look like a number, try agian.")
             return
-        database.add_warning(inter.guild.id, clan, name, value, note)
-        await inter.response.send_message("Warning added for {} from the {} clan.".format(name, clan))
+        database.add_warning(inter.guild.id, clan, name_or_id, points, reason)
+        await inter.response.send_message("Warning added for {} from the {} clan.".format(name_or_id, clan))
         return
     # clear all warnings with a person
     elif option == "-c":
-        if name is None:
+        if name_or_id is None:
             await inter.response.send_message(
                 f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
             return
-        database.clear_warnings(inter.guild.id, clan, name)
-        await inter.response.send_message("All warnings for {} from the {} clan are deleted.".format(name, clan))
+        database.clear_warnings(inter.guild.id, clan, name_or_id)
+        await inter.response.send_message("All warnings for {} from the {} clan are deleted.".format(name_or_id, clan))
         return
         # delete a warning
     elif option == "-d":
-        deleted = database.delete_warning(inter.guild.id, clan, name)
+        deleted = database.delete_warning(inter.guild.id, clan, name_or_id)
         if deleted:
             await inter.response.send_message("The warning record(s) has/have been deleted".format(clan))
         else:
             await inter.response.send_message(
                 "Operation failed. Perhaps the warning ID {} and the clan name {} do not match what's in the database."
-                " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name, clan))
+                " If you are providing a date, it must conform to the YYYY-MM-DD format.".format(name_or_id, clan))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
@@ -447,10 +447,10 @@ async def warn_error(ctx, error):
 #########################################################
 @bot.slash_command(description='Set up credit points for a clan')
 @commands.has_permissions(manage_guild=True)
-async def crclan(inter, tag: str, option: str = commands.Param(choices={"list": "-l",
+async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
                                                                       "update": "-u",
-                                                                      "clear": "-c"}), *values):
-    if tag != '*':
+                                                                      "clear": "-c"}), tag:str=None, values=None):
+    if tag != '*' and tag is not None:
         tag = utils.correct_tag(tag)
     log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
@@ -458,12 +458,18 @@ async def crclan(inter, tag: str, option: str = commands.Param(choices={"list": 
     if option == "-l":
         if tag == "*":
             res = database.get_clanwatch_by_guild(str(inter.guild.id))
-        else:
+        elif tag is not None:
             res = [database.get_clanwatch(tag, str(inter.guild.id))]
+        else:
+            await inter.response.send_message("'tag' cannot be empty - either '*' to return all clans or a specific clan tag is needed.")
+            return
         await inter.response.send_message(embed=dataformatter.format_credit_systems(res))
         return
     # register a clan
     elif option == "-u":
+        if tag is None:
+            await inter.response.send_message("'tag' cannot be empty")
+            return
         try:
             clan = await coc_client.get_clan(tag)
         except coc.NotFound:
@@ -479,20 +485,23 @@ async def crclan(inter, tag: str, option: str = commands.Param(choices={"list": 
             await inter.response.send_message(
                 "Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
                 format(clan, result))
+            return
         else:
             coc_client.add_war_updates(tag)
             await inter.response.send_message("The clan {} has been updated for the credit watch system.".format(tag))
         return
     # clear all records of a clan
-    elif option == "-c":
+    elif option == "-c": #todo: implement button
+        if tag is None:
+            await inter.response.send_message("'tag' cannot be empty")
+            return
         def check(msg):
             return msg.author == inter.author and msg.channel == inter.channel and \
                    msg.content in ["YES", "NO"]
 
-        await inter.response.send_message(
+        await inter.channel.send(
             "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
         msg = "NO"
-        #todo: test this
         try:
             msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
         except asyncio.TimeoutError:
@@ -508,7 +517,6 @@ async def crclan(inter, tag: str, option: str = commands.Param(choices={"list": 
         else:
             await inter.response.send_message("Action cancelled.".format(tag))
         return
-    # temporary debugging
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
@@ -532,7 +540,7 @@ async def crclan_error(ctx, error):
 @commands.has_permissions(manage_guild=True)
 async def crplayer(inter, tag: str, option: str = commands.Param(choices={"list_clan": "-lc",
                                                                       "list_player": "-lp",
-                                                                      "add": "-a"}), value=None, *note):
+                                                                      "add": "-a"}), value=None, reason=None):
     tag = utils.correct_tag(tag)
 
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
@@ -571,7 +579,7 @@ async def crplayer(inter, tag: str, option: str = commands.Param(choices={"list_
         #todo test this
         author = inter.message.author.mention
         database.add_player_credits(inter.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, value,
-                                    note)
+                                    reason)
         await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
         return
     else:
@@ -673,7 +681,10 @@ async def mycredit(inter, player_tag: str):
     #todo: test this. multiple message sending....
     for m in msgs:
         await inter.channel.send(m)
-    await inter.response.send_message("Done")
+    if len(msgs)==0:
+        await inter.response.send_message("No records found.")
+    else:
+        await inter.response.send_message("See the list below.")
     return
 
 

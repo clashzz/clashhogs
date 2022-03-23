@@ -1,4 +1,24 @@
+import disnake
 
+# Define a simple View that gives us a confirmation menu
+class Confirm(disnake.ui.View):
+    def __init__(self):
+        super().__init__()
+        self.value = None
+
+    # When the confirm button is pressed, set the inner value to `True` and
+    # stop the View from listening to more input.
+    # We also send the user an ephemeral message that we're confirming their choice.
+    @disnake.ui.button(label="Yes", style=disnake.ButtonStyle.green)
+    async def confirm(self, button: disnake.ui.Button, interaction: disnake.MessageInteraction):
+        self.value = True
+        self.stop()
+
+    # This one is similar to the confirmation button except sets the inner value to `False`
+    @disnake.ui.button(label="No", style=disnake.ButtonStyle.grey)
+    async def cancel(self, button: disnake.ui.Button, interaction: disnake.MessageInteraction):
+        self.value = False
+        self.stop()
 
 def load_properties(file):
     params={}

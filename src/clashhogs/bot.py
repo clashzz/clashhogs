@@ -378,18 +378,18 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
     # list current warnings
     # todo: change warning records - first as header, rest as records
     if option == "-l":
+        await inter.response.send_message("Listing warning records...")
         if name_or_id is None:  # list all warnings of a clan
             res = database.list_warnings(inter.guild.id, clan)
             warnings = dataformatter.format_warnings(clan, res)
             for w in warnings:
-                await inter.channel.send(w)
+                await inter.followup.send(w)
         else:  # list all warnings of a person in a clan
             res = database.list_warnings(inter.guild.id, clan, name_or_id)
             warnings = dataformatter.format_warnings(clan, res, name_or_id)
             for w in warnings:
-                await inter.channel.send(w)
+                await inter.followup.send(w)
 
-        await inter.response.send_message("See data below")
         return
     # add a warning
     elif option == "-a":
@@ -491,32 +491,29 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
             await inter.response.send_message("The clan {} has been updated for the credit watch system.".format(tag))
         return
     # clear all records of a clan
-    elif option == "-c": #todo: implement button
+    elif option == "-c":
         if tag is None:
             await inter.response.send_message("'tag' cannot be empty")
             return
-        def check(msg):
-            return msg.author == inter.author and msg.channel == inter.channel and \
-                   msg.content in ["YES", "NO"]
 
-        await inter.channel.send(
-            "This will delete **ALL** credit records for the clan, are you sure? Enter 'YES' if yes, or 'NO' else if not.")
-        msg = "NO"
-        try:
-            msg = await bot.wait_for("message", check=check, timeout=30)  # 30 seconds to reply
-        except asyncio.TimeoutError:
-            await inter.response.send_message("Sorry, you didn't reply in time!")
-
-        if msg.clean_content == "YES":
+        v = util.Confirm()
+        await inter.response.send_message(
+            "This will delete **ALL** credit records for the clan, are you sure?", view=v)
+        await v.wait()
+        if v.value is None:
+            await inter.followup.send("Timed out.")
+            return
+        elif v.value:
             result = database.clear_credits_for_clan(inter.guild.id, tag)
             if result is None:
-                await inter.response.send_message(
+                await inter.followup.send(
                     "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
                 return
-            await inter.response.send_message("All credits for the clan {} has been removed.".format(tag))
+            await inter.followup.send("All credits for the clan {} has been removed.".format(tag))
+            return
         else:
-            await inter.response.send_message("Action cancelled.".format(tag))
-        return
+            await inter.followup.send("Action cancelled.")
+            return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
@@ -536,28 +533,33 @@ async def crclan_error(ctx, error):
 #########################################################
 # This method is used to track player credits
 #########################################################
-@bot.slash_command(description="Update a player's credits")
+@bot.slash_command(description="View or manage players' credits")
 @commands.has_permissions(manage_guild=True)
-async def crplayer(inter, tag: str, option: str = commands.Param(choices={"list_clan": "-lc",
+async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-lc",
                                                                       "list_player": "-lp",
-                                                                      "add": "-a"}), value=None, reason=None):
+                                                                      "add": "-a"}), tag: str=None, value=None, reason=None):
+    if tag is None:
+        await inter.response.send_message("'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
+        return
     tag = utils.correct_tag(tag)
 
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list credits of a clan's member
     if option == "-lc":
+        await inter.response.send_message("Listing credits for all clan members...")
         clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(inter.guild.id, tag)
         msgs = dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
         for m in msgs:
-            await inter.response.send_message(m)
+            await inter.followup.send(m)
         return
     # list credits of a clan's member
     elif option == "-lp":
+        await inter.response.send_message("Listing credits for a player...")
         clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, tag)
         msgs = dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
         for m in msgs:
-            await inter.response.send_message(m)
+            await inter.followup.send(m)
         return
     # manually add credits to a player
     elif option == "-a":
@@ -576,11 +578,10 @@ async def crplayer(inter, tag: str, option: str = commands.Param(choices={"list_
         except:
             await inter.response.send_message("The value you entered does not look like a number, try agian.")
             return
-        #todo test this
-        author = inter.message.author.mention
+        author = inter.author.display_name
         database.add_player_credits(inter.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, value,
                                     reason)
-        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag, player.clan.name))
+        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag+", "+player.name, player.clan.name))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
@@ -628,9 +629,10 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     if len(war_data) < 5:
         await inter.response.send_message(
             "There are not enough war data for {} with a total of {} attacks in our database. Run the command with a wider timespan or try this later "
-            "when you have warred more with us.".format(inter.channel, BOT_NAME))
+            "when you have warred more with us.".format(player_tag, len(war_data)))
         return
 
+    await inter.response.send_message("Preparing data...")
     player = models.Player(player_tag, player_tag)
     dataformatter.parse_personal_war_data(war_data, player)
     player.summarize_attacks()
@@ -645,8 +647,8 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     figure.savefig(file, format='jpg')
     fileA = disnake.File(file)
     #todo: fix this, cannot send two messages
-    await inter.channel.send("Data for **{}**, between **{}** and **{}**".format(player_tag, from_date, to_date))
-    await inter.channel.send(file=fileA, content="**Attack stars by target town hall levels**:")
+    await inter.followup.send("Data for **{}**, between **{}** and **{}**".format(player_tag, from_date, to_date))
+    await inter.followup.send(file=fileA, content="**Attack stars by target town hall levels**:")
     plt.close(figure)
 
     # attack stars by time
@@ -655,8 +657,8 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     file = targetfolder + '/{}_bytime.jpg'.format(player_tag.replace('#', '_'))
     figure.savefig(file, format='jpg')
     fileB = disnake.File(file)
-    await inter.channel.send(file=fileB, content="**Attack stars by time**:")
-    await inter.response.send_message("Done")
+    await inter.followup.send(file=fileB, content="**Attack stars by time**:")
+
     plt.close(figure)
 
 
@@ -665,6 +667,7 @@ async def mywar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send(f"'mywar' requires four arguments. Run {PREFIX}help mywar for details")
     else:
+        await ctx.channel.send("Something went wrong. Check if {} has 'Send Message' and 'Attach files' permisions".format(BOT_NAME))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
@@ -678,13 +681,13 @@ async def mycredit(inter, player_tag: str):
 
     clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, player_tag)
     msgs = dataformatter.format_playercreditrecords(player_tag, clantag, clanname, playername, records)
-    #todo: test this. multiple message sending....
-    for m in msgs:
-        await inter.channel.send(m)
+
     if len(msgs)==0:
         await inter.response.send_message("No records found.")
     else:
-        await inter.response.send_message("See the list below.")
+        await inter.response.send_message("Listing credits...")
+        for m in msgs:
+            await inter.followup.send(m)
     return
 
 

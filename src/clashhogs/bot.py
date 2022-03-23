@@ -104,26 +104,23 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "crplayer": "crplayer",
                                                              "mycredit": "mycredit"})):
     if command == 'all':
-        await inter.response.send_message(
-            util.prepare_help_menu(BOT_NAME, PREFIX))
+        await inter.response.send_message(embed=util.prepare_help_menu(BOT_NAME))
     elif command == 'link':
-        await inter.response.send_message(util.prepare_link_help(PREFIX))
+        await inter.response.send_message(embed=util.prepare_link_help())
     elif command == 'channel':
-        await inter.response.send_message(util.prepare_channel_help(PREFIX))
+        await inter.response.send_message(embed=util.prepare_channel_help())
     elif command == 'clanwar':
-        await inter.response.send_message(
-            util.prepare_clanwar_help(PREFIX))
+        await inter.response.send_message(embed=util.prepare_clanwar_help())
     elif command == 'mywar':
-        await inter.response.send_message(
-            util.prepare_mywar_help(PREFIX))
+        await inter.response.send_message(embed=util.prepare_mywar_help())
     elif command == 'warn':
-        await inter.response.send_message(util.prepare_warn_help(PREFIX))
+        await inter.response.send_message(embed=util.prepare_warn_help())
     elif command == 'crclan':
-        await inter.response.send_message(util.prepare_crclan_help(PREFIX, models.STANDARD_CREDITS))
+        await inter.response.send_message(util.prepare_crclan_help(models.STANDARD_CREDITS))
     elif command == 'crplayer':
-        await inter.response.send_message(util.prepare_crplayer_help(PREFIX))
+        await inter.response.send_message(util.prepare_crplayer_help())
     elif command == 'mycredit':
-        await inter.response.send_message(util.prepare_mycredit_help(PREFIX))
+        await inter.response.send_message(util.prepare_mycredit_help())
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
 
@@ -376,7 +373,6 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
         "GUILD={}, {}, ACTION=warn, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list current warnings
-    # todo: change warning records - first as header, rest as records
     if option == "-l":
         await inter.response.send_message("Listing warning records...")
         if name_or_id is None:  # list all warnings of a clan

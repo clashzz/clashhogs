@@ -35,71 +35,142 @@ def load_properties(file):
 def normalise_tag(tag):
     return tag.replace("O","0").upper()
 
-def prepare_help_menu(botname, prefix):
-    string=f'{botname} supports the following commands ( [A] indicates admin privilege required for that command). Run **{prefix}help [command]** for how to use them. Also see ' \
-    'details at https://github.com/clashzz/sidekickassist:\n' \
-    '\t\t - **link**: [A] link a clan to this discord server. This must be done first before you use other commands with this bot\n' \
-    '\t\t - **clanwar**: [A] analyse and produce a report for a clan\'s past war peformance\n' \
-    '\t\t - **mywar**: analyse and produce a report for a player\'s past war performance\n'   \
-    '\t\t - **warn**: [A] manage warnings for a clan/player\n'  \
-    '\t\t - **crclan**: [A] set up the credit watch system for a clan\n' \
-    '\t\t - **crplayer**: [A] manage the credits of a specific player \n' \
-    '\t\t - **mycredit**: view the credits of a specific player (available to any user)'
-    return string
+def prepare_help_menu(botname):
+    embedVar= disnake.Embed(title="Commands supported by {}".format(botname),
+                  description="The letter [A] indicates admin privilege required for that command). Run **/help** followed by the"
+                              " name of the command for details. Also see details at https://github.com/clashzz/clashhogs")  # , color=0x00ff00
+    embedVar.add_field(name="/link",
+                       value="[A] link a clan to this discord server. This must be done first before you use other commands with this bot.",
+                       inline=False)
+    embedVar.add_field(name="/channel",
+                       value="[A] set up various clan feeds for a clan that is already linked with this server.",
+                       inline=False
+                       )
+    embedVar.add_field(name="/clanwar",
+                       value="[A] analyse and produce a report for a clan\'s past war peformance.",
+                       inline=False)
+    embedVar.add_field(name="/war",
+                       value="[A] manage warnings for a clan/player.",
+                       inline=False)
+    embedVar.add_field(name="/crclan",
+                       value="[A] set up the credit watch system for a clan, or clear all credits of members from a clan.",
+                       inline=False)
+    embedVar.add_field(name="/crplayer",
+                       value="[A] manage the credits of a specific player.",
+                       inline=False)
+    embedVar.add_field(name="/mywar",
+                       value="analyse and produce a report for a player\'s past war performance.",
+                       inline=False)
+    embedVar.add_field(name="/mycredit",
+                       value="view the credits of a specific player.",
+                       inline=False)
 
-def prepare_link_help(prefix):
-    'This command is used to map your sidekick war feed channel to another channel,'
-    string= 'This command must be run to link a clan to this discord server before other commands can be used. Authentication needed: ' \
-            'your clan description must end with "CH22".\n ' \
-            '**Usage:** {}link [option] [clantag]. Options can be:\n' \
-            '\t\t\t list: to list clans currently linked with this discord server. If [clantag] is provided, list details of that clan only\n'  \
-            '\t\t\t add: to link a clan with this discord server. [clantag] must be provided\n'   \
-            '\t\t\t remove: to unlink a clan with this discord server. [clantag] must be provided'.format(prefix)
+    return embedVar
 
-    return string
+def prepare_link_help():
+    embedVar = disnake.Embed(title="Command /link",
+                             description="[A] This command must be run to link a clan to this discord server before other commands can be used." \
+                                         " **Authentication needed**: your clan description must end with 'CH22'.")
+    embedVar.add_field(name="Usage",
+                       value="/link [option] [clantag]",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: to list clans currently linked with this discord server. If [clantag] is provided, list details of that clan only. \n"
+                             "- add: to link a clan with this discord server. [clantag] must be provided. \n"
+                             "- remove: to unlink a clan with this discord server. [clantag] must be provided. ",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="The tag of a clan. This may or may not be needed, depending on the [option]",
+                       inline=False)
 
-def prepare_channel_help(prefix):
-    'This command is used to map your sidekick war feed channel to another channel,'
-    string= 'This command is used to set up the discord channels for receiving different clan feeds.\n ' \
-            '**Usage:** {}channel [option] [clantag] [channel]. Options can be:\n' \
-            '\t\t\t missed-attacks: to add [channel] for the clan [clantag] to receive missed attacks update\n'  \
-            '\t\t\t war-monthly: to add [channel] for the clan [clantag] to receive monthly war summary'.format(prefix)
+    return embedVar
 
-    return string
+def prepare_channel_help():
+    embedVar = disnake.Embed(title="Command /channel",
+                             description="[A] This command is used to set up the discord channels for receiving different clan feeds. " \
+                                         " The clan must have already been linked with this discord server using */link*.")
+    embedVar.add_field(name="Usage",
+                       value="/channel [clantag] [to_channel] [option]",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="The tag of a clan. This must be provided.",
+                       inline=False)
+    embedVar.add_field(name="to_channel",
+                       value="The discord channel to receive clan feed.",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- war-monthly: to receive monthly summary of a clan's war performance (e.g., missed attacks, stars against each TH level). \n"
+                             "- missed-attacks: to receive a summary of missed attacks at the end of every war.",
+                       inline=False)
 
-def prepare_clanwar_help(prefix):
-    'This command is used to generate clan war digest using data from the Sidekick clan war feed channel.\n'
-    string=f'**Usage**: {prefix}clanwar [clantag] [dd/mm/yyyy] '   \
-    '[OPTIONAL:dd/mm/yyyy]\n'   \
-    '\t\t - [clantag]: must be provided\n' \
-    '\t\t - [dd/mm/yyyy]: the first is the start date (required), the second is the end date (optional). '  \
-    'When the end date is not provided, the present date will be used\n'
-    return string
+    return embedVar
 
-def prepare_mywar_help(prefix):
-    'This command is used to generate personal war analysis using data from the Sidekick clan war feed '
-    string= 'channel. You must have taken part in the wars to have any data for analysis.\n\n'  \
-    f'**Usage**: {prefix}mywar [player_tag] [dd/mm/yyyy] [OPTIONAL:dd/mm/yyyy]\n' \
-    '\t\t - [player_tag] your player tag (must include #)\n'    \
-    '\t\t - [dd/mm/yyyy] the first is the start date (required), the second is the end date (optional) for '    \
-    'your data. When the end date is not provided, the present date will be used\n' \
-    'When the end date is not provided, the present date will be used\n'
-    return string
+def prepare_clanwar_help():
+    embedVar = disnake.Embed(title="Command /clanwar",
+                             description="[A] This command is used to generate a summary of a clan's war performance. " \
+                                         " The clan must have already been linked with this discord server using */link*.")
+    embedVar.add_field(name="Usage",
+                       value="/clanwar [clantag] [dd/mm/yyyy] [dd/mm/yyyy]",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="The tag of a clan. This must be provided.",
+                       inline=False)
+    embedVar.add_field(name="First [dd/mm/yyyy]",
+                       value="The start date from which data are to be collected. This must be provided.",
+                       inline=False)
+    embedVar.add_field(name="Second [dd/mm/yyyy]",
+                       value="The end date by which data are to be collected. If not provided, the current date will be used.",
+                       inline=False)
 
-def prepare_warn_help(prefix):
-    'This command is used to manage warnings of players in a clan.\n'
-    string=f'**Usage:** {prefix}warn [clanname] [option] [name_or_id] [points] [reason]\n' \
-    '[option]: \n'    \
-    '\t\t list: to list all warnings of a clan, or a player in a clan (clanname is mandatory, other parameters can be ignored)\n' \
-    '\t\t add: to add a warning for a player of a clan, and assign a value to that warning (all parameters mandatory except note, which can be multi-word but must be the last parameter)\n' \
-    '\t\t clear: to remove all warnings of a player in a clan (clanname and playername mandatory)\n'   \
-    '\t\t delete: to delete a specific warning record. Provide [clanname] and either an ID of a record, or a ' \
-           'date (yyyy-mm-dd) replace [playername]. If a date is provided, all records entered before the date' \
-           ' will be deleted\n'    \
-    '\[name_or_id] a player name if add/clear/list; a warning record id if delete'
-    return string
+    return embedVar
 
-def prepare_crclan_help(prefix, default_points:dict):
+def prepare_mywar_help():
+    embedVar = disnake.Embed(title="Command /mywar",
+                             description="This command is used to generate a summary of a player's war performance. " \
+                                         " The player must be in a clan that has already been linked with this discord server. Ask an admin if you are unsure.")
+    embedVar.add_field(name="Usage",
+                       value="/mywar [player_tag] [dd/mm/yyyy] [dd/mm/yyyy]",
+                       inline=False)
+    embedVar.add_field(name="playertag",
+                       value="The tag of a player. This must be provided.",
+                       inline=False)
+    embedVar.add_field(name="First [dd/mm/yyyy]",
+                       value="The start date from which data are to be collected. This must be provided.",
+                       inline=False)
+    embedVar.add_field(name="Second [dd/mm/yyyy]",
+                       value="The end date by which data are to be collected. If not provided, the current date will be used.",
+                       inline=False)
+
+    return embedVar
+
+def prepare_warn_help():
+    embedVar = disnake.Embed(title="Command /warn",
+                             description="[A] This command is used to manage warnings for a clan's members. ")
+    embedVar.add_field(name="Usage",
+                       value="/warn [clan] [option] [name_or_id] [points] [reason]",
+                       inline=False)
+    embedVar.add_field(name="clanname",
+                       value="The name of a clan. Note: the value will not be validated against the C.o.C. database.",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: to list all warnings of a clan ('clan' required), or a player in a clan (both 'clan' and 'name_or_id' required).\n" \
+                             "- add: to add a warning for a player, and assign a value to that warning (all parameters required)\n" \
+                             "- clear: to remove all warnings of a player in a clan ('clan' and 'name_or_id' required)\n" \
+                             "- delete: to delete a specific warning record ('clan' required, 'name_or_id' matching a warning record ID required). "
+                             "This option can also be used to delete all records before a date, in which case 'name_or_id' should be a value yyyy-mm-dd",
+                       inline=False)
+    embedVar.add_field(name="[name_or_id]",
+                       value="A value identifying a player, or a warning record id. See 'option' above.",
+                       inline=False)
+    embedVar.add_field(name="[point]",
+                       value="A numeric value assigned to a warning record. Required when using the 'add' option.",
+                       inline=False)
+    embedVar.add_field(name="[reason]",
+                       value="Message assigned to a warning record. Required when using the 'add' option.",
+                       inline=False)
+    return embedVar
+
+def prepare_crclan_help(default_points:dict):
     default = ""
     for k, v in default_points.items():
         default += k + "=" + str(v) + " "
@@ -114,7 +185,7 @@ def prepare_crclan_help(prefix, default_points:dict):
         '\t\t clear: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
     return string
 
-def prepare_crplayer_help(prefix):
+def prepare_crplayer_help():
     string='This command is used to manage credits for a player.\n' \
         f'**Usage:** {prefix}crplayer [option] [tag] [value] [note]\n'  \
         '- [option]: \n'    \
@@ -123,7 +194,7 @@ def prepare_crplayer_help(prefix):
            '\t\t add: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
     return string
 
-def prepare_mycredit_help(prefix):
+def prepare_mycredit_help():
     string='This command is used to view credits for a player.\n' \
         f'**Usage:** {prefix}mycredit [tag], where [tag] must be a player tag\n'
     return string

@@ -106,7 +106,9 @@ def format_warnings(clan:str, records:list, player=None):
             except:
                 pass
         string = "**Current warning records for {} from {}**, total points={}\n\n".format(clan, player, total_points)  # , color=0x00ff00
+    warnings.append(string)
 
+    string=""
     for r in records:
         string+="**Warning ID: {}**\n".format(r[0])
         d = datetime.datetime.fromisoformat(r[4]).strftime("%Y-%m-%d %H:%M")

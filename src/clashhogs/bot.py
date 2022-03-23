@@ -382,8 +382,11 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
         if name_or_id is None:  # list all warnings of a clan
             res = database.list_warnings(inter.guild.id, clan)
             warnings = dataformatter.format_warnings(clan, res)
-            for w in warnings:
-                await inter.followup.send(w)
+            if len(warnings)==1:
+                await inter.followup.send("No records found.")
+            else:
+                for w in warnings:
+                    await inter.followup.send(w)
         else:  # list all warnings of a person in a clan
             res = database.list_warnings(inter.guild.id, clan, name_or_id)
             warnings = dataformatter.format_warnings(clan, res, name_or_id)

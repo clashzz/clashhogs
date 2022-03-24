@@ -536,34 +536,34 @@ async def crclan_error(ctx, error):
 @commands.has_permissions(manage_guild=True)
 async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-lc",
                                                                       "list_player": "-lp",
-                                                                      "add": "-a"}), playertag: str=None, points=None, reason=None):
-    if playertag is None:
+                                                                      "add": "-a"}), tag: str=None, points=None, reason=None):
+    if tag is None:
         await inter.response.send_message("'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
         return
-    playertag = utils.correct_tag(playertag)
+    tag = utils.correct_tag(tag)
 
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list credits of a clan's member
     if option == "-lc":
         await inter.response.send_message("Listing credits for all clan members...")
-        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(inter.guild.id, playertag)
-        msgs = dataformatter.format_playercredits(playertag, clanname, playercredits, playername, last_updated)
+        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(inter.guild.id, tag)
+        msgs = dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
         for m in msgs:
             await inter.followup.send(m)
         return
     # list credits of a clan's member
     elif option == "-lp":
         await inter.response.send_message("Listing credits for a player...")
-        clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, playertag)
-        msgs = dataformatter.format_playercreditrecords(playertag, clantag, clanname, playername, records)
+        clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, tag)
+        msgs = dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
         for m in msgs:
             await inter.followup.send(m)
         return
     # manually add credits to a player
     elif option == "-a":
         try:
-            player = await coc_client.get_player(playertag)
+            player = await coc_client.get_player(tag)
         except coc.NotFound:
             await inter.response.send_message("This player doesn't exist.")
             return
@@ -578,9 +578,9 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
             await inter.response.send_message("The value you entered does not look like a number, try agian.")
             return
         author = inter.author.display_name
-        database.add_player_credits(inter.guild.id, author, playertag, player.name, player.clan.tag, player.clan.name, points,
+        database.add_player_credits(inter.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, points,
                                     reason)
-        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(playertag + ", " + player.name, player.clan.name))
+        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag + ", " + player.name, player.clan.name))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))

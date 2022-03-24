@@ -159,13 +159,13 @@ def prepare_warn_help():
                              "- delete: to delete a specific warning record ('clan' required, 'name_or_id' matching a warning record ID required). "
                              "This option can also be used to delete all records before a date, in which case 'name_or_id' should be a value yyyy-mm-dd",
                        inline=False)
-    embedVar.add_field(name="[name_or_id]",
+    embedVar.add_field(name="name_or_id",
                        value="A value identifying a player, or a warning record id. See 'option' above.",
                        inline=False)
-    embedVar.add_field(name="[point]",
+    embedVar.add_field(name="points",
                        value="A numeric value assigned to a warning record. Required when using the 'add' option.",
                        inline=False)
-    embedVar.add_field(name="[reason]",
+    embedVar.add_field(name="reason",
                        value="Message assigned to a warning record. Required when using the 'add' option.",
                        inline=False)
     return embedVar
@@ -174,28 +174,62 @@ def prepare_crclan_help(default_points:dict):
     default = ""
     for k, v in default_points.items():
         default += k + "=" + str(v) + " "
-    string='This command is used to set up credit watch for a clan.\n' \
-        f'**Usage:** {prefix}crclan [option] [clantag] [*value]\n'  \
-        '[option]: \n'    \
-        '\t\t list: list clans currently registered. If [clantag] is supplied, only that clan will be shown. If you want to see all registered clans, use *, i.e.: crclan -l *\n'  \
-        '\t\t update: to update the points of credit watch for a clan. [clantag] is mandatory. Other multiple [value] parameters can specify the credit points and activities to be registered. '   \
-        'If none provided, then: '  \
-        f'*{default.strip()}*. '    \
-        f'If you want to customise the values, provide them in the same format as above, each separated by a whitespace. Default values will be set when not provided in [*values]\n' \
-        '\t\t clear: To delete credits for all players of a clan, specified by the [tag] (confirmation required) \n'
-    return string
+    embedVar = disnake.Embed(title="Command /crclan",
+                             description="[A] This command is used to set up credit watch points for a clan, or "
+                                         "reset/clear all credit records for all members of a clan. ")
+    embedVar.add_field(name="Usage",
+                       value="/crclan [option] [clantag] [points] ",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: list clans currently registered for credit watch and the point configurations.\n"
+                             "- clear: delete all credit records for all players of a clan (confirmation requried).\n"
+                             "- update: update the point configurations for a clan.",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="Required for all [option]s. When using the 'list' option, this can be '*' to list all clans.",
+                       inline=False)
+    embedVar.add_field(name="points",
+                       value="Credit points to be assigned to different activities. Only the default activities will be " \
+                             "recognised. By default, these activities and their points are: *"+default.strip()+"*\n" \
+                             "To change the point values for these activities, provide them in the same format as above "\
+                             "with your own point value (e.g., 'x=50'). Each activity is separated by a space character. " \
+                             "If an activity is not provided, the default point value will be used.",
+                       inline=False)
+
+    return embedVar
 
 def prepare_crplayer_help():
-    string='This command is used to manage credits for a player.\n' \
-        f'**Usage:** {prefix}crplayer [option] [tag] [value] [note]\n'  \
-        '- [option]: \n'    \
-        '\t\t list_clan: List all players\'s total credits in a clan, specified by the [tag] (must be a clan tag)\n' \
-           '\t\t list_player: List a specific player\'s credit records in a clan, specified by the [tag] (must be a player tag)\n' \
-           '\t\t add: To manually add credits of [value] to a player specified by the [tag] (must be a player tag). When using this command, you must also provide a reason [note] (can be a sentence) '
-    return string
+    embedVar = disnake.Embed(title="Command /crplayer",
+                             description="[A] This command is used to manage credits for a player.")
+    embedVar.add_field(name="Usage",
+                       value="/crplayer [option] [tag] [points] [reason]",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list_clan: list all players's total credits in a clan. \n"
+                             "- list_player: list a specific player's every credit record.\n"
+                             "- add: manually add credits to a player.",
+                       inline=False)
+    embedVar.add_field(name="tag",
+                       value="Required for all [option]s. Either a clan's or a player's tag depending on the [option].",
+                       inline=False)
+    embedVar.add_field(name="points",
+                       value="Used with the 'add' [option]. A number indicating the points to be added (can be negative).",
+                       inline=False)
+    embedVar.add_field(name="reason",
+                       value="Used with the 'add' [option]. A note to explain why credits are manually added.",
+                       inline=False)
+
+    return embedVar
 
 def prepare_mycredit_help():
-    string='This command is used to view credits for a player.\n' \
-        f'**Usage:** {prefix}mycredit [tag], where [tag] must be a player tag\n'
-    return string
+    embedVar = disnake.Embed(title="Command /mycredit",
+                             description="This command is used to view a clan member's current credits.")
+    embedVar.add_field(name="Usage",
+                       value="/mycredit [player_tag]",
+                       inline=False)
+    embedVar.add_field(name="player_tag",
+                       value="The player's tag.",
+                       inline=False)
+
+    return embedVar
 

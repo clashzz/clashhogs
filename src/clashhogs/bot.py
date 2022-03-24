@@ -116,11 +116,11 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
     elif command == 'warn':
         await inter.response.send_message(embed=util.prepare_warn_help())
     elif command == 'crclan':
-        await inter.response.send_message(util.prepare_crclan_help(models.STANDARD_CREDITS))
+        await inter.response.send_message(embed=util.prepare_crclan_help(models.STANDARD_CREDITS))
     elif command == 'crplayer':
-        await inter.response.send_message(util.prepare_crplayer_help())
+        await inter.response.send_message(embed=util.prepare_crplayer_help())
     elif command == 'mycredit':
-        await inter.response.send_message(util.prepare_mycredit_help())
+        await inter.response.send_message(embed=util.prepare_mycredit_help())
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
 
@@ -330,7 +330,7 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
                 " will be used instead.")
             return
 
-        war_miss, cwl_miss, war_overview, war_plot = send_wardigest(from_date, to_date, clantag, clanwatch._name)
+        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(from_date, to_date, clantag, clanwatch._name)
         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
             await channel_to.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
             return
@@ -448,17 +448,17 @@ async def warn_error(ctx, error):
 @commands.has_permissions(manage_guild=True)
 async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
                                                                       "update": "-u",
-                                                                      "clear": "-c"}), tag:str=None, values=None):
-    if tag != '*' and tag is not None:
-        tag = utils.correct_tag(tag)
+                                                                      "clear": "-c"}), clantag:str=None, points=None):
+    if clantag != '*' and clantag is not None:
+        clantag = utils.correct_tag(clantag)
     log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list current registered clans
     if option == "-l":
-        if tag == "*":
+        if clantag == "*":
             res = database.get_clanwatch_by_guild(str(inter.guild.id))
-        elif tag is not None:
-            res = [database.get_clanwatch(tag, str(inter.guild.id))]
+        elif clantag is not None:
+            res = [database.get_clanwatch(clantag, str(inter.guild.id))]
         else:
             await inter.response.send_message("'tag' cannot be empty - either '*' to return all clans or a specific clan tag is needed.")
             return
@@ -466,19 +466,19 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
         return
     # register a clan
     elif option == "-u":
-        if tag is None:
+        if clantag is None:
             await inter.response.send_message("'tag' cannot be empty")
             return
         try:
-            clan = await coc_client.get_clan(tag)
+            clan = await coc_client.get_clan(clantag)
         except coc.NotFound:
             await inter.response.send_message("This clan doesn't exist.")
             return
 
-        result = database.registered_clan_creditwatch(inter.guild.id, tag, values)
+        result = database.registered_clan_creditwatch(inter.guild.id, clantag, points)
         if result is None:
             await inter.response.send_message(
-                "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+                "The clan {} has not been linked to this discord server. Run 'link' first.".format(clantag))
             return
         if len(result) != 0:
             await inter.response.send_message(
@@ -486,12 +486,12 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
                 format(clan, result))
             return
         else:
-            coc_client.add_war_updates(tag)
-            await inter.response.send_message("The clan {} has been updated for the credit watch system.".format(tag))
+            coc_client.add_war_updates(clantag)
+            await inter.response.send_message("The clan {} has been updated for the credit watch system.".format(clantag))
         return
     # clear all records of a clan
     elif option == "-c":
-        if tag is None:
+        if clantag is None:
             await inter.response.send_message("'tag' cannot be empty")
             return
 
@@ -503,12 +503,12 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
             await inter.followup.send("Timed out.")
             return
         elif v.value:
-            result = database.clear_credits_for_clan(inter.guild.id, tag)
+            result = database.clear_credits_for_clan(inter.guild.id, clantag)
             if result is None:
                 await inter.followup.send(
-                    "The clan {} has not been linked to this discord server. Run 'link' first.".format(tag))
+                    "The clan {} has not been linked to this discord server. Run 'link' first.".format(clantag))
                 return
-            await inter.followup.send("All credits for the clan {} has been removed.".format(tag))
+            await inter.followup.send("All credits for the clan {} has been removed.".format(clantag))
             return
         else:
             await inter.followup.send("Action cancelled.")
@@ -536,51 +536,51 @@ async def crclan_error(ctx, error):
 @commands.has_permissions(manage_guild=True)
 async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-lc",
                                                                       "list_player": "-lp",
-                                                                      "add": "-a"}), tag: str=None, value=None, reason=None):
-    if tag is None:
+                                                                      "add": "-a"}), playertag: str=None, points=None, reason=None):
+    if playertag is None:
         await inter.response.send_message("'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
         return
-    tag = utils.correct_tag(tag)
+    playertag = utils.correct_tag(playertag)
 
     log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list credits of a clan's member
     if option == "-lc":
         await inter.response.send_message("Listing credits for all clan members...")
-        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(inter.guild.id, tag)
-        msgs = dataformatter.format_playercredits(tag, clanname, playercredits, playername, last_updated)
+        clanname, playercredits, playername, last_updated = database.sum_clan_playercredits(inter.guild.id, playertag)
+        msgs = dataformatter.format_playercredits(playertag, clanname, playercredits, playername, last_updated)
         for m in msgs:
             await inter.followup.send(m)
         return
     # list credits of a clan's member
     elif option == "-lp":
         await inter.response.send_message("Listing credits for a player...")
-        clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, tag)
-        msgs = dataformatter.format_playercreditrecords(tag, clantag, clanname, playername, records)
+        clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, playertag)
+        msgs = dataformatter.format_playercreditrecords(playertag, clantag, clanname, playername, records)
         for m in msgs:
             await inter.followup.send(m)
         return
     # manually add credits to a player
     elif option == "-a":
         try:
-            player = await coc_client.get_player(tag)
+            player = await coc_client.get_player(playertag)
         except coc.NotFound:
             await inter.response.send_message("This player doesn't exist.")
             return
 
-        if value is None:
+        if points is None:
             await inter.response.send_message(
                 f"To manually add credits to a player, you must provide the value. Run '{PREFIX}help warn' for details")
             return
         try:
-            value = float(value)
+            points = float(points)
         except:
             await inter.response.send_message("The value you entered does not look like a number, try agian.")
             return
         author = inter.author.display_name
-        database.add_player_credits(inter.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, value,
+        database.add_player_credits(inter.guild.id, author, playertag, player.name, player.clan.tag, player.clan.name, points,
                                     reason)
-        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag+", "+player.name, player.clan.name))
+        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(playertag + ", " + player.name, player.clan.name))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
@@ -839,7 +839,7 @@ def send_missed_attacks(misses: dict, clantag: str):
     return None, None
 
 
-def send_wardigest(fromdate, todate, clantag, clanname):
+def prepare_wardigest(fromdate, todate, clantag, clanname):
     # gather missed attacks data
     war_data = database.find_war_data(clantag, fromdate, todate)
     if len(war_data) == 0:
@@ -881,7 +881,7 @@ def send_wardigest(fromdate, todate, clantag, clanname):
     # now fetch that file and send it to the channel
     fileB = disnake.File(targetfolder + "/clan_war_data.jpg")
     war_plot = fileB
-    return msg_warmiss, msg_cwlmiss, war_overview, war_plot
+    return msg_warmiss, msg_cwlmiss, war_overview, war_plot, clan_summary
     # await channel_to.send(file=fileB,
     #                       content="**Clan war data plot ready for download**:")
 
@@ -933,8 +933,16 @@ async def check_scheduled_task():
     if days_before_end <= 1:
         log.info("\t>>> End of season reached, running scheduled task.")
 
+        count_clans=0
+        most_stars=0
+        most_stars_winner=None
+        least_misses=-1
+        least_misses_winner=None
+
+        #send clan war digest
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
-            # clan war digest
+            count_clans+=1
+
             guild = bot.get_guild(clanwatch._guildid)
             if guild is not None:
                 channel_id = clanwatch._channel_warsummary
@@ -943,7 +951,7 @@ async def check_scheduled_task():
                 channel = disnake.utils.get(guild.channels, id=channel_id)
                 if channel is not None:
                     fromdate = utils.get_season_start()
-                    war_miss, cwl_miss, war_overview, war_plot = send_wardigest(fromdate, now, clantag, clanwatch._name)
+                    war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(fromdate, now, clantag, clanwatch._name)
 
                     if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
                         await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
@@ -954,6 +962,33 @@ async def check_scheduled_task():
                     await channel.send(war_overview)
                     await channel.send(file=war_plot,
                                        content="**Clan war data plot ready for download**:")
+
+                    totalstars=int(summary['Total stars'])
+                    totalmisses=int(summary['Total unused attacks'])
+                    if totalmisses==0 and totalmisses==0:
+                        totalmisspercent=0
+                    else:
+                        totalmisspercent=round(totalmisses/(totalstars+totalmisses),1)
+                    if totalstars>most_stars:
+                        most_stars=totalstars
+                        most_stars_winner=(clantag, clanwatch._name)
+                    if least_misses==-1 or totalmisspercent<least_misses:
+                        least_misses=totalmisspercent
+                        least_misses_winner=(clantag, clanwatch._name)
+
+        #send clan family performer, and update donation points
+        for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
+            guild = bot.get_guild(clanwatch._guildid)
+            if guild is not None:
+                channel_id = clanwatch._channel_warsummary
+                if channel_id is not None:
+                    channel_id = dataformatter.parse_channel_id(channel_id)
+                channel = disnake.utils.get(guild.channels, id=channel_id)
+                if channel is not None:
+                    msg="**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans, BOT_NAME)
+                    msg+="\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
+                    msg+="\tLowest missed attack %: {} by {}".format(least_misses, str(least_misses_winner))
+                    await channel.send(msg)
 
             # credits for donations
             clan = await coc_client.get_clan(clantag)
@@ -982,6 +1017,7 @@ async def check_scheduled_task():
                 top += 1
                 if top >= 2:
                     break
+
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 

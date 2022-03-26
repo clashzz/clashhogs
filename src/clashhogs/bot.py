@@ -768,7 +768,6 @@ async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
             if channel is not None and misses is not None:
                 await channel.send(misses)
 
-
 @coc_client.event
 @coc.WarEvents.war_attack()  # only if the clan war is registered in MEM_mappings_clan_currentwars
 async def current_war_stats(attack, war):

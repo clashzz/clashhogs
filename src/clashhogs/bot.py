@@ -1,4 +1,4 @@
-import datetime, disnake, pandas, sys, traceback, coc, logging, asyncio, operator
+import datetime, disnake, pandas, sys, traceback, coc, logging, operator
 import matplotlib.pyplot as plt
 from pathlib import Path
 from clashhogs import database, dataformatter, models, util
@@ -40,8 +40,8 @@ coc_client = coc.login(
 
 # Bot information and properties
 TOKEN = properties['DISCORD_TOKEN']
+PREFIX=properties['BOT_PREFIX']
 BOT_NAME = properties['BOT_NAME']
-PREFIX = properties['BOT_PREFIX']
 DESCRIPTION = "A utility bot for Clash of Clans clan management"
 intents = disnake.Intents.all()
 bot = commands.Bot(
@@ -204,7 +204,7 @@ async def link(inter, option: str = commands.Param(choices={"add": "-a",
 @link.error
 async def link_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'link' requires arguments. Run {PREFIX}help link for details")
+        await ctx.channel.send(f"'link' requires arguments. Run /help link for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'link' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -268,7 +268,7 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
 @channel.error
 async def channel_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'channel' requires arguments. Run {PREFIX}help channel for details")
+        await ctx.channel.send(f"'channel' requires arguments. Run /help channel for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'channel' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -347,7 +347,7 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
 @clanwar.error
 async def clanwar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'clanwar' requires four arguments. Run {PREFIX}help clanwar for details")
+        await ctx.channel.send(f"'clanwar' requires four arguments. Run /help clanwar for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'clanwar' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -394,7 +394,7 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
     elif option == "-a":
         if name_or_id is None or points is None:
             await inter.response.send_message(
-                f"'warn' requires 4~5 arguments for adding a warning. Run '{PREFIX}help warn' for details")
+                f"'warn' requires 4~5 arguments for adding a warning. Run '/help warn' for details")
             return
         try:
             points = float(points)
@@ -409,11 +409,23 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
     elif option == "-c":
         if name_or_id is None:
             await inter.response.send_message(
-                f"'warn' requires 4 arguments for clearing  warnings. Run '{PREFIX}help warn' for details")
+                f"'warn' requires 4 arguments for clearing  warnings. Run '/help warn' for details")
             return
-        database.clear_warnings(inter.guild.id, clan, name_or_id)
-        await inter.response.send_message("All warnings for {} from the {} clan are deleted.".format(name_or_id, clan))
-        return
+
+        v = util.Confirm()
+        await inter.response.send_message(
+            "This will delete **ALL** warning records for the player, are you sure?", view=v)
+        await v.wait()
+        if v.value is None:
+            await inter.followup.send("Timed out.")
+            return
+        elif v.value:
+            database.clear_warnings(inter.guild.id, clan, name_or_id)
+            await inter.follwup.send("All warnings for {} from the {} clan are deleted.".format(name_or_id, clan))
+            return
+        else:
+            await inter.followup.send("Action cancelled.")
+            return
         # delete a warning
     elif option == "-d":
         deleted = database.delete_warning(inter.guild.id, clan, name_or_id)
@@ -432,7 +444,7 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
 @warn.error
 async def warn_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'warn' requires arguments. Run '{PREFIX}help warn' for details")
+        await ctx.channel.send(f"'warn' requires arguments. Run '/help warn' for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -520,7 +532,7 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
 @crclan.error
 async def crclan_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'crclan' requires arguments. Run '{PREFIX}help crclan' for details")
+        await ctx.channel.send(f"'crclan' requires arguments. Run '/help crclan' for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'crclan' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -570,7 +582,7 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
 
         if points is None:
             await inter.response.send_message(
-                f"To manually add credits to a player, you must provide the value. Run '{PREFIX}help warn' for details")
+                f"To manually add credits to a player, you must provide the value. Run '/help crplayer' for details")
             return
         try:
             points = float(points)
@@ -589,7 +601,7 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
 @crplayer.error
 async def crplayer_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'crplayer' requires arguments. Run '{PREFIX}help crplayer' for details")
+        await ctx.channel.send(f"'crplayer' requires arguments. Run '/help crplayer' for details")
     elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
         await ctx.channel.send(
             "Users of 'crplayer' must have 'Manage server' permission. You do not seem to have permission to use this "
@@ -664,7 +676,7 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
 @mywar.error
 async def mywar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'mywar' requires four arguments. Run {PREFIX}help mywar for details")
+        await ctx.channel.send(f"'mywar' requires four arguments. Run '/help mywar' for details")
     else:
         await ctx.channel.send("Something went wrong. Check if {} has 'Send Message' and 'Attach files' permisions".format(BOT_NAME))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
@@ -693,7 +705,7 @@ async def mycredit(inter, player_tag: str):
 @mycredit.error
 async def mycredit_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.channel.send(f"'mycredit' requires arguments. Run '{PREFIX}help mycredit' for details")
+        await ctx.channel.send(f"'mycredit' requires arguments. Run '/help mycredit' for details")
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
@@ -922,7 +934,6 @@ async def on_clan_trophy_change(old_clan, new_clan):
 
 
 @tasks.loop(hours=23)
-# @tasks.loop(minutes=1)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
@@ -941,83 +952,89 @@ async def check_scheduled_task():
 
         #send clan war digest
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
-            count_clans+=1
+            try:
+                count_clans+=1
 
-            guild = bot.get_guild(clanwatch._guildid)
-            if guild is not None:
-                channel_id = clanwatch._channel_warsummary
-                if channel_id is not None:
-                    channel_id = dataformatter.parse_channel_id(channel_id)
-                channel = disnake.utils.get(guild.channels, id=channel_id)
-                if channel is not None:
-                    fromdate = utils.get_season_start()
-                    war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(fromdate, now, clantag, clanwatch._name)
+                guild = bot.get_guild(clanwatch._guildid)
+                if guild is not None:
+                    channel_id = clanwatch._channel_warsummary
+                    if channel_id is not None:
+                        channel_id = dataformatter.parse_channel_id(channel_id)
+                    channel = disnake.utils.get(guild.channels, id=channel_id)
+                    if channel is not None:
+                        fromdate = utils.get_season_start()
+                        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(fromdate, now, clantag, clanwatch._name)
 
-                    if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
-                        await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
-                        return
+                        if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
+                            await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
+                            return
 
-                    await channel.send(war_miss)
-                    await channel.send(cwl_miss)
-                    await channel.send(war_overview)
-                    await channel.send(file=war_plot,
-                                       content="**Clan war data plot ready for download**:")
+                        await channel.send(war_miss)
+                        await channel.send(cwl_miss)
+                        await channel.send(war_overview)
+                        await channel.send(file=war_plot,
+                                           content="**Clan war data plot ready for download**:")
 
-                    totalstars=int(summary['Total stars'])
-                    totalmisses=int(summary['Total unused attacks'])
-                    if totalmisses==0 and totalmisses==0:
-                        totalmisspercent=0
-                    else:
-                        totalmisspercent=round(totalmisses/(totalstars+totalmisses),1)
-                    if totalstars>most_stars:
-                        most_stars=totalstars
-                        most_stars_winner=(clantag, clanwatch._name)
-                    if least_misses==-1 or totalmisspercent<least_misses:
-                        least_misses=totalmisspercent
-                        least_misses_winner=(clantag, clanwatch._name)
-
+                        totalstars=int(summary['Total stars'])
+                        totalmisses=int(summary['Total unused attacks'])
+                        if totalmisses==0 and totalmisses==0:
+                            totalmisspercent=0
+                        else:
+                            totalmisspercent=round(totalmisses/(totalstars+totalmisses),1)
+                        if totalstars>most_stars:
+                            most_stars=totalstars
+                            most_stars_winner=(clantag, clanwatch._name)
+                        if least_misses==-1 or totalmisspercent<least_misses:
+                            least_misses=totalmisspercent
+                            least_misses_winner=(clantag, clanwatch._name)
+            except:
+                print("Encountered error, time {}".format(datetime.datetime.now()))
+                print(traceback.format_exc())
         #send clan family performer, and update donation points
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
-            guild = bot.get_guild(clanwatch._guildid)
-            if guild is not None:
-                channel_id = clanwatch._channel_warsummary
-                if channel_id is not None:
-                    channel_id = dataformatter.parse_channel_id(channel_id)
-                channel = disnake.utils.get(guild.channels, id=channel_id)
-                if channel is not None:
-                    msg="**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans, BOT_NAME)
-                    msg+="\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
-                    msg+="\tLowest missed attack %: {} by {}".format(least_misses, str(least_misses_winner))
-                    await channel.send(msg)
+            try:
+                guild = bot.get_guild(clanwatch._guildid)
+                if guild is not None:
+                    channel_id = clanwatch._channel_warsummary
+                    if channel_id is not None:
+                        channel_id = dataformatter.parse_channel_id(channel_id)
+                    channel = disnake.utils.get(guild.channels, id=channel_id)
+                    if channel is not None:
+                        msg="**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans, BOT_NAME)
+                        msg+="\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
+                        msg+="\tLowest missed attack: {}% by {}".format(least_misses*100, str(least_misses_winner))
+                        await channel.send(msg)
 
-            # credits for donations
-            clan = await coc_client.get_clan(clantag)
-            members = clan.members
-            donations = {}
-            for m in members:
-                donations[(m.tag, m.name)] = m.donations
-            doantions_sorted = sorted(donations.items(), key=operator.itemgetter(1), reverse=True)
-            top = 0
-            for p in doantions_sorted:
-                if top == 0 and 'donation#1' in clanwatch._creditwatch_points.keys():
-                    pts = int(clanwatch._creditwatch_points['donation#1'])
-                    database.add_player_credits(clanwatch._guildid,
-                                                'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
-                                                'donation #1')
-                elif top == 1 and 'donation#2' in clanwatch._creditwatch_points.keys():
-                    pts = int(clanwatch._creditwatch_points['donation#2'])
-                    database.add_player_credits(clanwatch._guildid,
-                                                'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
-                                                'donation #2')
-                elif top == 2 and 'donation#3' in clanwatch._creditwatch_points.keys():
-                    pts = int(clanwatch._creditwatch_points['donation#3'])
-                    database.add_player_credits(clanwatch._guildid,
-                                                'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
-                                                'donation #3')
-                top += 1
-                if top >= 2:
-                    break
-
+                # credits for donations
+                clan = await coc_client.get_clan(clantag)
+                members = clan.members
+                donations = {}
+                for m in members:
+                    donations[(m.tag, m.name)] = m.donations
+                doantions_sorted = sorted(donations.items(), key=operator.itemgetter(1), reverse=True)
+                top = 0
+                for p in doantions_sorted:
+                    if top == 0 and 'donation#1' in clanwatch._creditwatch_points.keys():
+                        pts = int(clanwatch._creditwatch_points['donation#1'])
+                        database.add_player_credits(clanwatch._guildid,
+                                                    'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
+                                                    'donation #1')
+                    elif top == 1 and 'donation#2' in clanwatch._creditwatch_points.keys():
+                        pts = int(clanwatch._creditwatch_points['donation#2'])
+                        database.add_player_credits(clanwatch._guildid,
+                                                    'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
+                                                    'donation #2')
+                    elif top == 2 and 'donation#3' in clanwatch._creditwatch_points.keys():
+                        pts = int(clanwatch._creditwatch_points['donation#3'])
+                        database.add_player_credits(clanwatch._guildid,
+                                                    'bot', p[0][0], p[0][1], clantag, clanwatch._name, pts,
+                                                    'donation #3')
+                    top += 1
+                    if top >= 2:
+                        break
+            except:
+                print("Encountered error, time {}".format(datetime.datetime.now()))
+                print(traceback.format_exc())
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 

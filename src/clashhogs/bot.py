@@ -429,7 +429,7 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
             return
         elif v.value:
             database.clear_warnings(inter.guild.id, clan, name_or_id)
-            await inter.follwup.send("All warnings for {} from the {} clan are deleted.".format(name_or_id, clan))
+            await inter.followup.send("All warnings for {} from the {} clan are deleted.".format(name_or_id, clan))
             return
         else:
             await inter.followup.send("Action cancelled.")

@@ -244,16 +244,24 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
             "'Send messages' permission to that channel.")
         return
 
+    # check permissions
+    res=channel.permissions_for(inter.guild.me)
+    missing_perms= not res.send_messages or not res.view_channel or not res.attach_files
+
     if option == "-miss":
         clanwatch._channel_warmiss = to_channel
         database.add_clanwatch(clantag, clanwatch)
-        await inter.response.send_message("War missed attack channel has been added for this clan. Please make sure "
-                                          f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
+        await inter.response.send_message("War missed attack channel has been added for this clan. ")
+        if missing_perms:
+            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
+                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
     elif option == "-war":
         clanwatch._channel_warsummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
-        await inter.response.send_message("War summary channel has been added for this clan. Please make sure "
-                                          f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
+        await inter.response.send_message("War summary channel has been added for this clan.")
+        if missing_perms:
+            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
+                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
     # elif option == "-feed":
     #     clanwatch._channel_clansummary=to_channel
     #     database.add_clanwatch(clantag, clanwatch)
@@ -657,7 +665,6 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     file = targetfolder + '/{}_byth.jpg'.format(player_tag.replace('#', '_'))
     figure.savefig(file, format='jpg')
     fileA = disnake.File(file)
-    #todo: fix this, cannot send two messages
     await inter.followup.send("Data for **{}**, between **{}** and **{}**".format(player_tag, from_date, to_date))
     await inter.followup.send(file=fileA, content="**Attack stars by target town hall levels**:")
     plt.close(figure)

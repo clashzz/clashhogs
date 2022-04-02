@@ -1,4 +1,4 @@
-import disnake
+import disnake, re
 
 # Define a simple View that gives us a confirmation menu
 class Confirm(disnake.ui.View):
@@ -170,6 +170,27 @@ def prepare_warn_help():
                        inline=False)
     return embedVar
 
+def prepare_blacklist_help():
+    embedVar = disnake.Embed(title="Command /blacklist",
+                             description="[A] This command is used to add/remove players to a blacklist. "\
+                             "**Note**: if you add a player, your discord username will be recorded for that operation.")
+    embedVar.add_field(name="Usage",
+                       value="/blacklist [option] [player_tag] [reason]",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: to show the current blacklist. When [player_tag] is provided, a " \
+                             "the bot will search if the player is in the list.\n" \
+                             "- add: to add a player to the blacklist.\n" \
+                             "- delete: to delete a player from the blacklist",
+                       inline=False)
+    embedVar.add_field(name="player_tag",
+                       value="The tag of the player. Required when adding or deleting.",
+                       inline=False)
+    embedVar.add_field(name="reason",
+                       value="An explanation of why the player is added.",
+                       inline=False)
+    return embedVar
+
 def prepare_crclan_help(default_points:dict):
     default = ""
     for k, v in default_points.items():
@@ -233,3 +254,28 @@ def prepare_mycredit_help():
 
     return embedVar
 
+def generate_variants(membername:str):
+    variants=set()
+    lower=membername.lower()
+    variants.add(lower)
+    for v in lower.split(" "):
+        if len(v)>1:
+            variants.add(v)
+    no_punc1= re.sub(r'[^\w\s]', " ", lower)
+    for v in no_punc1.split(" "):
+        if len(v)>1:
+            variants.add(v)
+    no_punc2=re.sub(r'[^\w\s]', "", lower)
+    for v in no_punc2.split(" "):
+        if len(v)>1:
+            variants.add(v)
+    return variants
+
+def find_overlap(target:set, references:dict):
+    res=[]
+    for k, v in references.items():
+        inter=target.intersection(v)
+        if len(inter)>0:
+            res.append(k)
+    res=sorted(res)
+    return res

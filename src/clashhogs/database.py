@@ -16,6 +16,7 @@ TABLE_clanwatch="clanwatch"
 TABLE_channel_mapping_warmiss = "channel_mapping_warmiss"
 TABLE_member_attacks = "member_attacks"
 TABLE_member_warnings = "member_warnings"
+TABLE_member_blacklist = "member_blacklist"
 TABLE_war_attacks = "war_attacks"
 TABLE_credits_watch_players = "credit_watch_players"
 
@@ -121,6 +122,11 @@ def check_database(guild_id, data_folder):
         create_statement = "CREATE TABLE {} (id INTEGER PRIMARY KEY, " \
                            "name TEXT NOT NULL, clan TEXT NOT NULL, total DOUBLE NOT NULL," \
                            "date TEXT NOT NULL, note TEXT);".format(TABLE_member_warnings)
+        cursor.execute(create_statement)
+    if TABLE_member_blacklist not in table_names:
+        create_statement = "CREATE TABLE {} (tag TEXT PRIMARY KEY NOT NULL, " \
+                           "name TEXT NOT NULL, reason TEXT NOT NULL, " \
+                           "addedby TEXT NOT NULL, date TEXT NOT NULL);".format(TABLE_member_blacklist)
         cursor.execute(create_statement)
     # else:
     #     print("deleting the wrong warning table")
@@ -242,6 +248,8 @@ def update_mappings_guild_warmisschannel(guild_id, from_id, to_id, clan):
     lock.release()
 
 def add_channel_mappings_warmiss(pair: tuple, guild_id, clan):
+    lock = threading.Lock()
+    lock.acquire()
     con = connect_db(guild_id)
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {} WHERE (from_id=?);'.format(TABLE_channel_mapping_warmiss), [pair[0]])
@@ -257,8 +265,11 @@ def add_channel_mappings_warmiss(pair: tuple, guild_id, clan):
     con.commit()
     con.close()
     update_mappings_guild_warmisschannel(guild_id, pair[0], pair[1], clan)
+    lock.release()
 
 def get_warmiss_mappings_for_guild(guild_id):
+    lock = threading.Lock()
+    lock.acquire()
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {};'.format(TABLE_channel_mapping_warmiss))
@@ -270,9 +281,12 @@ def get_warmiss_mappings_for_guild(guild_id):
         for row in rows:
             res.append((row[0], row[1], row[2]))
     con.close()
+    lock.release()
     return res
 
 def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
+    lock = threading.Lock()
+    lock.acquire()
     key = str(guild_id) + "|" + str(from_channel_id)
     if key in MEM_mappings_guild_warmisschannel.keys():
         del MEM_mappings_guild_warmisschannel[key]
@@ -282,6 +296,7 @@ def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
     cursor.execute('DELETE FROM {} WHERE from_id=?;'.format(TABLE_channel_mapping_warmiss), [from_channel_id])
     con.commit()
     con.close()
+    lock.release()
 
 def load_individual_war_data(guild_id, player_tag, from_date, to_date):
     lock = threading.Lock()
@@ -293,6 +308,7 @@ def load_individual_war_data(guild_id, player_tag, from_date, to_date):
                    [player_tag,
                     from_date, to_date])
     rows = cursor.fetchall()
+    lock.release()
     return rows
 
 def has_warmiss_fromchannel(guild_id, channel_id):
@@ -306,6 +322,8 @@ def get_warmiss_tochannel(guild_id, channel_id):
 
 
 def add_warning(guild_id, clan, person, point, note=None):
+    lock = threading.Lock()
+    lock.acquire()
     if type(note) is tuple:
         note = ' '.join(note)
     elif note is not None:
@@ -318,9 +336,11 @@ def add_warning(guild_id, clan, person, point, note=None):
                    [clan, person, point, datetime.datetime.now(), note])
     con.commit()
     con.close()
-
+    lock.release()
 
 def list_warnings(guild_id, clan, person=None):
+    lock = threading.Lock()
+    lock.acquire()
     res = []
     con = connect_db(str(guild_id))
     cursor = con.cursor()
@@ -336,19 +356,23 @@ def list_warnings(guild_id, clan, person=None):
             res.append(row)
 
     con.close()
+    lock.release()
     return res
 
-
 def clear_warnings(guild_id, clan, person):
+    lock = threading.Lock()
+    lock.acquire()
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('DELETE FROM {} WHERE name=? AND clan=?'.
                    format(TABLE_member_warnings), [person, clan])
     con.commit()
     con.close()
-
+    lock.release()
 
 def delete_warning(guild_id, clanname,warning_id):
+    lock = threading.Lock()
+    lock.acquire()
     con = connect_db(str(guild_id))
     cursor = con.cursor()
 
@@ -384,6 +408,58 @@ def delete_warning(guild_id, clanname,warning_id):
                            format(TABLE_member_warnings), [warning_id])
     con.commit()
     con.close()
+    lock.release()
+    return True
+
+def add_blacklist(guild_id, player_tag, player_name, addedby, reason):
+    if type(reason) is tuple:
+        reason = ' '.join(reason)
+    elif reason is not None:
+        reason = str(reason)
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    cursor.execute('INSERT OR IGNORE INTO {} (tag, name, reason, addedby, date) VALUES (?,?,?,?,?)'.
+                   format(TABLE_member_blacklist),
+                   [player_tag, player_name, reason, addedby,
+                    datetime.datetime.now()])
+    cursor.execute('UPDATE {} SET reason= ?, addedby=? WHERE tag= ?'.
+                   format(TABLE_member_blacklist), [reason, addedby, player_tag])
+    con.commit()
+    con.close()
+    lock.release()
+
+def show_blacklist(guild_id, player_tag):
+    lock = threading.Lock()
+    lock.acquire()
+    res = []
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    if player_tag is None:
+        cursor.execute('SELECT * FROM {};'.format(TABLE_member_blacklist))
+        rows = cursor.fetchall()
+        for row in rows:
+            res.append(row)
+    else:
+        cursor.execute('SELECT * FROM {} WHERE (tag=?);'.format(TABLE_member_blacklist), [player_tag])
+        row = cursor.fetchone()
+        res.append(row)
+
+    con.close()
+    lock.release()
+    return res
+
+def delete_blacklist(guild_id, player_tag):
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(str(guild_id))
+    cursor = con.cursor()
+    r = cursor.execute('DELETE FROM {} WHERE tag=?'.
+                           format(TABLE_member_blacklist), [player_tag])
+    con.commit()
+    con.close()
+    lock.release()
     return True
 
 '''
@@ -444,6 +520,8 @@ def registered_clan_creditwatch(guild_id, clantag, *values):
                            "credits INT NOT NULL, time TEXT NOT NULL, reason TEXT);
 '''
 def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:int, attack_data:dict, clear_cache=True):
+    lock = threading.Lock()
+    lock.acquire()
     added=False
     missed_attacks = {}
     if clan_tag in MEM_mappings_clanwatch.keys():
@@ -523,10 +601,13 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
         con.commit()
         con.close()
         added=True
+    lock.release()
     return missed_attacks, added
 
 def find_war_data(clan_tag:str, start:datetime, end:datetime):
     if clan_tag in MEM_mappings_clanwatch.keys():
+        lock = threading.Lock()
+        lock.acquire()
         clanwatch=MEM_mappings_clanwatch[clan_tag]
         guild=clanwatch._guildid
         con = connect_db(str(guild))
@@ -534,11 +615,15 @@ def find_war_data(clan_tag:str, start:datetime, end:datetime):
         cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks), [clan_tag,
                                                                                                                                   start, end])
         rows = cursor.fetchall()
+        lock.release()
         return rows
 
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
 def list_playercredits(guild_id, playertag:str):
+    lock = threading.Lock()
+    lock.acquire()
+
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {} WHERE (player_tag=?);'.format(TABLE_credits_watch_players), [playertag])
@@ -559,11 +644,13 @@ def list_playercredits(guild_id, playertag:str):
         records.append({"credits":r[5], "time":time, "reason":r[7]})
 
     con.close()
+    lock.release()
     return clantag, clanname, playername, records
-
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
 def sum_clan_playercredits(guild_id, clantag:str):
+    lock = threading.Lock()
+    lock.acquire()
     con = connect_db(str(guild_id))
     cursor = con.cursor()
     cursor.execute('SELECT * FROM {} WHERE (player_clantag=?) ;'.format(TABLE_credits_watch_players), [clantag])
@@ -588,6 +675,7 @@ def sum_clan_playercredits(guild_id, clantag:str):
             player_name[r[1]]=r[2]
 
     con.close()
+    lock.release()
     return clanname, player_credits, player_name, last_updated
 
 #player_tag, player_name, player_clantag, player_clanname, credits, time, reason
@@ -601,6 +689,8 @@ def add_player_credits(guild_id, author, player_tag, player_name, player_clantag
     else:
         note = "(Added by {})".format(author)
 
+    lock = threading.Lock()
+    lock.acquire()
     time = str(datetime.datetime.now())
     con = connect_db(str(guild_id))
     cursor = con.cursor()
@@ -611,8 +701,11 @@ def add_player_credits(guild_id, author, player_tag, player_name, player_clantag
                     note])
     con.commit()
     con.close()
+    lock.release()
 
 def clear_credits_for_clan(guidid, clan_tag):
+    lock = threading.Lock()
+    lock.acquire()
     clanwatch = get_clanwatch(clan_tag, guidid)
     if clanwatch is None:
         return None
@@ -622,8 +715,8 @@ def clear_credits_for_clan(guidid, clan_tag):
                    [clan_tag])
     con.commit()
     con.close()
+    lock.release()
     return True
-
 
 if __name__ == "__main__":
     con = connect_db("test_db")

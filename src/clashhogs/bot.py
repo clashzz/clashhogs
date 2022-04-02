@@ -100,6 +100,7 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "clanwar": "clanwar",
                                                              "mywar": "mywar",
                                                              "warn": "warn",
+                                                             "blacklist":"blacklist",
                                                              "crclan": "crclan",
                                                              "crplayer": "crplayer",
                                                              "mycredit": "mycredit"})):
@@ -115,6 +116,8 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
         await inter.response.send_message(embed=util.prepare_mywar_help())
     elif command == 'warn':
         await inter.response.send_message(embed=util.prepare_warn_help())
+    elif command == 'blacklist':
+        await inter.response.send_message(embed=util.prepare_blacklist_help())
     elif command == 'crclan':
         await inter.response.send_message(embed=util.prepare_crclan_help(models.STANDARD_CREDITS))
     elif command == 'crplayer':
@@ -123,7 +126,6 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
         await inter.response.send_message(embed=util.prepare_mycredit_help())
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
-
 
 #########################################################
 # This method is used to configure the discord channels
@@ -221,7 +223,8 @@ async def link_error(ctx, error):
     description="Set up channels for a clan's feeds (clan must be already linked to this discord server).")
 @commands.has_permissions(manage_guild=True)
 async def channel(inter, clantag, to_channel, option: str = commands.Param(choices={"war-monthly": "-war",
-                                                                                    "missed-attacks": "-miss"})):
+                                                                                    "missed-attacks": "-miss",
+                                                                                    "member-watch":"-member"})):
     clantag = utils.correct_tag(clantag)
     log.info(
         "GUILD={}, {}, ACTION=channel, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
@@ -259,6 +262,13 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
         clanwatch._channel_warsummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("War summary channel has been added for this clan.")
+        if missing_perms:
+            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
+                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
+    elif option == "-member":
+        clanwatch._channel_clansummary = to_channel
+        database.add_clanwatch(clantag, clanwatch)
+        await inter.response.send_message("Member watcg channel has been added for this clan.")
         if missing_perms:
             await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
                                      "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
@@ -448,7 +458,6 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
         return
 
-
 @warn.error
 async def warn_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -460,6 +469,74 @@ async def warn_error(ctx, error):
     else:
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+#########################################################
+# This method is used to log warnings
+#########################################################
+@bot.slash_command(description='Manage the player blacklist.')
+@commands.has_permissions(manage_guild=True)
+async def blacklist(inter, option: str = commands.Param(choices={"list": "-l",
+                                                                       "add": "-a",
+                                                                       "delete": "-d"}),
+                    player_tag: str=None, reason=None):
+    log.info(
+        "GUILD={}, {}, ACTION=blacklist, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+
+    # list current blaclkist
+    if option == "-l":
+        await inter.response.send_message("Showing the current blacklist...")
+        if player_tag is None:  # list all warnings of a clan
+            res = database.show_blacklist(inter.guild.id, None)
+            entries = dataformatter.format_blacklist(res)
+        else:  # check if a player is on the list
+            res = database.show_blacklist(inter.guild.id, player_tag)
+            entries = dataformatter.format_blacklist(res)
+
+        if len(entries) == 0:
+            await inter.followup.send("No records found.")
+        else:
+            for w in entries:
+                await inter.followup.send(w)
+
+        return
+    # add to blacklist
+    elif option == "-a":
+        if player_tag is None or reason is None:
+            await inter.response.send_message(
+                f"'blacklist' requires arguments for adding a player. Run '/help blacklist' for details")
+            return
+        author = inter.author.display_name
+        player_tag=utils.correct_tag(player_tag)
+        try:
+            player = await coc_client.get_player(player_tag)
+            if player is None:
+                await inter.response.send_message(
+                    "This player does not exist. Please check the tag and try again.")
+                return
+        except coc.NotFound:
+            await inter.response.send_message("This player does not exist. Please check the tag and try again.")
+            return
+
+        database.add_blacklist(inter.guild.id, player.tag, player.name, author, reason)
+        await inter.response.send_message("Player added to the blacklist.")
+        return
+    # delete a player
+    elif option == "-d":
+        deleted = database.delete_blacklist(inter.guild.id, player_tag)
+        await inter.response.send_message("The player has been removed from the blacklist")
+    else:
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
+        return
+
+@blacklist.error
+async def blacklist_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'blacklist' requires arguments. Run '/help blacklist' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'blacklist' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
 # This method is used to set up clan credit watch system
@@ -815,6 +892,64 @@ async def current_war_stats(attack, war):
             database.reset_cwl_war_data(attacker_clan.tag, war)
 
 
+#when member joining or leaving, send a message to discord to prompt changing their roles
+@coc_client.event
+@coc.ClanEvents.member_join()
+async def on_clan_member_join(member, clan):
+    messages, tochannel = log_member_movement(member.tag, member.name, clan.name, clan.tag, "joined")
+    if len(messages)>0:
+        for m in messages:
+            await tochannel.send(m)
+
+#when member joining or leaving, send a message to discord to prompt changing their roles
+@coc_client.event
+@coc.ClanEvents.member_leave()
+async def on_clan_member_leave(member, clan):
+    messages, tochannel=log_member_movement(member.tag, member.name, clan.name, clan.tag, "left")
+    if len(messages)>0:
+        for m in messages:
+            await tochannel.send(m)
+
+def log_member_movement(membertag, membername, clanname, clantag, join_or_left:str):
+    messages=[]
+    to_channel=None
+    if clantag in database.MEM_mappings_clanwatch.keys():
+        clanwatch = database.MEM_mappings_clanwatch[clantag]
+        guild = bot.get_guild(clanwatch._guildid)
+        if guild is not None and clanwatch._channel_clansummary is not None:
+            channel_id = dataformatter.parse_channel_id(clanwatch._channel_clansummary)
+            channel = disnake.utils.get(guild.channels, id=channel_id)
+            if channel is not None:
+                to_channel=channel
+                messages.append("**{}, {}** has {} the clan **{}**".format(membername,
+                                                                    membertag, join_or_left,
+                                                                    clanname))
+                member_name_variants=util.generate_variants(membername)
+                guild_member_names= {}
+                for m in guild.members:
+                    if not m.bot:
+                        guild_member_names[m.nick] = util.generate_variants(m.display_name)
+                matching = util.find_overlap(member_name_variants, guild_member_names)
+
+                if len(matching)>0:
+                    msg="Please check if the member's discord roles need changing. "\
+                         "Possible discord name matches found:\n"
+                    for m in matching:
+                        msg+="\t\t"+m+"\n"
+                    messages.append(msg)
+                else:
+                    messages.append("I can't find similar discord names. Please check manually.")
+
+                #check for blacklist
+                if join_or_left=="joined":
+                    entries=database.show_blacklist(clanwatch._guildid, membertag)
+                    if len(entries)>0:
+                        msg="**WARNING** this member is currently on our blacklist:\n"
+                        messages.append(msg)
+                        for m in dataformatter.format_blacklist(entries):
+                            messages.append(m)
+    return messages, to_channel
+
 def register_war_attacks(members: list, attacks: list, old_war, clan_home, type, total_attacks):
     attack_data = {}
     for m in members:
@@ -923,22 +1058,6 @@ def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type == "cwl"
 
 
-####################################################
-# for debugging                                    #
-####################################################
-@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
-@coc.ClanEvents.member_donations()
-async def on_clan_member_donation(old_member, new_member):
-    final_donated_troops = new_member.donations - old_member.donations
-    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
-
-
-@coc_client.event
-@coc.ClanEvents.points()
-async def on_clan_trophy_change(old_clan, new_clan):
-    log.info(f"{new_clan.name} total trophies changed from {old_clan.points} to {new_clan.points}")
-
-
 @tasks.loop(hours=23)
 async def check_scheduled_task():
     now = datetime.datetime.now()
@@ -1044,6 +1163,14 @@ async def check_scheduled_task():
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 
+####################################################
+# for debugging                                    #
+####################################################
+@coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
+@coc.ClanEvents.member_donations()
+async def on_clan_member_donation(old_member, new_member):
+    final_donated_troops = new_member.donations - old_member.donations
+    log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
 # async def main():
 #     async with bot:

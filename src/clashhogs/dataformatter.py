@@ -124,6 +124,18 @@ def format_warnings(clan:str, records:list, player=None):
         warnings.append(string)
     return warnings
 
+def format_blacklist(entries:list):
+    records=[]
+    if (len(entries)==0):
+        return records
+
+    for e in entries:
+        string="\t\t*Player tag*: {} \t*name*: {}\n" \
+                "\t\t*Added by*: {} \t *on*: {}\n"  \
+                "\t\t*Reason*:{}\n".format(e[0], e[1], e[3], e[4], e[2])
+        records.append(string)
+    return records
+
 def format_credit_systems(res:dict):
     if len(res)==0:
         embedVar = disnake.Embed(title="Clan(s) is/are not currently registered for the credit system",
@@ -210,7 +222,7 @@ def format_clanwatch_data(clan):
         embedVar.add_field(name='War summary channel',
                            value=clan._channel_warsummary,
                            inline=True)
-        embedVar.add_field(name='Clan summary channel',
+        embedVar.add_field(name='Member join/leave channel',
                            value=clan._channel_clansummary,
                            inline=True)
 

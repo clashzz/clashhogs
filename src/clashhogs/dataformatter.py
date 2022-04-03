@@ -130,6 +130,8 @@ def format_blacklist(entries:list):
         return records
 
     for e in entries:
+        if e is None:
+            continue
         string="\t\t*Player tag*: {} \t*name*: {}\n" \
                 "\t\t*Added by*: {} \t *on*: {}\n"  \
                 "\t\t*Reason*:{}\n".format(e[0], e[1], e[3], e[4], e[2])

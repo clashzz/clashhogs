@@ -173,7 +173,9 @@ def prepare_warn_help():
 def prepare_blacklist_help():
     embedVar = disnake.Embed(title="Command /blacklist",
                              description="[A] This command is used to add/remove players to a blacklist. "\
-                             "**Note**: if you add a player, your discord username will be recorded for that operation.")
+                             "**Note**: if you add a player, your discord username will be recorded for that operation. "\
+                             "If members on the black list join a clan registered using the /link and /channel comamnd, "\
+                             "a warning message will be posted upon joining.")
     embedVar.add_field(name="Usage",
                        value="/blacklist [option] [player_tag] [reason]",
                        inline=False)

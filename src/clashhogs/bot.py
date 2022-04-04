@@ -943,11 +943,11 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
                 #check for blacklist
                 if join_or_left=="joined":
                     entries=database.show_blacklist(clanwatch._guildid, membertag)
-                    if len(entries)>0:
+                    records=dataformatter.format_blacklist(entries)
+                    if len(records)>0:
                         msg="**WARNING** this member is currently on our blacklist:\n"
                         messages.append(msg)
-                        for m in dataformatter.format_blacklist(entries):
-                            messages.append(m)
+                        messages.extend(records)
     return messages, to_channel
 
 def register_war_attacks(members: list, attacks: list, old_war, clan_home, type, total_attacks):

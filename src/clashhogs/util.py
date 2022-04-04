@@ -264,10 +264,12 @@ def generate_variants(membername:str):
         if len(v)>1:
             variants.add(v)
     no_punc1= re.sub(r'[^\w\s]', " ", lower)
+    no_punc1.replace("_"," ").strip()
     for v in no_punc1.split(" "):
         if len(v)>1:
             variants.add(v)
     no_punc2=re.sub(r'[^\w\s]', "", lower)
+    no_punc2.replace("_"," ").strip()
     for v in no_punc2.split(" "):
         if len(v)>1:
             variants.add(v)

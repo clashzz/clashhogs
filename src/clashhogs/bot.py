@@ -924,11 +924,12 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
                 messages.append("**{}, {}** has {} the clan **{}**".format(membername,
                                                                     membertag, join_or_left,
                                                                     clanname))
+
                 member_name_variants=util.generate_variants(membername)
                 guild_member_names= {}
                 for m in guild.members:
                     if not m.bot:
-                        guild_member_names[m.nick] = util.generate_variants(m.display_name)
+                        guild_member_names[m.display_name] = util.generate_variants(m.display_name)
                 matching = util.find_overlap(member_name_variants, guild_member_names)
 
                 if len(matching)>0:

@@ -920,11 +920,15 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
             channel_id = dataformatter.parse_channel_id(clanwatch._channel_clansummary)
             channel = disnake.utils.get(guild.channels, id=channel_id)
             if channel is not None:
+                emoji = ""
+                if join_or_left=='joined':
+                    emoji=":green_circle:"
+                else:
+                    emoji=":red_circle:"
                 to_channel=channel
-                messages.append("**{}, {}** has {} the clan **{}**".format(membername,
+                messages.append("{} **{}, {}** has {} the clan **{}**".format(emoji,membername,
                                                                     membertag, join_or_left,
                                                                     clanname))
-
                 member_name_variants=util.generate_variants(membername)
                 guild_member_names= {}
                 for m in guild.members:
@@ -946,7 +950,7 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
                     entries=database.show_blacklist(clanwatch._guildid, membertag)
                     records=dataformatter.format_blacklist(entries)
                     if len(records)>0:
-                        msg="**WARNING** this member is currently on our blacklist:\n"
+                        msg=":warning **WARNING** this member is currently on our blacklist:\n"
                         messages.append(msg)
                         messages.extend(records)
     return messages, to_channel
@@ -1059,7 +1063,7 @@ def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
     return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type == "cwl"
 
 
-@tasks.loop(hours=23)
+@tasks.loop(hours=12)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
@@ -1067,7 +1071,7 @@ async def check_scheduled_task():
                                                                                                                   season_end))
     days_before_end = abs((season_end - now).days)
     #    if days_before_end <=1:
-    if days_before_end <= 1:
+    if days_before_end < 1:
         log.info("\t>>> End of season reached, running scheduled task.")
 
         count_clans=0

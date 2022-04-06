@@ -49,7 +49,7 @@ def prepare_help_menu(botname):
     embedVar.add_field(name="/clanwar",
                        value="[A] analyse and produce a report for a clan\'s past war peformance.",
                        inline=False)
-    embedVar.add_field(name="/war",
+    embedVar.add_field(name="/warn",
                        value="[A] manage warnings for a clan/player.",
                        inline=False)
     embedVar.add_field(name="/crclan",
@@ -57,6 +57,9 @@ def prepare_help_menu(botname):
                        inline=False)
     embedVar.add_field(name="/crplayer",
                        value="[A] manage the credits of a specific player.",
+                       inline=False)
+    embedVar.add_field(name="/blacklist",
+                       value="[A] manage the blacklist for the server.",
                        inline=False)
     embedVar.add_field(name="/mywar",
                        value="analyse and produce a report for a player\'s past war performance.",

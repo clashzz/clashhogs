@@ -950,7 +950,7 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
                     entries=database.show_blacklist(clanwatch._guildid, membertag)
                     records=dataformatter.format_blacklist(entries)
                     if len(records)>0:
-                        msg=":warning **WARNING** this member is currently on our blacklist:\n"
+                        msg=":warning: **WARNING** this member is currently on our blacklist:\n"
                         messages.append(msg)
                         messages.extend(records)
     return messages, to_channel

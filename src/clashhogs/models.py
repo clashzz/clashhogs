@@ -41,7 +41,8 @@ def summarise_by_townhalls(thlvl_attacks, thlvl_attackstars, writer=None):
 
 def summarise_by_months(attacks:dict, writer=None):
     attacks_by_months ={}
-    for time, atk in attacks.items():
+    for t, atk in attacks.items():
+        time=atk._time
         month = time.month
         if month in attacks_by_months.keys():
             data = attacks_by_months[month]

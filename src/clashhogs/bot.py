@@ -910,6 +910,10 @@ async def on_clan_member_leave(member, clan):
         for m in messages:
             await tochannel.send(m)
 
+@coc.ClientEvents.event_error()
+async def callback(exception):
+    log.error("Events had an error: {}".format(exception), exc_info=exception)
+
 def log_member_movement(membertag, membername, clanname, clantag, join_or_left:str):
     messages=[]
     to_channel=None

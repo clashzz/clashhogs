@@ -177,8 +177,8 @@ def prepare_blacklist_help():
     embedVar = disnake.Embed(title="Command /blacklist",
                              description="[A] This command is used to add/remove players to a blacklist. "\
                              "**Note**: if you add a player, your discord username will be recorded for that operation. "\
-                             "If members on the black list join a clan registered using the /link and /channel comamnd, "\
-                             "a warning message will be posted upon joining.")
+                             ":red_circle: If members on the black list join a clan registered using the /link and /channel comamnd, "\
+                             "a warning message will be posted upon joining :red_circle:")
     embedVar.add_field(name="Usage",
                        value="/blacklist [option] [player_tag] [reason]",
                        inline=False)
@@ -260,6 +260,11 @@ def prepare_mycredit_help():
     return embedVar
 
 def generate_variants(membername:str):
+    res=lowercase_and_split(membername)
+    res.update(lowercase_and_split(camel_case_split(membername)))
+    return res
+
+def lowercase_and_split(membername:str):
     variants=set()
     lower=membername.lower()
     variants.add(lower)
@@ -278,6 +283,10 @@ def generate_variants(membername:str):
             variants.add(v)
     return variants
 
+def camel_case_split(str):
+    label = re.sub(r'((?<=[a-z])[A-Z]|(?<!\A)[A-Z](?=[a-z]))', r' \1', str)
+    return label.strip()
+
 def find_overlap(target:set, references:dict):
     res=[]
     for k, v in references.items():
@@ -286,3 +295,7 @@ def find_overlap(target:set, references:dict):
             res.append(k)
     res=sorted(res)
     return res
+
+if __name__ == "__main__":
+    print(generate_variants("ZZ.mini"))
+    print(generate_variants("XGReliant"))

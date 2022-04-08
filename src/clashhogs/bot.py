@@ -71,17 +71,12 @@ async def on_ready():
         coc_client.add_war_updates(clan._tag)
         coc_client.add_clan_updates(clan._tag)
         log.info("\t{}, {}, guild={}, {}".format(clan._tag, clan._name, clan._guildid, clan._guildname))
-        # coc_client.add_war_updates(clan._tag)
 
     log.info('The following guilds are linked with the bot:')
     for guild in bot.guilds:
         log.info('\t{}, {}, checking databases...'.format(guild.name, guild.id))
         database.check_database(guild.id, rootfolder)
     log.info('Init completed')
-    # print("debugging")
-    # coc_client.add_war_updates("#2YGUPUU82")
-    # coc_client.add_clan_updates("#2YGUPUU82")
-
 
 @bot.event
 async def on_guild_join(guild):
@@ -98,12 +93,12 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "link": "link",
                                                              "channel": "channel",
                                                              "clanwar": "clanwar",
-                                                             "mywar": "mywar",
                                                              "warn": "warn",
                                                              "blacklist":"blacklist",
                                                              "crclan": "crclan",
                                                              "crplayer": "crplayer",
-                                                             "mycredit": "mycredit"})):
+                                                             "mycredit": "mycredit",
+                                                             "mywar": "mywar"})):
     if command == 'all':
         await inter.response.send_message(embed=util.prepare_help_menu(BOT_NAME))
     elif command == 'link':
@@ -212,8 +207,8 @@ async def link_error(ctx, error):
             "Users of 'link' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("link_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
 
 #########################################################
 # This method is used to set up the discord channels
@@ -272,16 +267,10 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
         if missing_perms:
             await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
                                      "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
-    # elif option == "-feed":
-    #     clanwatch._channel_clansummary=to_channel
-    #     database.add_clanwatch(clantag, clanwatch)
-    #     await ctx.send("Clan feed summary channel has been added for this clan. Please make sure "
-    #                    f"{BOT_NAME} has 'Send messages' permission to that channel, or this will not work.")
     else:
         await inter.response.send_message(
             "Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
         return
-
 
 @channel.error
 async def channel_error(ctx, error):
@@ -292,8 +281,8 @@ async def channel_error(ctx, error):
             "Users of 'channel' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("channel_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
 
 #########################################################
 # This method is used to process clan war summary
@@ -361,7 +350,6 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
 
     await inter.response.send_message("Done. Please see your target channel for the output. ")
 
-
 @clanwar.error
 async def clanwar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -375,6 +363,7 @@ async def clanwar_error(ctx, error):
             "Looks like I can't send messages to the target channel. Did you give me 'Send Message' and "
             "'Attach Files' permission? "
             "Run '/link list' to check the target channel you have set up for this clan.")
+        print("clanwar_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
@@ -467,6 +456,7 @@ async def warn_error(ctx, error):
             "Users of 'warn' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("warn_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
@@ -536,6 +526,7 @@ async def blacklist_error(ctx, error):
             "Users of 'blacklist' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("blacklist_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
@@ -623,8 +614,8 @@ async def crclan_error(ctx, error):
             "Users of 'crclan' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("crclan_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
 
 #########################################################
 # This method is used to track player credits
@@ -682,7 +673,6 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
-
 @crplayer.error
 async def crplayer_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -692,6 +682,7 @@ async def crplayer_error(ctx, error):
             "Users of 'crplayer' must have 'Manage server' permission. You do not seem to have permission to use this "
             "command")
     else:
+        print("crplayer_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
@@ -763,6 +754,7 @@ async def mywar_error(ctx, error):
         await ctx.channel.send(f"'mywar' requires four arguments. Run '/help mywar' for details")
     else:
         await ctx.channel.send("Something went wrong. Check if {} has 'Send Message' and 'Attach files' permisions".format(BOT_NAME))
+        print("mywar_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
@@ -791,6 +783,7 @@ async def mycredit_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send(f"'mycredit' requires arguments. Run '/help mycredit' for details")
     else:
+        print("mywar_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
@@ -822,9 +815,6 @@ async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
             "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent, old_war.type))
 
         condition = clan_home.tag in database.MEM_mappings_clanwatch.keys()
-        log.info("debug {}".format(database.MEM_mappings_clanwatch.keys()))
-        log.info("debug {}".format(condition))
-
         # print("condition={}".format(condition))
         if condition:
             type = old_war.type
@@ -1172,20 +1162,9 @@ async def check_scheduled_task():
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
 
-####################################################
-# for debugging                                    #
-####################################################
-# @coc_client.event  # Pro Tip : if you don't have @client.event then your events won't run! Don't forget it!
-# @coc.ClanEvents.member_donations()
-# async def on_clan_member_donation(old_member, new_member):
-#     final_donated_troops = new_member.donations - old_member.donations
-#     log.info(f"{new_member} of {new_member.clan} just donated {final_donated_troops} troops.")
 
-# async def main():
-#     async with bot:
-#         check_scheduled_task.start()
-#         await bot.start(TOKEN)
-#
-# asyncio.run(main())
+
+
+
 check_scheduled_task.start()
 bot.run(TOKEN)

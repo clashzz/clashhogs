@@ -37,13 +37,13 @@ def normalise_tag(tag):
 
 def prepare_help_menu(botname):
     embedVar= disnake.Embed(title="Commands supported by {}".format(botname),
-                  description="The letter [A] indicates admin privilege required for that command). Run **/help** followed by the"
+                  description="The letter [A] indicates that admin permissions are required for that command. Run **/help** followed by the"
                               " name of the command for details. Also see details at https://github.com/clashzz/clashhogs")  # , color=0x00ff00
     embedVar.add_field(name="/link",
-                       value="[A] link a clan to this discord server. This must be done first before you use other commands with this bot.",
+                       value="[A] link a clan to this discord server. **This must be done first** before you use other commands with this bot on your discord server.",
                        inline=False)
     embedVar.add_field(name="/channel",
-                       value="[A] set up various clan feeds for a clan that is already linked with this server.",
+                       value="[A] set up various clan feeds for a clan that is already linked with this server. **A lot of features require a channel** to be set up for a clan.",
                        inline=False
                        )
     embedVar.add_field(name="/clanwar",

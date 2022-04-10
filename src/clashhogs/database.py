@@ -514,6 +514,48 @@ def registered_clan_creditwatch(guild_id, clantag, *values):
 
     return invalid_activity_types
 
+#update a clan's attack weights
+def registered_clan_attackweights(guild_id, clantag, *values):
+    clan_watch = get_clanwatch(clantag, guild_id)
+    if clan_watch is None:
+        return None
+
+    invalid_activity_types=""
+
+    if values[0] is None or len(values[0])<1:
+        clan_watch.reset_attackweights()
+        add_clanwatch(clantag, clan_watch)
+    else:
+        attackup_weights_copy = models.STANDARD_ATTACKUP_WEIGHTS.copy()
+        attackdown_weights_copy = models.STANDARD_ATTACKDOWN_WEIGHTS.copy()
+        for v in values[0].split(" "):
+            if '=' not in v:
+                invalid_activity_types+="\n\t"+str(v)
+                continue
+            parts=v.split("=")
+            if parts[0].strip() not in attackup_weights_copy.keys() and \
+                    parts[0].strip() not in attackdown_weights_copy.keys():
+                invalid_activity_types+="\n\t"+str(v)
+                continue
+            try:
+                float(parts[1].strip())
+            except:
+                invalid_activity_types += "\n\t" + str(v)
+                continue
+            else:
+                k = parts[0].strip()
+                v=parts[1].strip()
+                if k.startswith("u"):
+                    attackup_weights_copy[k]=v
+                elif k.startswith("d"):
+                    attackdown_weights_copy[k]=v
+
+        clan_watch._attackup_weights=attackup_weights_copy
+        clan_watch._attackdown_weights=attackdown_weights_copy
+        add_clanwatch(clantag, clan_watch)
+
+    return invalid_activity_types
+
 '''
 "player_tag TEXT NOT NULL, player_name TEXT NOT NULL," \
                            "player_clantag TEXT NOT NULL, player_clanname TEXT NOT NULL, " \

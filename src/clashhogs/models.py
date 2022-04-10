@@ -8,6 +8,8 @@ MONTHS_MAPPINGS={
 }
 STANDARD_CREDITS={"cw_attack": 10, "cw_miss": -10, "cwl_attack": 10, "cwl_miss": -10,
                   "donation#1":30,"donation#2":20, "donation#3":10}
+STANDARD_ATTACKUP_WEIGHTS={"u1":1.25, "u2":1.5, "u3":1.75}
+STANDARD_ATTACKDOWN_WEIGHTS={"d1":0.75, "d2":0.5, "d3":0.25}
 
 def summarise_by_townhalls(thlvl_attacks, thlvl_attackstars, writer=None):
     data_as_list=[]
@@ -128,6 +130,8 @@ class ClanWatch:
         self._channel_warsummary=None #discord channel id for monthly war summary
         self._channel_clansummary=None #discord channel id for monthly clan feed summary
         self._creditwatch_points = STANDARD_CREDITS.copy()
+        self._attackup_weights=STANDARD_ATTACKUP_WEIGHTS.copy()
+        self._attackdown_weights=STANDARD_ATTACKDOWN_WEIGHTS.copy()
 
     def clear(self):
         self._creditwatch=True
@@ -135,9 +139,14 @@ class ClanWatch:
         self._channel_warsummary=None #discord channel id for monthly war summary
         self._channel_clansummary=None #discord channel id for monthly clan feed summary
         self.reset_credits()
+        self.reset_attackweights()
 
     def reset_credits(self):
         self._creditwatch_points = STANDARD_CREDITS.copy()
+
+    def reset_attackweights(self):
+        self._attackup_weights=STANDARD_ATTACKUP_WEIGHTS.copy()
+        self._attackdown_weights=STANDARD_ATTACKDOWN_WEIGHTS.copy()
 
 class Attack:
     # id = an arbitrary id

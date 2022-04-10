@@ -160,6 +160,35 @@ def format_credit_systems(res:dict):
 
     return embedVar
 
+def format_war_attack_weights(res:dict):
+    if len(res)==0:
+        embedVar = disnake.Embed(title="Clan(s) is/are not currently linked with this discord server. Run /link first.",
+                                 description="")  # , color=0x00ff00
+    else:
+        embedVar = disnake.Embed(title="Clans and their war attack weight multipliers. ",
+                                 description="Run '/help waw_setup' for information on how the multipliers are used " \
+                                             "to adjust stars gained in an attack depending on the attacker and defender's TH levels.")  # , color=0x00ff00
+    for clanwatch in res:
+        if clanwatch is None:
+            continue
+        clantag=clanwatch._tag
+        if not hasattr(clanwatch, '_attackup_weights') or not hasattr(clanwatch, '_attackdown_weights'):
+            clanwatch.reset_attackweights()
+
+        id="Clan: {}, attacking up (u) or down (d) weights".format(str(clantag)+", "+str(clanwatch._name) )
+        string=""
+        weights = clanwatch._attackup_weights
+        for k, v in weights.items():
+            string+=f" *{k}*={v}\t\t "
+        weights = clanwatch._attackdown_weights
+        for k, v in weights.items():
+            string+=f" *{k}*={v}\t\t "
+        embedVar.add_field(name=f'**{id}**',
+                    value=string,
+                    inline=False)
+
+    return embedVar
+
 def format_playercredits(tag, clanname, playercredits, playernames, last_updated):
     msgs=[]
     if len(playercredits)==0:

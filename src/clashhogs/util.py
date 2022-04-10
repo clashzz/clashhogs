@@ -61,6 +61,9 @@ def prepare_help_menu(botname):
     embedVar.add_field(name="/blacklist",
                        value="[A] manage the blacklist for the server.",
                        inline=False)
+    embedVar.add_field(name="/waw_setup",
+                       value="[A] manage the attack weight multiplier for a clan.",
+                       inline=False)
     embedVar.add_field(name="/mywar",
                        value="analyse and produce a report for a player\'s past war performance.",
                        inline=False)
@@ -194,6 +197,38 @@ def prepare_blacklist_help():
     embedVar.add_field(name="reason",
                        value="An explanation of why the player is added.",
                        inline=False)
+    return embedVar
+
+def prepare_wawsetup_help(default_attackup_weights:dict, default_attackdown_weights:dict):
+    default = ""
+    for k, v in default_attackup_weights.items():
+        default += k + "=" + str(v) + " "
+    for k, v in default_attackdown_weights.items():
+        default += k + "=" + str(v) + " "
+
+    embedVar = disnake.Embed(title="Command /waw_steup",
+                             description="[A] This command is used to set up the attack weight multipliers for a clan. "
+                                         "This is used to multiply the stars of an attack depending on the attacker and defender's TH levels. ")
+    embedVar.add_field(name="Usage",
+                       value="/waw_setup [option] [clantag] [weights] ",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: list the current attack weights for a clan.\n"
+                             "- update: update the attack weight multipliers for a clan.",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="Required for all [option]s. When using the 'list' option, this can be empty to list all clans.",
+                       inline=False)
+    embedVar.add_field(name="weights",
+                       value="Attack weight multipliers to be assigned. You can set three multipliers for attacking up or down. " \
+                             "Default values are: *"+default.strip()+"*\n" \
+                             "E.g., 'u1=1.25' means attacking up 1 TH level higher will receive a '0.25' bonus to the stars "\
+                             "obtained (a 2 star attack is effectively 2 x 1.25 = 2.5 stars). \n"
+                             "To change the weights, provide them in the same format as above "\
+                             "with your own weight multipliers (e.g., 'x=2.0'). When the TH level difference is out of "\
+                             "the default value ranges, the lowest/highest multiplier will be used instead.",
+                       inline=False)
+
     return embedVar
 
 def prepare_crclan_help(default_points:dict):

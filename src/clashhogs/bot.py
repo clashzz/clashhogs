@@ -97,6 +97,7 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "blacklist":"blacklist",
                                                              "crclan": "crclan",
                                                              "crplayer": "crplayer",
+                                                             "waw_setup":"waw_setup",
                                                              "mycredit": "mycredit",
                                                              "mywar": "mywar"})):
     if command == 'all':
@@ -117,6 +118,9 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
         await inter.response.send_message(embed=util.prepare_crclan_help(models.STANDARD_CREDITS))
     elif command == 'crplayer':
         await inter.response.send_message(embed=util.prepare_crplayer_help())
+    elif command =='waw_setup':
+        await inter.response.send_message(embed=util.prepare_wawsetup_help(models.STANDARD_ATTACKUP_WEIGHTS,
+                                                                           models.STANDARD_ATTACKDOWN_WEIGHTS))
     elif command == 'mycredit':
         await inter.response.send_message(embed=util.prepare_mycredit_help())
     else:
@@ -617,6 +621,67 @@ async def crclan_error(ctx, error):
         print("crclan_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+
+#########################################################
+# This method is used to set up clan credit watch system
+#########################################################
+@bot.slash_command(description='Set up war attack weights for a clan')
+@commands.has_permissions(manage_guild=True)
+async def waw_setup(inter, option: str = commands.Param(choices={"list": "-l",
+                                                                      "update": "-u"}), clantag:str=None, weights=None):
+    if clantag is not None:
+        clantag = utils.correct_tag(clantag)
+    log.info("GUILD={}, {}, ACTION=waw_setup, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+
+    # list current registered clans
+    if option == "-l":
+        if clantag is None:
+            res = database.get_clanwatch_by_guild(str(inter.guild.id))
+        else:
+            res = [database.get_clanwatch(clantag, str(inter.guild.id))]
+        await inter.response.send_message(embed=dataformatter.format_war_attack_weights(res))
+        return
+    # update attack weights for a clan
+    elif option == "-u":
+        if clantag is None:
+            await inter.response.send_message("'tag' cannot be empty")
+            return
+        try:
+            clan = await coc_client.get_clan(clantag)
+        except coc.NotFound:
+            await inter.response.send_message("This clan doesn't exist.")
+            return
+
+        result = database.registered_clan_attackweights(inter.guild.id, clantag, weights)
+        if result is None:
+            await inter.response.send_message(
+                "The clan {} has not been linked to this discord server. Run 'link' first.".format(clantag))
+            return
+        if len(result) != 0:
+            await inter.response.send_message(
+                "Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
+                format(clan, result))
+            return
+        else:
+            await inter.response.send_message("The clan {} has been updated.".format(clantag))
+        return
+    else:
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
+
+
+@crclan.error
+async def waw_setup(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'waw_setup' requires arguments. Run '/help waw_setup' for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'waw_setup' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        print("waw_setup_error: {}".format(datetime.datetime.now()))
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
+
 #########################################################
 # This method is used to track player credits
 #########################################################
@@ -1061,7 +1126,7 @@ def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
-    log.info("\t>>> Checking scheduled task every 23 hour. Time now is {}. The current season will end {}".format(now,
+    log.info("\t>>> Checking scheduled task every 12 hours. Time now is {}. The current season will end {}".format(now,
                                                                                                                   season_end))
     days_before_end = abs((season_end - now).days)
     #    if days_before_end <=1:

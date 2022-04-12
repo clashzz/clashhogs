@@ -284,7 +284,7 @@ def format_attackstars(records:list, clanwatch:models.ClanWatch):
     points_sorted = dict(sorted(points.items(), key=operator.itemgetter(1), reverse=True))
     string=""
     for player, points in points_sorted.items():
-        string += "\t\t{}, \t{}\n".format(str(player), str(points))
+        string += "\t\t{}, \t{}\n".format(str(player), str(round(points,1)))
 
         if len(string) > DISCORD_MSG_MAX_LENGTH:
             msgs.append(string)

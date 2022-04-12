@@ -62,7 +62,10 @@ def prepare_help_menu(botname):
                        value="[A] manage the blacklist for the server.",
                        inline=False)
     embedVar.add_field(name="/waw_setup",
-                       value="[A] manage the attack weight multiplier for a clan.",
+                       value="[A] manage the war attack weight (WAW) multiplier for a clan.",
+                       inline=False)
+    embedVar.add_field(name="/waw_view",
+                       value="view the attack stars adjusted by WAW multipliers.",
                        inline=False)
     embedVar.add_field(name="/mywar",
                        value="analyse and produce a report for a player\'s past war performance.",
@@ -229,6 +232,30 @@ def prepare_wawsetup_help(default_attackup_weights:dict, default_attackdown_weig
                              "the default value ranges, the lowest/highest multiplier will be used instead.",
                        inline=False)
 
+    return embedVar
+
+def prepare_wawview_help():
+    embedVar = disnake.Embed(title="Command /waw_view",
+                             description="This command is used to view adjusted war stars of a clan/player.")
+    embedVar.add_field(name="Usage",
+                       value="/waw_view [option] [wartype] [tag] [dd/mm/yyyy] [dd/mm/yyyy]",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- clan: list total adjusted (by WAW multipliers linked to that clan) war stars for every player in a clan. \n"
+                             "- player: list every attack record of a specific player.",
+                       inline=False)
+    embedVar.add_field(name="wartype",
+                       value="- any: include both regular and cwl war attacks. \n"
+                             "- regular: include only regular war attacks. \n"
+                             "- cwl: include only cwl war attacks.",
+                       inline=False)
+    embedVar.add_field(name="tag",
+                       value="Required for all [option]s. Either a clan's or a player's tag depending on the [option].",
+                       inline=False)
+    embedVar.add_field(name="dd/mm/yyyy",
+                       value="The first is mandatory, and should specify the start date. The second is optional and should " \
+                             " specify the end date. When omitted, the current date will be used.",
+                       inline=False)
     return embedVar
 
 def prepare_crclan_help(default_points:dict):

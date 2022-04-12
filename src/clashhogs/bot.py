@@ -40,7 +40,7 @@ coc_client = coc.login(
 
 # Bot information and properties
 TOKEN = properties['DISCORD_TOKEN']
-PREFIX=properties['BOT_PREFIX']
+PREFIX = properties['BOT_PREFIX']
 BOT_NAME = properties['BOT_NAME']
 DESCRIPTION = "A utility bot for Clash of Clans clan management"
 intents = disnake.Intents.all()
@@ -94,10 +94,11 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "channel": "channel",
                                                              "clanwar": "clanwar",
                                                              "warn": "warn",
-                                                             "blacklist":"blacklist",
+                                                             "blacklist": "blacklist",
                                                              "crclan": "crclan",
                                                              "crplayer": "crplayer",
-                                                             "waw_setup":"waw_setup",
+                                                             "waw_setup": "waw_setup",
+                                                             "waw_view": "waw_view",
                                                              "mycredit": "mycredit",
                                                              "mywar": "mywar"})):
     if command == 'all':
@@ -118,13 +119,16 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
         await inter.response.send_message(embed=util.prepare_crclan_help(models.STANDARD_CREDITS))
     elif command == 'crplayer':
         await inter.response.send_message(embed=util.prepare_crplayer_help())
-    elif command =='waw_setup':
+    elif command == 'waw_setup':
         await inter.response.send_message(embed=util.prepare_wawsetup_help(models.STANDARD_ATTACKUP_WEIGHTS,
                                                                            models.STANDARD_ATTACKDOWN_WEIGHTS))
+    elif command == 'waw_view':
+        await inter.response.send_message(embed=util.prepare_wawview_help())
     elif command == 'mycredit':
         await inter.response.send_message(embed=util.prepare_mycredit_help())
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
+
 
 #########################################################
 # This method is used to configure the discord channels
@@ -201,7 +205,6 @@ async def link(inter, option: str = commands.Param(choices={"add": "-a",
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
-
 @link.error
 async def link_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -214,16 +217,17 @@ async def link_error(ctx, error):
         print("link_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+
 #########################################################
 # This method is used to set up the discord channels
-# for war missed attacks, clan summary and war summary feeds
+# for war missed attacks, member watch and war summary feeds
 #########################################################
 @bot.slash_command(
     description="Set up channels for a clan's feeds (clan must be already linked to this discord server).")
 @commands.has_permissions(manage_guild=True)
 async def channel(inter, clantag, to_channel, option: str = commands.Param(choices={"war-monthly": "-war",
                                                                                     "missed-attacks": "-miss",
-                                                                                    "member-watch":"-member"})):
+                                                                                    "member-watch": "-member"})):
     clantag = utils.correct_tag(clantag)
     log.info(
         "GUILD={}, {}, ACTION=channel, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
@@ -247,30 +251,36 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
         return
 
     # check permissions
-    res=channel.permissions_for(inter.guild.me)
-    missing_perms= not res.send_messages or not res.view_channel or not res.attach_files
+    res = channel.permissions_for(inter.guild.me)
+    missing_perms = not res.send_messages or not res.view_channel or not res.attach_files
 
     if option == "-miss":
         clanwatch._channel_warmiss = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("War missed attack channel has been added for this clan. ")
         if missing_perms:
-            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
-                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
+            await inter.followup.send(
+                "However, {} does not have the right permissions and will not function properly. Please " \
+                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
+                    BOT_NAME, BOT_NAME))
     elif option == "-war":
         clanwatch._channel_warsummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("War summary channel has been added for this clan.")
         if missing_perms:
-            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
-                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
+            await inter.followup.send(
+                "However, {} does not have the right permissions and will not function properly. Please " \
+                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
+                    BOT_NAME, BOT_NAME))
     elif option == "-member":
         clanwatch._channel_clansummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("Member watcg channel has been added for this clan.")
         if missing_perms:
-            await inter.followup.send("However, {} does not have the right permissions and will not function properly. Please " \
-                                     "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(BOT_NAME, BOT_NAME))
+            await inter.followup.send(
+                "However, {} does not have the right permissions and will not function properly. Please " \
+                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
+                    BOT_NAME, BOT_NAME))
     else:
         await inter.response.send_message(
             "Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
@@ -288,7 +298,7 @@ async def channel_error(ctx, error):
         print("channel_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-#########################################################
+########################################################
 # This method is used to process clan war summary
 #########################################################
 @bot.slash_command(
@@ -324,7 +334,7 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
         except:
             from_date = datetime.datetime.now() - datetime.timedelta(30)
             await inter.response.send_message(
-                "The date you specified does not confirm to the required format dd/mm/yyyy. The date 30 days ago from today"
+                "The date you specified does not conform to the required format dd/mm/yyyy. The date 30 days ago from today"
                 " will be used instead.")
             return
         try:
@@ -337,11 +347,12 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
         except:
             to_date = datetime.datetime.now()
             await inter.response.send_message(
-                "The date you specified does not confirm to the required format dd/mm/yyyy. The current date"
+                "The date you specified does not conform to the required format dd/mm/yyyy. The current date"
                 " will be used instead.")
             return
 
-        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(from_date, to_date, clantag, clanwatch._name)
+        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(from_date, to_date, clantag,
+                                                                                clanwatch._name)
         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
             await channel_to.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
             return
@@ -372,14 +383,15 @@ async def clanwar_error(ctx, error):
 
 
 #########################################################
-# This method is used to log warnings
+# This method is used to record warnings
 #########################################################
 @bot.slash_command(description='Add a warning record to a member of a clan')
 @commands.has_permissions(manage_guild=True)
 async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "-l",
                                                                        "add": "-a",
                                                                        "clear": "-c",
-                                                                       "delete": "-d"}), name_or_id=None, points=None, reason=None):
+                                                                       "delete": "-d"}), name_or_id=None, points=None,
+               reason=None):
     log.info(
         "GUILD={}, {}, ACTION=warn, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
@@ -389,7 +401,7 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
         if name_or_id is None:  # list all warnings of a clan
             res = database.list_warnings(inter.guild.id, clan)
             warnings = dataformatter.format_warnings(clan, res)
-            if len(warnings)==1:
+            if len(warnings) == 1:
                 await inter.followup.send("No records found.")
             else:
                 for w in warnings:
@@ -463,17 +475,19 @@ async def warn_error(ctx, error):
         print("warn_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+
 #########################################################
 # This method is used to log warnings
 #########################################################
 @bot.slash_command(description='Manage the player blacklist.')
 @commands.has_permissions(manage_guild=True)
 async def blacklist(inter, option: str = commands.Param(choices={"list": "-l",
-                                                                       "add": "-a",
-                                                                       "delete": "-d"}),
-                    player_tag: str=None, reason=None):
+                                                                 "add": "-a",
+                                                                 "delete": "-d"}),
+                    player_tag: str = None, reason=None):
     log.info(
-        "GUILD={}, {}, ACTION=blacklist, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+        "GUILD={}, {}, ACTION=blacklist, arg={}, user={}".format(inter.guild.id, inter.guild.name, option,
+                                                                 inter.author))
 
     # list current blaclkist
     if option == "-l":
@@ -499,7 +513,7 @@ async def blacklist(inter, option: str = commands.Param(choices={"list": "-l",
                 f"'blacklist' requires arguments for adding a player. Run '/help blacklist' for details")
             return
         author = inter.author.display_name
-        player_tag=utils.correct_tag(player_tag)
+        player_tag = utils.correct_tag(player_tag)
         try:
             player = await coc_client.get_player(player_tag)
             if player is None:
@@ -533,17 +547,19 @@ async def blacklist_error(ctx, error):
         print("blacklist_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+
 #########################################################
 # This method is used to set up clan credit watch system
 #########################################################
 @bot.slash_command(description='Set up credit points for a clan')
 @commands.has_permissions(manage_guild=True)
 async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
-                                                                      "update": "-u",
-                                                                      "clear": "-c"}), clantag:str=None, points=None):
+                                                              "update": "-u",
+                                                              "clear": "-c"}), clantag: str = None, points=None):
     if clantag != '*' and clantag is not None:
         clantag = utils.correct_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+    log.info(
+        "GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list current registered clans
     if option == "-l":
@@ -552,7 +568,8 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
         elif clantag is not None:
             res = [database.get_clanwatch(clantag, str(inter.guild.id))]
         else:
-            await inter.response.send_message("'tag' cannot be empty - either '*' to return all clans or a specific clan tag is needed.")
+            await inter.response.send_message(
+                "'tag' cannot be empty - either '*' to return all clans or a specific clan tag is needed.")
             return
         await inter.response.send_message(embed=dataformatter.format_credit_systems(res))
         return
@@ -575,11 +592,12 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
         if len(result) != 0:
             await inter.response.send_message(
                 "Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
-                format(clan, result))
+                    format(clan, result))
             return
         else:
             coc_client.add_war_updates(clantag)
-            await inter.response.send_message("The clan {} has been updated for the credit watch system.".format(clantag))
+            await inter.response.send_message(
+                "The clan {} has been updated for the credit watch system.".format(clantag))
         return
     # clear all records of a clan
     elif option == "-c":
@@ -608,7 +626,6 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
 
-
 @crclan.error
 async def crclan_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -628,10 +645,11 @@ async def crclan_error(ctx, error):
 @bot.slash_command(description='Set up war attack weights for a clan')
 @commands.has_permissions(manage_guild=True)
 async def waw_setup(inter, option: str = commands.Param(choices={"list": "-l",
-                                                                      "update": "-u"}), clantag:str=None, weights=None):
+                                                                 "update": "-u"}), clantag: str = None, weights=None):
     if clantag is not None:
         clantag = utils.correct_tag(clantag)
-    log.info("GUILD={}, {}, ACTION=waw_setup, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+    log.info("GUILD={}, {}, ACTION=waw_setup, arg={}, user={}".format(inter.guild.id, inter.guild.name, option,
+                                                                      inter.author))
 
     # list current registered clans
     if option == "-l":
@@ -660,14 +678,13 @@ async def waw_setup(inter, option: str = commands.Param(choices={"list": "-l",
         if len(result) != 0:
             await inter.response.send_message(
                 "Update for the clan {} has been unsuccessful. The parameters you provided maybe invalid, try again: {}".
-                format(clan, result))
+                    format(clan, result))
             return
         else:
             await inter.response.send_message("The clan {} has been updated.".format(clantag))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
-
 
 @crclan.error
 async def waw_setup(ctx, error):
@@ -681,6 +698,98 @@ async def waw_setup(ctx, error):
         print("waw_setup_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
+#########################################################
+# This method is used to view the adjusted stars by players
+#########################################################
+@bot.slash_command(
+    description="View players' war stars collected between two dates, adjusted by WAW multipliers.")
+async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
+                                                                "player": "-lp"}),
+                   wartype: str = commands.Param(choices={"any": "all",
+                                                          "regular": "random",
+                                                          "cwl": "cwl"}),
+                   tag: str = None,
+                   from_date: str = None, to_date=None):
+    if tag is None:
+        await inter.response.send_message(
+            "'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
+        return
+    tag = utils.correct_tag(tag)
+
+    if from_date is None:
+        await inter.response.send_message(
+            "'from_date' cannot be empty. Use dd/mm/yyyy format.")
+        return
+    try:
+        from_date = datetime.datetime.strptime(from_date, "%d/%m/%Y")
+    except:
+        await inter.response.send_message(
+            "The date you specified does not conform to the required format dd/mm/yyyy.")
+        return
+    try:
+        if to_date is not None:
+            to_date = datetime.datetime.strptime(to_date, "%d/%m/%Y")
+        else:
+            to_date = datetime.datetime.now()
+            await inter.channel.send(
+                "End date not provided, using today's date as the end date")
+    except:
+        await inter.response.send_message(
+            "The date you specified does not conform to the required format dd/mm/yyyy.")
+        return
+
+    log.info(
+        "GUILD={}, {}, ACTION=waw_view, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+
+    # list total points of a clan's member
+    if option == "-lc":
+        clan_watch = database.get_clanwatch(tag, inter.guild.id)
+        if clan_watch is None:
+            await inter.response.send_message("It appears that the clan {} has not been linked with this discord server. Run '/link' first.".format(tag))
+            return
+
+        await inter.response.send_message("Listing total adjusted war stars for all all members of the clan {}, war type is '{}'".format(tag, wartype))
+        if wartype == "all":
+            wartype = None
+        war_data = database.find_war_data(tag, from_date, to_date, wartype)
+        msgs=dataformatter.format_attackstars(war_data,clan_watch)
+        for m in msgs:
+            await inter.followup.send(m)
+        return
+    # list adjusted stars of a clan's member
+    elif option == "-lp":
+        war_data = database.load_individual_war_data(inter.guild.id, tag, from_date, to_date, wartype)
+        if len(war_data) == 0:
+            await inter.response.send_message("No data found matching the search criteria. The player's clan must have been linked to this discord server using '/link'. " \
+                     "Also, war data must have been already collected for the player.")
+            return
+
+        await inter.response.send_message(
+            "Listing every attack record with adjusted stars for player {}, war type is '{}' (If none is shown then this player may have missed all attacks).".format(tag, wartype))
+        first_record=war_data[0]
+        clan_tag=first_record[3]
+        clan_watch = database.get_clanwatch(clan_tag, inter.guild.id)
+        if clan_watch is None:
+            await inter.response.send_message(
+                "It appears that the clan {} has not been linked with this discord server. Run '/link' first.".format(
+                    tag))
+            return
+
+        msgs=dataformatter.format_attack_records(war_data,clan_watch)
+        for m in msgs:
+            await inter.followup.send(m)
+        return
+    else:
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
+
+@waw_view.error
+async def waw_view_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'waw_view' requires arguments. Run '/help waw_view' for details")
+    else:
+        print("waw_view_error: {}".format(datetime.datetime.now()))
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 #########################################################
 # This method is used to track player credits
@@ -688,14 +797,17 @@ async def waw_setup(ctx, error):
 @bot.slash_command(description="View or manage players' credits")
 @commands.has_permissions(manage_guild=True)
 async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-lc",
-                                                                      "list_player": "-lp",
-                                                                      "add": "-a"}), tag: str=None, points=None, reason=None):
+                                                                "list_player": "-lp",
+                                                                "add": "-a"}), tag: str = None, points=None,
+                   reason=None):
     if tag is None:
-        await inter.response.send_message("'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
+        await inter.response.send_message(
+            "'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
         return
     tag = utils.correct_tag(tag)
 
-    log.info("GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+    log.info(
+        "GUILD={}, {}, ACTION=crplayer, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list credits of a clan's member
     if option == "-lc":
@@ -733,7 +845,8 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
         author = inter.author.display_name
         database.add_player_credits(inter.guild.id, author, tag, player.name, player.clan.tag, player.clan.name, points,
                                     reason)
-        await inter.response.send_message("Credits manually updated for {} from the {} clan.".format(tag + ", " + player.name, player.clan.name))
+        await inter.response.send_message(
+            "Credits manually updated for {} from the {} clan.".format(tag + ", " + player.name, player.clan.name))
         return
     else:
         await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
@@ -773,7 +886,7 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     except:
         to_date = datetime.datetime.now()
         await inter.channel.send(
-            "The end date you specified does not confirm to the required format dd/mm/yyyy. The current date"
+            "The end date you specified does not conform to the required format dd/mm/yyyy. The current date"
             " will be used instead.".format(inter.channel, BOT_NAME))
 
     # gather personal war data
@@ -812,15 +925,16 @@ async def mywar(inter, player_tag: str, from_date: str, to_date=None):
 
     plt.close(figure)
 
-
 @mywar.error
 async def mywar_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.channel.send(f"'mywar' requires four arguments. Run '/help mywar' for details")
     else:
-        await ctx.channel.send("Something went wrong. Check if {} has 'Send Message' and 'Attach files' permisions".format(BOT_NAME))
+        await ctx.channel.send(
+            "Something went wrong. Check if {} has 'Send Message' and 'Attach files' permisions".format(BOT_NAME))
         print("mywar_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 #########################################################
 # This method is used to track player credits
@@ -834,14 +948,13 @@ async def mycredit(inter, player_tag: str):
     clantag, clanname, playername, records = database.list_playercredits(inter.guild.id, player_tag)
     msgs = dataformatter.format_playercreditrecords(player_tag, clantag, clanname, playername, records)
 
-    if len(msgs)==0:
+    if len(msgs) == 0:
         await inter.response.send_message("No records found.")
     else:
         await inter.response.send_message("Listing credits...")
         for m in msgs:
             await inter.followup.send(m)
     return
-
 
 @mycredit.error
 async def mycredit_error(ctx, error):
@@ -947,21 +1060,21 @@ async def current_war_stats(attack, war):
             database.reset_cwl_war_data(attacker_clan.tag, war)
 
 
-#when member joining or leaving, send a message to discord to prompt changing their roles
+# when member joining or leaving, send a message to discord to prompt changing their roles
 @coc_client.event
 @coc.ClanEvents.member_join()
 async def on_clan_member_join(member, clan):
     messages, tochannel = log_member_movement(member.tag, member.name, clan.name, clan.tag, "joined")
-    if len(messages)>0:
+    if len(messages) > 0:
         for m in messages:
             await tochannel.send(m)
 
-#when member joining or leaving, send a message to discord to prompt changing their roles
+# when member joining or leaving, send a message to discord to prompt changing their roles
 @coc_client.event
 @coc.ClanEvents.member_leave()
 async def on_clan_member_leave(member, clan):
-    messages, tochannel=log_member_movement(member.tag, member.name, clan.name, clan.tag, "left")
-    if len(messages)>0:
+    messages, tochannel = log_member_movement(member.tag, member.name, clan.name, clan.tag, "left")
+    if len(messages) > 0:
         for m in messages:
             await tochannel.send(m)
 
@@ -969,9 +1082,9 @@ async def on_clan_member_leave(member, clan):
 async def callback(exception):
     log.error("Events had an error: {}".format(exception), exc_info=exception)
 
-def log_member_movement(membertag, membername, clanname, clantag, join_or_left:str):
-    messages=[]
-    to_channel=None
+def log_member_movement(membertag, membername, clanname, clantag, join_or_left: str):
+    messages = []
+    to_channel = None
     if clantag in database.MEM_mappings_clanwatch.keys():
         clanwatch = database.MEM_mappings_clanwatch[clantag]
         guild = bot.get_guild(clanwatch._guildid)
@@ -980,36 +1093,36 @@ def log_member_movement(membertag, membername, clanname, clantag, join_or_left:s
             channel = disnake.utils.get(guild.channels, id=channel_id)
             if channel is not None:
                 emoji = ""
-                if join_or_left=='joined':
-                    emoji=":green_circle:"
+                if join_or_left == 'joined':
+                    emoji = ":green_circle:"
                 else:
-                    emoji=":red_circle:"
-                to_channel=channel
-                messages.append("{} **{}, {}** has {} the clan **{}**".format(emoji,membername,
-                                                                    membertag, join_or_left,
-                                                                    clanname))
-                member_name_variants=util.generate_variants(membername)
-                guild_member_names= {}
+                    emoji = ":red_circle:"
+                to_channel = channel
+                messages.append("{} **{}, {}** has {} the clan **{}**".format(emoji, membername,
+                                                                              membertag, join_or_left,
+                                                                              clanname))
+                member_name_variants = util.generate_variants(membername)
+                guild_member_names = {}
                 for m in guild.members:
                     if not m.bot:
                         guild_member_names[m.display_name] = util.generate_variants(m.display_name)
                 matching = util.find_overlap(member_name_variants, guild_member_names)
 
-                if len(matching)>0:
-                    msg="Please check if the member's discord roles need changing. "\
-                         "Possible discord name matches found:\n"
+                if len(matching) > 0:
+                    msg = "Please check if the member's discord roles need changing. " \
+                          "Possible discord name matches found:\n"
                     for m in matching:
-                        msg+="\t\t"+m+"\n"
+                        msg += "\t\t" + m + "\n"
                     messages.append(msg)
                 else:
                     messages.append("I can't find similar discord names. Please check manually.")
 
-                #check for blacklist
-                if join_or_left=="joined":
-                    entries=database.show_blacklist(clanwatch._guildid, membertag)
-                    records=dataformatter.format_blacklist(entries)
-                    if len(records)>0:
-                        msg=":warning: **WARNING** this member is currently on our blacklist:\n"
+                # check for blacklist
+                if join_or_left == "joined":
+                    entries = database.show_blacklist(clanwatch._guildid, membertag)
+                    records = dataformatter.format_blacklist(entries)
+                    if len(records) > 0:
+                        msg = ":warning: **WARNING** this member is currently on our blacklist:\n"
                         messages.append(msg)
                         messages.extend(records)
     return messages, to_channel
@@ -1034,7 +1147,6 @@ def register_war_attacks(members: list, attacks: list, old_war, clan_home, type,
                                                            attack_data)
     return missed_attacks, registered
 
-
 def send_missed_attacks(misses: dict, clantag: str):
     clanwatch = database.get_clanwatch(clantag)
     guild = bot.get_guild(clanwatch._guildid)
@@ -1055,7 +1167,6 @@ def send_missed_attacks(misses: dict, clantag: str):
             return channel, message
     return None, None
 
-
 def prepare_wardigest(fromdate, todate, clantag, clanname):
     # gather missed attacks data
     war_data = database.find_war_data(clantag, fromdate, todate)
@@ -1070,21 +1181,21 @@ def prepare_wardigest(fromdate, todate, clantag, clanname):
     msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks - Total:** \n".format(
         clantag + ", " + clanname,
         fromdate, todate)
-    count=0
+    count = 0
     for k, v in data_missed.items():
         msg += "\t" + str(k) + ": " + str(v) + "\n"
-        count+=1
-    if count==0:
-        msg+="\t(no data)"
+        count += 1
+    if count == 0:
+        msg += "\t(no data)"
     msg_warmiss = msg + "\n"
 
     msg = "\n**Missed Attacks - CWL:** \n"
-    count=0
+    count = 0
     for k, v in data_cwl_missed.items():
-        count+=1
+        count += 1
         msg += "\t" + str(k) + ": " + str(v) + "\n"
-    if count==0:
-        msg+="\t(no data)"
+    if count == 0:
+        msg += "\t(no data)"
     msg_cwlmiss = msg + "\n"
 
     data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
@@ -1102,7 +1213,6 @@ def prepare_wardigest(fromdate, todate, clantag, clanname):
     # await channel_to.send(file=fileB,
     #                       content="**Clan war data plot ready for download**:")
 
-
 def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
     if old_war.state == "inWar" and new_war.state != "inWar":
         return True
@@ -1110,39 +1220,27 @@ def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
         return True
 
 
-def regular_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
-    return old_war.state == "preparation" and new_war.state == "inWar"
-
-
-def regular_war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
-    return new_war.state == "warEnded" and old_war.state == "inWar"
-
-
-def cwl_war_started(old_war: coc.ClanWar, new_war: coc.ClanWar):
-    return old_war.state == "notInWar" and new_war.state == "inWar" and new_war.type == "cwl"
-
-
 @tasks.loop(hours=12)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
     log.info("\t>>> Checking scheduled task every 12 hours. Time now is {}. The current season will end {}".format(now,
-                                                                                                                  season_end))
+                                                                                                                   season_end))
     days_before_end = abs((season_end - now).days)
     #    if days_before_end <=1:
     if days_before_end < 1:
         log.info("\t>>> End of season reached, running scheduled task.")
 
-        count_clans=0
-        most_stars=0
-        most_stars_winner=None
-        least_misses=-1
-        least_misses_winner=None
+        count_clans = 0
+        most_stars = 0
+        most_stars_winner = None
+        least_misses = -1
+        least_misses_winner = None
 
-        #send clan war digest
+        # send clan war digest
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
             try:
-                count_clans+=1
+                count_clans += 1
 
                 guild = bot.get_guild(clanwatch._guildid)
                 if guild is not None:
@@ -1152,7 +1250,8 @@ async def check_scheduled_task():
                     channel = disnake.utils.get(guild.channels, id=channel_id)
                     if channel is not None:
                         fromdate = utils.get_season_start()
-                        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(fromdate, now, clantag, clanwatch._name)
+                        war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(fromdate, now, clantag,
+                                                                                                clanwatch._name)
 
                         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
                             await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
@@ -1164,22 +1263,22 @@ async def check_scheduled_task():
                         await channel.send(file=war_plot,
                                            content="**Clan war data plot ready for download**:")
 
-                        totalstars=int(summary['Total stars'])
-                        totalmisses=int(summary['Total unused attacks'])
-                        if totalmisses==0 and totalmisses==0:
-                            totalmisspercent=0
+                        totalstars = int(summary['Total stars'])
+                        totalmisses = int(summary['Total unused attacks'])
+                        if totalmisses == 0 and totalmisses == 0:
+                            totalmisspercent = 0
                         else:
-                            totalmisspercent=round(totalmisses/(totalstars+totalmisses),1)
-                        if totalstars>most_stars:
-                            most_stars=totalstars
-                            most_stars_winner=(clantag, clanwatch._name)
-                        if least_misses==-1 or totalmisspercent<least_misses:
-                            least_misses=totalmisspercent
-                            least_misses_winner=(clantag, clanwatch._name)
+                            totalmisspercent = round(totalmisses / (totalstars + totalmisses), 1)
+                        if totalstars > most_stars:
+                            most_stars = totalstars
+                            most_stars_winner = (clantag, clanwatch._name)
+                        if least_misses == -1 or totalmisspercent < least_misses:
+                            least_misses = totalmisspercent
+                            least_misses_winner = (clantag, clanwatch._name)
             except:
                 print("Encountered error, time {}".format(datetime.datetime.now()))
                 print(traceback.format_exc())
-        #send clan family performer, and update donation points
+        # send clan family performer, and update donation points
         for clantag, clanwatch in database.MEM_mappings_clanwatch.items():
             try:
                 guild = bot.get_guild(clanwatch._guildid)
@@ -1189,9 +1288,10 @@ async def check_scheduled_task():
                         channel_id = dataformatter.parse_channel_id(channel_id)
                     channel = disnake.utils.get(guild.channels, id=channel_id)
                     if channel is not None:
-                        msg="**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans, BOT_NAME)
-                        msg+="\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
-                        msg+="\tLowest missed attack: {}% by {}".format(least_misses*100, str(least_misses_winner))
+                        msg = "**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans,
+                                                                                                       BOT_NAME)
+                        msg += "\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
+                        msg += "\tLowest missed attack: {}% by {}".format(least_misses * 100, str(least_misses_winner))
                         await channel.send(msg)
 
                 # credits for donations
@@ -1226,9 +1326,6 @@ async def check_scheduled_task():
                 print(traceback.format_exc())
     else:
         log.info("\t>>> {} days till the end of season".format(days_before_end))
-
-
-
 
 
 check_scheduled_task.start()

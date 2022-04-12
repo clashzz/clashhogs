@@ -192,7 +192,7 @@ def format_war_attack_weights(res:dict):
 def format_playercredits(tag, clanname, playercredits, playernames, last_updated):
     msgs=[]
     if len(playercredits)==0:
-        string="**Clan {}, {}** currently does not have any player credits recorded. Credit records are automatically added at war end, maybe try again later."
+        string="**Clan {}, {}** currently does not have any player credits recorded. Credit records are automatically added at war end, maybe try again later.".format(tag, clanname)
     else:
         string ="**Clan {}, {}, last updated at {}**\n".format(tag, clanname, last_updated)  # , color=0x00ff00
         playercredits_sorted = dict( sorted(playercredits.items(), key=operator.itemgetter(1),reverse=True))
@@ -213,7 +213,7 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
     msgs = []
     if len(creditrecords)==0:
         string = "Player {}, {} from {} currently does not have any credits recorded. " \
-                 "Credit records are automatically added at war end, maybe try again later."
+                 "Credit records are automatically added at war end, maybe try again later.".format(playertag, playername, clanname)
     else:
         total=0
         for rec in creditrecords:
@@ -227,6 +227,108 @@ def format_playercreditrecords(playertag, clantag, clanname, playername, creditr
                 msgs.append(string)
                 string=""
 
+    if len(string)>0:
+        msgs.append(string)
+    return msgs
+
+'''
+id INTEGER PRIMARY KEY, " \
+                           "player_tag TEXT NOT NULL, " \
+                           "player_name TEXT NOT NULL, " \
+                           "clan_tag TEXT NOT NULL, " \
+                           "clan_name TEXT NOT NULL, " \
+                           "stars int NOT NULL, " \
+                           "attacker_th int NOT NULL, " \
+                           "defender_th int NOT NULL, " \
+                           "time int NOT NULL," \
+                           "war_type TEXT NOT NULL
+'''
+def format_attackstars(records:list, clanwatch:models.ClanWatch):
+    msgs=[]
+    if len(records)==0:
+        string="No data found matching the search criteria. The clan must have been linked to this discord server using '/link'. " \
+               "Also, war data must have been already collected for the clan."
+        msgs.append(string)
+        return msgs
+
+    points={}
+    for r in records:
+        player_tag=r[1]
+        player_name=r[2]
+        player = (player_tag, player_name)
+        stars=r[5]
+        player_th=r[6]
+        if player_th==-1: #player missed this attack
+            continue
+        defender_th=r[7]
+        thdff=player_th-defender_th
+        if thdff>0:
+            if thdff >3:
+                thdff=3
+            key = "d"+str(thdff)
+            mult=clanwatch._attackdown_weights[key]
+        elif thdff<0:
+            if thdff<-3:
+                thdff=-3
+            key="u"+str(-thdff)
+            mult=clanwatch._attackup_weights[key]
+        else:
+            mult=1
+
+        if player in points.keys():
+            adjusted_stars=points[player] + round(stars*mult, 1)
+        else:
+            adjusted_stars=round(stars*mult, 1)
+        points[player]=adjusted_stars
+
+    points_sorted = dict(sorted(points.items(), key=operator.itemgetter(1), reverse=True))
+    string=""
+    for player, points in points_sorted.items():
+        string += "\t\t{}, \t{}\n".format(str(player), str(points))
+
+        if len(string) > DISCORD_MSG_MAX_LENGTH:
+            msgs.append(string)
+            string = ""
+    if len(string)>0:
+        msgs.append(string)
+    return msgs
+
+def format_attack_records(records:list,clanwatch:models.ClanWatch):
+    msgs=[]
+    player=None
+    string = ""
+    for r in records:
+        player_tag=r[1]
+        player_name=r[2]
+        if player is None:
+            player=(player_tag, player_name)
+
+        stars=r[5]
+        player_th=r[6]
+        defender_th=r[7]
+        time = r[8]
+        thdff=player_th-defender_th
+        if thdff>0:
+            if thdff >3:
+                thdff=3
+            key = "d"+str(thdff)
+            mult=clanwatch._attackdown_weights[key]
+        elif thdff<0:
+            if thdff<-3:
+                thdff=-3
+            key="u"+str(-thdff)
+            mult=clanwatch._attackup_weights[key]
+        else:
+            mult=1
+
+        adjusted_stars= round(stars*mult, 1)
+        string+="\t\t{}, \t{} stars TH{}>TH{}, \tadjusted by x{}={}\n".format(datetime.datetime.fromisoformat(time).strftime('%d/%m/%Y'),
+                                              stars, player_th, defender_th,
+                                              mult, adjusted_stars)
+
+        if len(string) > DISCORD_MSG_MAX_LENGTH:
+            msgs.append(string)
+            string = ""
     if len(string)>0:
         msgs.append(string)
     return msgs

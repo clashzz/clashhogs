@@ -298,15 +298,20 @@ def remove_warmiss_mappings_for_guild(guild_id, from_channel_id):
     con.close()
     lock.release()
 
-def load_individual_war_data(guild_id, player_tag, from_date, to_date):
+def load_individual_war_data(guild_id, player_tag, from_date, to_date, wartype=None):
     lock = threading.Lock()
     lock.acquire()
     con = connect_db(str(guild_id))
     cursor = con.cursor()
 
-    cursor.execute('SELECT * FROM {} WHERE (player_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks),
-                   [player_tag,
-                    from_date, to_date])
+    if wartype is None:
+        cursor.execute('SELECT * FROM {} WHERE (player_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks),
+                       [player_tag,
+                        from_date, to_date])
+    else:
+        cursor.execute('SELECT * FROM {} WHERE (player_tag=?) AND (time > ?) AND (time < ?) AND (war_type=?);'.format(TABLE_war_attacks),
+                       [player_tag,
+                        from_date, to_date, wartype])
     rows = cursor.fetchall()
     lock.release()
     return rows
@@ -646,7 +651,7 @@ def save_war_attacks(clan_tag:str, clan_name:str, war_type:str, total_attacks:in
     lock.release()
     return missed_attacks, added
 
-def find_war_data(clan_tag:str, start:datetime, end:datetime):
+def find_war_data(clan_tag:str, start:datetime, end:datetime, wartype=None):
     if clan_tag in MEM_mappings_clanwatch.keys():
         lock = threading.Lock()
         lock.acquire()
@@ -654,8 +659,13 @@ def find_war_data(clan_tag:str, start:datetime, end:datetime):
         guild=clanwatch._guildid
         con = connect_db(str(guild))
         cursor = con.cursor()
-        cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks), [clan_tag,
+        if wartype is None:
+            cursor.execute('SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?);'.format(TABLE_war_attacks), [clan_tag,
                                                                                                                                   start, end])
+        else:
+            cursor.execute(
+                'SELECT * FROM {} WHERE (clan_tag=?) AND (time > ?) AND (time < ?) AND (war_type=?);'.format(TABLE_war_attacks),
+                [clan_tag, start, end, wartype])
         rows = cursor.fetchall()
         lock.release()
         return rows

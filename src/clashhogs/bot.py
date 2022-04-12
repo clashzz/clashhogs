@@ -741,6 +741,14 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
     log.info(
         "GUILD={}, {}, ACTION=waw_view, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
+    if wartype == "all":
+        wartype = None
+        wartypestr = "all"
+    elif wartype == "random":
+        wartypestr = "regular"
+    else:
+        wartypestr="cwl"
+
     # list total points of a clan's member
     if option == "-lc":
         clan_watch = database.get_clanwatch(tag, inter.guild.id)
@@ -748,9 +756,7 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
             await inter.response.send_message("It appears that the clan {} has not been linked with this discord server. Run '/link' first.".format(tag))
             return
 
-        await inter.response.send_message("Listing total adjusted war stars for all all members of the clan {}, war type is '{}'".format(tag, wartype))
-        if wartype == "all":
-            wartype = None
+        await inter.response.send_message("Listing total adjusted war stars for all all members of the clan {}, war type is '{}'".format(tag, wartypestr))
         war_data = database.find_war_data(tag, from_date, to_date, wartype)
         msgs=dataformatter.format_attackstars(war_data,clan_watch)
         for m in msgs:
@@ -760,12 +766,12 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
     elif option == "-lp":
         war_data = database.load_individual_war_data(inter.guild.id, tag, from_date, to_date, wartype)
         if len(war_data) == 0:
-            await inter.response.send_message("No data found matching the search criteria. The player's clan must have been linked to this discord server using '/link'. " \
+            await inter.response.send_message("No data found matching the search criteria. The player's clan must have been linked to this discord server using '/link'. "
                      "Also, war data must have been already collected for the player.")
             return
 
         await inter.response.send_message(
-            "Listing every attack record with adjusted stars for player {}, war type is '{}' (If none is shown then this player may have missed all attacks).".format(tag, wartype))
+            "Listing every attack record with adjusted stars for player {}, war type is '{}' (If none is shown then this player may have missed all attacks).".format(tag, wartypestr))
         first_record=war_data[0]
         clan_tag=first_record[3]
         clan_watch = database.get_clanwatch(clan_tag, inter.guild.id)

@@ -1,4 +1,5 @@
-import coc, datetime, models, dataformatter,disnake, util
+import coc, datetime,disnake
+from clashhogs import models, dataformatter, util
 from pathlib import Path
 
 def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):

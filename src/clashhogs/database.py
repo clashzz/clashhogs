@@ -553,9 +553,9 @@ def registered_clan_attackweights(guild_id, clantag, *values):
                 k = parts[0].strip()
                 v=parts[1].strip()
                 if k.startswith("u"):
-                    attackup_weights_copy[k]=v
+                    attackup_weights_copy[k]=float(v)
                 elif k.startswith("d"):
-                    attackdown_weights_copy[k]=v
+                    attackdown_weights_copy[k]=float(v)
 
         clan_watch._attackup_weights=attackup_weights_copy
         clan_watch._attackdown_weights=attackdown_weights_copy

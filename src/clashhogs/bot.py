@@ -732,7 +732,7 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
             await inter.response.send_message("It appears that the clan {} has not been linked with this discord server. Run '/link' first.".format(tag))
             return
 
-        await inter.response.send_message("Listing total adjusted war stars for all all members of the clan {}, war type is '{}'".format(tag, wartypestr))
+        await inter.response.send_message("Listing total adjusted war stars for all members of the clan {}, war type is '{}'".format(tag, wartypestr))
         war_data = database.find_war_data(tag, from_date, to_date, wartype)
         msgs=dataformatter.format_attackstars(war_data,clan_watch)
         for m in msgs:
@@ -1046,7 +1046,6 @@ async def on_clan_member_join(member, clan):
 @coc_client.event
 @coc.ClanEvents.member_leave()
 async def on_clan_member_leave(member, clan):
-    print("left")
     messages, tochannel = bot_functions.log_member_movement(member.tag, member.name, clan.name, clan.tag, "left",
                                                             database,bot)
     if len(messages) > 0:

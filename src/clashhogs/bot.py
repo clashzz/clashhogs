@@ -1,7 +1,7 @@
-import datetime, disnake, pandas, sys, traceback, coc, logging, operator, bot_functions, pickle
+import datetime, disnake, pandas, sys, traceback, coc, logging, operator, pickle
 import matplotlib.pyplot as plt
 from pathlib import Path
-from clashhogs import database, dataformatter, models, util
+from clashhogs import database, dataformatter, models, util, bot_functions
 from coc import utils
 from disnake.ext import commands
 from disnake.ext import tasks

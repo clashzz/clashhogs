@@ -54,7 +54,6 @@ logging.basicConfig(stream=sys.stdout,
                     datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(BOT_NAME)
 
-
 ##################################################
 # Bot events
 ##################################################
@@ -242,7 +241,7 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
     res = channel.permissions_for(inter.guild.me)
     missing_perms = not res.send_messages or not res.view_channel or not res.attach_files
     if missing_perms:
-        await inter.followup.send(
+        await inter.response.send_message(
             "{} does not have the right permissions and will not function properly. Please " \
             "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel, then try again.".format(
                 BOT_NAME, BOT_NAME))
@@ -317,11 +316,10 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
             to_date = datetime.datetime.now()
             await inter.channel.send(
                     "End date not provided or does not conform to the format dd/mm/yyyy, using today's date as the end date")
-
         war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(from_date, to_date, clantag,
                                                                                 clanwatch._name)
         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
-            await channel_to.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
+            await inter.response.send_message("Not enough war data for {}, {}. Please try again later after a few wars.".format(clantag, clanwatch._name))
             return
 
         await channel_to.send(war_miss)
@@ -330,7 +328,7 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
         await channel_to.send(file=war_plot,
                               content="**Clan war data plot ready for download**:")
 
-    await inter.response.send_message("Done. Please see your target channel for the output. ")
+    await inter.response.send_message("Done. Please see your target channel {} for the output. ".format(channel_to))
 
 @clanwar.error
 async def clanwar_error(ctx, error):
@@ -961,7 +959,7 @@ async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
     except:
         print("trying to print clan failed")
 
-    if war_ended(old_war, new_war):  # war ended
+    if bot_functions.war_ended(old_war, new_war):  # war ended
         clan_home = old_war.clan
         log.info(
             "War ended between: {} and {}, type={}".format(old_war.clan, old_war.opponent, old_war.type))
@@ -1144,7 +1142,7 @@ def prepare_wardigest(fromdate, todate, clantag, clanname):
     # gather missed attacks data
     war_data = database.find_war_data(clantag, fromdate, todate)
     if len(war_data) == 0:
-        return None, None, None, None
+        return None, None, None, None, None
 
     # gather war data
     targetfolder = "db/" + clantag
@@ -1185,12 +1183,6 @@ def prepare_wardigest(fromdate, todate, clantag, clanname):
     return msg_warmiss, msg_cwlmiss, war_overview, war_plot, clan_summary
     # await channel_to.send(file=fileB,
     #                       content="**Clan war data plot ready for download**:")
-
-def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
-    if old_war.state == "inWar" and new_war.state != "inWar":
-        return True
-    if old_war.state == "inWar" and old_war.war_tag is not None:
-        return True
 
 
 @tasks.loop(hours=12)

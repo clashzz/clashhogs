@@ -1,4 +1,11 @@
-import coc, datetime, models, dataformatter,disnake
+import coc, datetime, models, dataformatter,disnake, util
+from pathlib import Path
+
+def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
+    if old_war.state == "inWar" and new_war.state != "inWar":
+        return True
+    if old_war.state == "inWar" and old_war.war_tag is not None:
+        return True
 
 async def check_clan(clantag, coc_client, ) -> coc.Clan:
     if clantag is not None:
@@ -79,3 +86,92 @@ def send_missed_attacks(misses: dict, clantag: str, database, bot):
                     message += "\t" + str(k) + "\t" + str(v) + "\n"
             return channel, message
     return None, None
+
+def prepare_wardigest(fromdate, todate, clantag, clanname, database):
+    # gather missed attacks data
+    war_data = database.find_war_data(clantag, fromdate, todate)
+    if len(war_data) == 0:
+        return None, None, None, None, None
+
+    # gather war data
+    targetfolder = "db/" + clantag
+    Path(targetfolder).mkdir(parents=True, exist_ok=True)
+    # now process the file and extract data
+    clan_war_data, data_missed, data_cwl_missed = dataformatter.parse_war_data(war_data, clantag)
+    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks - Total:** \n".format(
+        clantag + ", " + clanname,
+        fromdate, todate)
+    count = 0
+    for k, v in data_missed.items():
+        msg += "\t" + str(k) + ": " + str(v) + "\n"
+        count += 1
+    if count == 0:
+        msg += "\t(no data)"
+    msg_warmiss = msg + "\n"
+
+    msg = "\n**Missed Attacks - CWL:** \n"
+    count = 0
+    for k, v in data_cwl_missed.items():
+        count += 1
+        msg += "\t" + str(k) + ": " + str(v) + "\n"
+    if count == 0:
+        msg += "\t(no data)"
+    msg_cwlmiss = msg + "\n"
+
+    data_for_plot, clan_summary = clan_war_data.output_clan_war_data(targetfolder)
+    msg = "\n**Clan Overview**:\n"
+    for k, v in clan_summary.items():
+        msg += "\t" + k + ": " + str(v) + "\n"
+    war_overview = msg + "\n"
+
+    figure = data_for_plot.plot(kind='bar', stacked=True).get_figure()
+    figure.savefig(targetfolder + '/clan_war_data.jpg', format='jpg')
+    # now fetch that file and send it to the channel
+    fileB = disnake.File(targetfolder + "/clan_war_data.jpg")
+    war_plot = fileB
+    return msg_warmiss, msg_cwlmiss, war_overview, war_plot, clan_summary
+
+def log_member_movement(membertag, membername, clanname, clantag, join_or_left: str, database, bot):
+    messages = []
+    to_channel = None
+    if clantag in database.MEM_mappings_clanwatch.keys():
+        clanwatch = database.MEM_mappings_clanwatch[clantag]
+        guild = bot.get_guild(clanwatch._guildid)
+        if guild is not None and clanwatch._channel_clansummary is not None:
+            channel_id = dataformatter.parse_channel_id(clanwatch._channel_clansummary)
+            channel = disnake.utils.get(guild.channels, id=channel_id)
+            if channel is not None:
+                emoji = ""
+                if join_or_left == 'joined':
+                    emoji = ":green_circle:"
+                else:
+                    emoji = ":red_circle:"
+                to_channel = channel
+                messages.append("{} **{}, {}** has {} the clan **{}**".format(emoji, membername,
+                                                                              membertag, join_or_left,
+                                                                              clanname))
+                member_name_variants = util.generate_variants(membername)
+                guild_member_names = {}
+                for m in guild.members:
+                    if not m.bot:
+                        guild_member_names[m.display_name] = util.generate_variants(m.display_name)
+                matching = util.find_overlap(member_name_variants, guild_member_names)
+
+                if len(matching) > 0:
+                    msg = "Please check if the member's discord roles need changing. " \
+                          "Possible discord name matches found:\n"
+                    for m in matching:
+                        msg += "\t\t" + m + "\n"
+                    messages.append(msg)
+                else:
+                    messages.append("I can't find similar discord names. Please check manually.")
+
+                # check for blacklist
+                if join_or_left == "joined":
+                    entries = database.show_blacklist(clanwatch._guildid, membertag)
+                    records = dataformatter.format_blacklist(entries)
+                    if len(records) > 0:
+                        msg = ":warning: **WARNING** this member is currently on our blacklist:\n"
+                        messages.append(msg)
+                        messages.extend(records)
+    return messages, to_channel

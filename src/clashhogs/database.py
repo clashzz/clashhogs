@@ -6,9 +6,9 @@ Each guild will have a unique DB. This is identified by the guild id when the bo
 '''
 import time
 from datetime import datetime
-import datetime, sqlite3, threading, json, pickle
+import datetime, sqlite3, threading, pickle
 from pathlib import Path
-from clashhogs import models, util
+from clashhogs import models
 
 DB_CLAN_SETUP= "master_clan_setup"
 TABLE_clanwatch="clanwatch"
@@ -46,14 +46,16 @@ def reset_cwl_war_data(clantag:str, warobj=None):
     else:
         MEM_current_cwl_wars[clantag] = (warobj.war_tag, warobj)
 
-def update_if_same_cwl_war(clantag:str, warobj):
-    if clantag not in MEM_current_cwl_wars.keys():
-        MEM_current_cwl_wars[clantag] = (warobj.war_tag, warobj)
+def update_if_same_cwl_war(clantag:str, new_warobj):
+    if clantag not in MEM_current_cwl_wars.keys() and new_warobj is not None:
+        MEM_current_cwl_wars[clantag] = (new_warobj.war_tag, new_warobj)
         return True
     else:
+        if new_warobj is None:
+            return False
         prev_war = MEM_current_cwl_wars[clantag]
-        if prev_war[0] == warobj.war_tag:
-            MEM_current_cwl_wars[clantag]= (warobj.war_tag, warobj)
+        if prev_war[0] == new_warobj.war_tag:
+            MEM_current_cwl_wars[clantag]= (new_warobj.war_tag, new_warobj)
             return True
         #this clan has a previous cwl war, and its tag is not the same as this one
         return False

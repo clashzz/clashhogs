@@ -140,7 +140,7 @@ def format_blacklist(entries:list):
 
 def format_credit_systems(res:dict):
     if len(res)==0:
-        embedVar = disnake.Embed(title="Clan(s) is/are not currently registered for the credit system",
+        embedVar = disnake.Embed(title="Clan(s) is/are not currently linked with this discord server or registered for the credit system",
                                  description="")  # , color=0x00ff00
     else:
         embedVar = disnake.Embed(title="Clans currently registered for the credit system",

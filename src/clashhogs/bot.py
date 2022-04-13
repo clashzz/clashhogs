@@ -1,4 +1,4 @@
-import datetime, disnake, pandas, sys, traceback, coc, logging, operator
+import datetime, disnake, pandas, sys, traceback, coc, logging, operator, bot_functions, pickle
 import matplotlib.pyplot as plt
 from pathlib import Path
 from clashhogs import database, dataformatter, models, util
@@ -9,9 +9,6 @@ from disnake.ext import tasks
 ######################################
 # Init                               #
 ######################################
-# DSN=802849247179309067
-# Dev=880595096461004830
-
 # There must be a env.config file within the same folder of this source file, and this needs to have the following two
 # properties
 if len(sys.argv) < 1:
@@ -129,7 +126,6 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
 
-
 #########################################################
 # This method is used to configure the discord channels
 # to automatically tally missed attacks
@@ -141,18 +137,12 @@ async def link(inter, option: str = commands.Param(choices={"add": "-a",
                                                             "remove": "-r"}), clantag: str = None):
     log.info(
         "GUILD={}, {}, ACTION=link, OPTION={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
-
-    if clantag is not None:
-        clantag = utils.correct_tag(clantag)
-        try:
-            clan = await coc_client.get_clan(clantag)
-        except coc.NotFound:
-            await inter.response.send_message("This clan doesn't exist.")
-            return
+    clantag=utils.correct_tag(clantag)
+    clan = await bot_functions.check_clan(clantag, coc_client)
 
     if option == '-a':
-        if clantag is None:
-            await inter.response.send_message("Clan tag required.")
+        if clan is None:
+            await inter.response.send_message("Cannot find a clan with the given tag: {}".format(clantag))
             return
 
         desc = clan.description
@@ -217,7 +207,6 @@ async def link_error(ctx, error):
         print("link_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-
 #########################################################
 # This method is used to set up the discord channels
 # for war missed attacks, member watch and war summary feeds
@@ -232,14 +221,13 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
     log.info(
         "GUILD={}, {}, ACTION=channel, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
     # list current mappings
-    try:
-        clan = await coc_client.get_clan(clantag)
-        clanwatch = database.get_clanwatch(clantag)
-        if clanwatch is None:
-            await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
-            return
-    except coc.NotFound:
-        await inter.response.send_message("This clan '{}' doesn't exist.".format(clan))
+    clan = await bot_functions.check_clan(clantag, coc_client)
+    if clan is None:
+        await inter.response.send_message("Cannot find a clan with the given tag: {}".format(clantag))
+        return
+    clanwatch = database.get_clanwatch(clantag)
+    if clanwatch is None:
+        await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
         return
 
     to_channel_id = dataformatter.parse_channel_id(to_channel)
@@ -253,34 +241,25 @@ async def channel(inter, clantag, to_channel, option: str = commands.Param(choic
     # check permissions
     res = channel.permissions_for(inter.guild.me)
     missing_perms = not res.send_messages or not res.view_channel or not res.attach_files
+    if missing_perms:
+        await inter.followup.send(
+            "{} does not have the right permissions and will not function properly. Please " \
+            "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel, then try again.".format(
+                BOT_NAME, BOT_NAME))
+        return
 
     if option == "-miss":
         clanwatch._channel_warmiss = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("War missed attack channel has been added for this clan. ")
-        if missing_perms:
-            await inter.followup.send(
-                "However, {} does not have the right permissions and will not function properly. Please " \
-                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
-                    BOT_NAME, BOT_NAME))
     elif option == "-war":
         clanwatch._channel_warsummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("War summary channel has been added for this clan.")
-        if missing_perms:
-            await inter.followup.send(
-                "However, {} does not have the right permissions and will not function properly. Please " \
-                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
-                    BOT_NAME, BOT_NAME))
     elif option == "-member":
         clanwatch._channel_clansummary = to_channel
         database.add_clanwatch(clantag, clanwatch)
         await inter.response.send_message("Member watcg channel has been added for this clan.")
-        if missing_perms:
-            await inter.followup.send(
-                "However, {} does not have the right permissions and will not function properly. Please " \
-                "give {} 'View Channel', 'Attach Files', and 'Send Messages' permissions to the channel.".format(
-                    BOT_NAME, BOT_NAME))
     else:
         await inter.response.send_message(
             "Option {} is not supported. Use miss/feed/war. Run help for details.".format(option))
@@ -308,20 +287,19 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
     clantag = utils.correct_tag(clantag)
     log.info("GUILD={}, {}, ACTION=clanwar, user={}".format(inter.guild.id, inter.guild.name, inter.author))
 
-    try:
-        clan = await coc_client.get_clan(clantag)
-        clanwatch = database.get_clanwatch(clantag)
-        if clanwatch is None:
-            await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
-            return
-    except coc.NotFound:
-        await inter.response.send_message("This clan tag '{}' doesn't exist.".format(clantag))
+    clan = await bot_functions.check_clan(clantag, coc_client)
+    if clan is None:
+        await inter.response.send_message("Cannot find a clan with the given tag: {}".format(clantag))
+        return
+    clanwatch = database.get_clanwatch(clantag)
+    if clanwatch is None:
+        await inter.response.send_message("This clan has not been linked to this discord server. Run 'link' first.")
         return
 
     to_channel_id = dataformatter.parse_channel_id(clanwatch._channel_warsummary)
     if to_channel_id == -1:
         await inter.response.send_message(
-            "The channel for war digest has not been set. Run '/channel' to set this up first.")
+            "The channel for war summary has not been set. Run '/channel' to set this up first.")
         return
     else:
         channel_to = disnake.utils.get(inter.guild.channels, id=to_channel_id)
@@ -329,27 +307,16 @@ async def clanwar(inter, clantag: str, from_date: str, to_date=None):
             await inter.response.send_message(
                 "The target channel does not exist. Please check your setting using /link")
             return
-        try:
-            from_date = datetime.datetime.strptime(from_date, "%d/%m/%Y")
-        except:
-            from_date = datetime.datetime.now() - datetime.timedelta(30)
+        from_date = bot_functions.check_date(from_date)
+        if from_date is None:
             await inter.response.send_message(
-                "The date you specified does not conform to the required format dd/mm/yyyy. The date 30 days ago from today"
-                " will be used instead.")
+                "The date you specified does not conform to the required format dd/mm/yyyy. Please try again")
             return
-        try:
-            if to_date is not None:
-                to_date = datetime.datetime.strptime(to_date, "%d/%m/%Y")
-            else:
-                to_date = datetime.datetime.now()
-                await inter.channel.send(
-                    "End date not provided, using today's date as the end date")
-        except:
+        to_date = bot_functions.check_date(to_date)
+        if to_date is None:
             to_date = datetime.datetime.now()
-            await inter.response.send_message(
-                "The date you specified does not conform to the required format dd/mm/yyyy. The current date"
-                " will be used instead.")
-            return
+            await inter.channel.send(
+                    "End date not provided or does not conform to the format dd/mm/yyyy, using today's date as the end date")
 
         war_miss, cwl_miss, war_overview, war_plot, summary = prepare_wardigest(from_date, to_date, clantag,
                                                                                 clanwatch._name)
@@ -411,7 +378,6 @@ async def warn(inter, clan: str, option: str = commands.Param(choices={"list": "
             warnings = dataformatter.format_warnings(clan, res, name_or_id)
             for w in warnings:
                 await inter.followup.send(w)
-
         return
     # add a warning
     elif option == "-a":
@@ -477,7 +443,7 @@ async def warn_error(ctx, error):
 
 
 #########################################################
-# This method is used to log warnings
+# This method is used to record blacklist
 #########################################################
 @bot.slash_command(description='Manage the player blacklist.')
 @commands.has_permissions(manage_guild=True)
@@ -514,14 +480,10 @@ async def blacklist(inter, option: str = commands.Param(choices={"list": "-l",
             return
         author = inter.author.display_name
         player_tag = utils.correct_tag(player_tag)
-        try:
-            player = await coc_client.get_player(player_tag)
-            if player is None:
-                await inter.response.send_message(
+        player=await bot_functions.check_player(player_tag, coc_client)
+        if player is None:
+            await inter.response.send_message(
                     "This player does not exist. Please check the tag and try again.")
-                return
-        except coc.NotFound:
-            await inter.response.send_message("This player does not exist. Please check the tag and try again.")
             return
 
         database.add_blacklist(inter.guild.id, player.tag, player.name, author, reason)
@@ -556,21 +518,17 @@ async def blacklist_error(ctx, error):
 async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
                                                               "update": "-u",
                                                               "clear": "-c"}), clantag: str = None, points=None):
-    if clantag != '*' and clantag is not None:
+    if clantag is not None:
         clantag = utils.correct_tag(clantag)
     log.info(
         "GUILD={}, {}, ACTION=crclan, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
 
     # list current registered clans
     if option == "-l":
-        if clantag == "*":
+        if clantag is None:
             res = database.get_clanwatch_by_guild(str(inter.guild.id))
-        elif clantag is not None:
-            res = [database.get_clanwatch(clantag, str(inter.guild.id))]
         else:
-            await inter.response.send_message(
-                "'tag' cannot be empty - either '*' to return all clans or a specific clan tag is needed.")
-            return
+            res = [database.get_clanwatch(clantag, str(inter.guild.id))]
         await inter.response.send_message(embed=dataformatter.format_credit_systems(res))
         return
     # register a clan
@@ -578,9 +536,8 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
         if clantag is None:
             await inter.response.send_message("'tag' cannot be empty")
             return
-        try:
-            clan = await coc_client.get_clan(clantag)
-        except coc.NotFound:
+        clan = await bot_functions.check_clan(clantag, coc_client)
+        if clan is None:
             await inter.response.send_message("This clan doesn't exist.")
             return
 
@@ -595,7 +552,6 @@ async def crclan(inter, option: str = commands.Param(choices={"list": "-l",
                     format(clan, result))
             return
         else:
-            coc_client.add_war_updates(clantag)
             await inter.response.send_message(
                 "The clan {} has been updated for the credit watch system.".format(clantag))
         return
@@ -650,7 +606,6 @@ async def waw_setup(inter, option: str = commands.Param(choices={"list": "-l",
         clantag = utils.correct_tag(clantag)
     log.info("GUILD={}, {}, ACTION=waw_setup, arg={}, user={}".format(inter.guild.id, inter.guild.name, option,
                                                                       inter.author))
-
     # list current registered clans
     if option == "-l":
         if clantag is None:
@@ -664,9 +619,8 @@ async def waw_setup(inter, option: str = commands.Param(choices={"list": "-l",
         if clantag is None:
             await inter.response.send_message("'tag' cannot be empty")
             return
-        try:
-            clan = await coc_client.get_clan(clantag)
-        except coc.NotFound:
+        clan = await bot_functions.check_clan(clantag, coc_client)
+        if clan is None:
             await inter.response.send_message("This clan doesn't exist.")
             return
 
@@ -710,33 +664,57 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
                                                           "cwl": "cwl"}),
                    tag: str = None,
                    from_date: str = None, to_date=None):
+    #debug
+    if len(database.MEM_current_cwl_wars)>0:
+        log.info("\t>> DEBUG saving cwl war objects in memory...")
+        with open('debug_current_war.pickle', 'wb') as handle:
+            pickle.dump(database.MEM_current_cwl_wars, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    #debug
+
+    for clantag, warTuple in database.MEM_current_cwl_wars.items():
+        warobj=warTuple[1]
+        if warobj.endtime.now < datetime.datetime.now():
+            log.info("\t>> waw_view running background task (closing cwl wars...)")
+            samewar = database.update_if_same_cwl_war(clantag, None)
+            if not samewar:
+                # 1. register previous cwl war attacks
+                prev_war = database.MEM_current_cwl_wars[clantag][1]
+                members = prev_war.members
+                attacks = prev_war.attacks
+                missed_attacks, registered = register_war_attacks(members, attacks, prev_war, clantag,
+                                                                  prev_war.type,
+                                                                  1)
+                if registered:
+                    log.info(
+                        "\tCredits registered for: {}. Missed attacks: {}".format(clantag, missed_attacks))
+                else:
+                    log.info(
+                        "\tCredits not registered for: {}, something wrong... ".format(clantag,
+                                                                                       missed_attacks))
+
+                channel, misses = send_missed_attacks(missed_attacks, clantag)
+                if channel is not None and misses is not None:
+                    await channel.send(misses)
+
+                # 2. reset cwl war for this clan
+                database.reset_cwl_war_data(clantag, None)
+
     if tag is None:
         await inter.response.send_message(
             "'tag' cannot be empty. This should be either a player's or a clan's tag, depending on your option.")
         return
     tag = utils.correct_tag(tag)
 
+    from_date = bot_functions.check_date(from_date)
     if from_date is None:
         await inter.response.send_message(
-            "'from_date' cannot be empty. Use dd/mm/yyyy format.")
+            "The date you specified does not conform to the required format dd/mm/yyyy. Please try again")
         return
-    try:
-        from_date = datetime.datetime.strptime(from_date, "%d/%m/%Y")
-    except:
-        await inter.response.send_message(
-            "The date you specified does not conform to the required format dd/mm/yyyy.")
-        return
-    try:
-        if to_date is not None:
-            to_date = datetime.datetime.strptime(to_date, "%d/%m/%Y")
-        else:
-            to_date = datetime.datetime.now()
-            await inter.channel.send(
-                "End date not provided, using today's date as the end date")
-    except:
-        await inter.response.send_message(
-            "The date you specified does not conform to the required format dd/mm/yyyy.")
-        return
+    to_date = bot_functions.check_date(to_date)
+    if to_date is None:
+        to_date = datetime.datetime.now()
+        await inter.channel.send(
+            "End date not provided or does not conform to the format dd/mm/yyyy, using today's date as the end date")
 
     log.info(
         "GUILD={}, {}, ACTION=waw_view, arg={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
@@ -796,7 +774,6 @@ async def waw_view_error(ctx, error):
         print("waw_view_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-
 #########################################################
 # This method is used to track player credits
 #########################################################
@@ -833,10 +810,10 @@ async def crplayer(inter, option: str = commands.Param(choices={"list_clan": "-l
         return
     # manually add credits to a player
     elif option == "-a":
-        try:
-            player = await coc_client.get_player(tag)
-        except coc.NotFound:
-            await inter.response.send_message("This player doesn't exist.")
+        player = await bot_functions.check_player(tag, coc_client)
+        if player is None:
+            await inter.response.send_message(
+                "This player does not exist. Please check the tag and try again.")
             return
 
         if points is None:
@@ -876,24 +853,16 @@ async def crplayer_error(ctx, error):
 @bot.slash_command(description="Produce a summary of a player's war performance data between two days")
 async def mywar(inter, player_tag: str, from_date: str, to_date=None):
     player_tag = utils.correct_tag(player_tag)
-    # check if the channels already exist
-    try:
-        from_date = datetime.datetime.strptime(from_date, "%d/%m/%Y")
-    except:
-        from_date = datetime.datetime.now() - datetime.timedelta(30)
-        await inter.channel.send(
-            "The start date you specified does not conform to the required format dd/mm/yyyy. The date 30 days ago from today"
-            " will be used instead.".format(inter.channel, BOT_NAME))
-    try:
-        if to_date is not None:
-            to_date = datetime.datetime.strptime(to_date, "%d/%m/%Y")
-        else:
-            to_date = datetime.datetime.now()
-    except:
+    from_date = bot_functions.check_date(from_date)
+    if from_date is None:
+        await inter.response.send_message(
+            "The date you specified does not conform to the required format dd/mm/yyyy. Please try again")
+        return
+    to_date = bot_functions.check_date(to_date)
+    if to_date is None:
         to_date = datetime.datetime.now()
         await inter.channel.send(
-            "The end date you specified does not conform to the required format dd/mm/yyyy. The current date"
-            " will be used instead.".format(inter.channel, BOT_NAME))
+            "End date not provided or does not conform to the format dd/mm/yyyy, using today's date as the end date")
 
     # gather personal war data
     war_data = database.load_individual_war_data(inter.guild.id, player_tag, from_date, to_date)
@@ -969,7 +938,6 @@ async def mycredit_error(ctx, error):
     else:
         print("mywar_error: {}".format(datetime.datetime.now()))
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
-
 
 #############################################
 # CoC api events
@@ -1064,7 +1032,6 @@ async def current_war_stats(attack, war):
 
             # 2. reset cwl war for this clan
             database.reset_cwl_war_data(attacker_clan.tag, war)
-
 
 # when member joining or leaving, send a message to discord to prompt changing their roles
 @coc_client.event

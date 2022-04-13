@@ -1,6 +1,4 @@
 import datetime
-
-from clashhogs import util
 import csv, pandas
 
 MONTHS_MAPPINGS={

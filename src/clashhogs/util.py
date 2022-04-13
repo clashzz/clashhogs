@@ -274,7 +274,7 @@ def prepare_crclan_help(default_points:dict):
                              "- update: update the point configurations for a clan.",
                        inline=False)
     embedVar.add_field(name="clantag",
-                       value="Required for all [option]s. When using the 'list' option, this can be '*' to list all clans.",
+                       value="Required for all [option]s. When using the 'list' option, this can be empty to list all clans.",
                        inline=False)
     embedVar.add_field(name="points",
                        value="Credit points to be assigned to different activities. Only the default activities will be " \

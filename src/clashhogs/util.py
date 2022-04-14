@@ -210,7 +210,7 @@ def prepare_wawsetup_help(default_attackup_weights:dict, default_attackdown_weig
         default += k + "=" + str(v) + " "
 
     embedVar = disnake.Embed(title="Command /waw_steup",
-                             description="[A] This command is used to set up the attack weight multipliers for a clan. "
+                             description="[A] This command is used to set up the war attack weight (WAW) multipliers for a clan. "
                                          "This is used to multiply the stars of an attack depending on the attacker and defender's TH levels. ")
     embedVar.add_field(name="Usage",
                        value="/waw_setup [option] [clantag] [weights] ",

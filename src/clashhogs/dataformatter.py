@@ -132,9 +132,9 @@ def format_blacklist(entries:list):
     for e in entries:
         if e is None:
             continue
-        string="\t\t*Player tag*: {} \t*name*: {}\n" \
-                "\t\t*Added by*: {} \t *on*: {}\n"  \
-                "\t\t*Reason*:{}\n".format(e[0], e[1], e[3], e[4], e[2])
+        string="*Player tag*: {} \t*name*: {}\n" \
+                "*Added by*: {} \t *on*: {}\n"  \
+                "*Reason*:{}\n".format(e[0], e[1], e[3], e[4], e[2])
         records.append(string)
     return records
 
@@ -284,7 +284,7 @@ def format_attackstars(records:list, clanwatch:models.ClanWatch):
     points_sorted = dict(sorted(points.items(), key=operator.itemgetter(1), reverse=True))
     string=""
     for player, points in points_sorted.items():
-        string += "\t\t{}, \t{}\n".format(str(player), str(round(points,1)))
+        string += "{}, \t{}\n".format(str(player), str(round(points,1)))
 
         if len(string) > DISCORD_MSG_MAX_LENGTH:
             msgs.append(string)
@@ -322,7 +322,7 @@ def format_attack_records(records:list,clanwatch:models.ClanWatch):
             mult=1
 
         adjusted_stars= round(stars*mult, 1)
-        string+="\t\t{}, \t{} stars TH{}>TH{}, \tadjusted by x{}={}\n".format(datetime.datetime.fromisoformat(time).strftime('%d/%m/%Y'),
+        string+="{}, \t{} stars TH{}>TH{}, \tadjusted by x{}={}\n".format(datetime.datetime.fromisoformat(time).strftime('%d/%m/%Y'),
                                               stars, player_th, defender_th,
                                               mult, adjusted_stars)
 

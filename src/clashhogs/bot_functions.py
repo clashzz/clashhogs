@@ -78,7 +78,7 @@ def send_missed_attacks(misses: dict, clantag: str, database, bot):
         channel = disnake.utils.get(guild.channels, id=channel_id)
         if channel is not None:
             message = "War missed attack for **{} on {}**:\n".format(
-                clanwatch._name, datetime.datetime.now())
+                clanwatch._name, datetime.datetime.now().strftime('%d/%m/%Y'))
 
             if len(misses) == 0:
                 message += "\tNone, everyone attacked!"
@@ -99,9 +99,9 @@ def prepare_wardigest(fromdate, todate, clantag, clanname, database):
     Path(targetfolder).mkdir(parents=True, exist_ok=True)
     # now process the file and extract data
     clan_war_data, data_missed, data_cwl_missed = dataformatter.parse_war_data(war_data, clantag)
-    msg = "**{} clan war digest between {} and {}**:\n\n **Missed Attacks - Total:** \n".format(
+    msg = "**{} clan war summary between {} and {}**:\n\n **Missed Attacks - Total:** \n".format(
         clantag + ", " + clanname,
-        fromdate, todate)
+        fromdate.strftime('%d/%m/%Y'), todate.strftime('%d/%m/%Y'))
     count = 0
     for k, v in data_missed.items():
         msg += "\t" + str(k) + ": " + str(v) + "\n"

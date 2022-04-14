@@ -1060,6 +1060,7 @@ async def callback(exception):
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
+    season_start=utils.get_season_start()
     log.info("\t>>> Checking scheduled task every 12 hours. Time now is {}. The current season will end {}".format(now,
                                                                                                                    season_end))
     days_before_end = abs((season_end - now).days)
@@ -1092,7 +1093,7 @@ async def check_scheduled_task():
                         if war_miss is None or cwl_miss is None or war_overview is None or war_plot is None:
                             await channel.send("Not enough war data for {}, {}".format(clantag, clanwatch._name))
                             return
-
+                        await channel.send("**End of Season Clan Summary** (season start {}, end {})".format(season_start, season_end))
                         await channel.send(war_miss)
                         await channel.send(cwl_miss)
                         await channel.send(war_overview)

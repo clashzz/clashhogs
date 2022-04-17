@@ -3,7 +3,21 @@
 
 # Clash Hogs
 
-Clash Hogs is a bot for **Clash of Clans**. It implements a few handy utilities for analysing clan data, and making clan management easier. 
+Clash Hogs is a bot for **Clash of Clans**. It implements a few handy utilities for analysing clan data, and making clan management easier. These include, for example
+ - reporting missed attacks to a specific discord channel
+ - monitoring member joining/leaving and raising an alert if a member joining is on your blacklist (see below)
+ - analysing a clan's war performance and produce a report
+ - analysing a player's war performance and produce a report
+ - warning a member and manage warnings
+ - managing a blacklist of players. If players on the blacklist joins a clan watched by the bot an alert will be raised
+ - automatically managing a 'credit system' that gives members credits based on using their attacks, donations, and other activities; or deducts credits if they miss attacks
+ - calculating war stars obtained by members between two dates, adjusted by 'war weights' (i.e., simply taking into account if an attack is attacking up or down a certain TH levels compared to the attacker's own TH level).
+
+Example clan war performance analysis report:
+![clan war performance](img/clanwar_report.png)
+
+Example player war performance analysis report:
+![player war performance](img/playerwar_report.png)
 
  **The bot is not publicly hosted** as I do not have the resources to host the bot at scale. However, you can clone this repository and run a copy of your own bot, as long as you agree with the GPL v3 licence T&C. Alternatively, create a post under 'Issues' if you really want to use the bot but do not have the knowledge to run your own bot.
 

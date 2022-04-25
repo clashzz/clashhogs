@@ -1063,9 +1063,9 @@ async def check_scheduled_task():
     season_start=utils.get_season_start()
     log.info("\t>>> Checking scheduled task every 12 hours. Time now is {}. The current season will end {}".format(now,
                                                                                                                    season_end))
-    days_before_end = abs((season_end - now).days)
+    hours_before_end = abs((season_end - now).total_seconds())/3600
     #    if days_before_end <=1:
-    if days_before_end < 1:
+    if hours_before_end <= 12:
         log.info("\t>>> End of season reached, running scheduled task.")
 
         count_clans = 0
@@ -1162,7 +1162,7 @@ async def check_scheduled_task():
                 print("Encountered error, time {}".format(datetime.datetime.now()))
                 print(traceback.format_exc())
     else:
-        log.info("\t>>> {} days till the end of season".format(days_before_end))
+        log.info("\t>>> {} hours till the end of season".format(hours_before_end))
 
 
 check_scheduled_task.start()

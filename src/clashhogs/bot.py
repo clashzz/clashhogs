@@ -674,7 +674,9 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
         if warobj.endtime.now < datetime.datetime.now():
             log.info("\t>> waw_view running background task (closing cwl wars...)")
             attacker_clan=await coc_client.get_clan(clantag)
-            bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
+            channel, misses=bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
+            if channel is not None and misses is not None:
+                await channel.send(misses)
 
     if tag is None:
         await inter.response.send_message(
@@ -989,7 +991,9 @@ async def current_war_stats(attack, war):
         database.reset_cwl_war_data(attacker_clan.tag, war)
     else:
         # clan has a cwl war previously
-        bot_functions.close_cwl_war(database, bot, log, attacker_clan, war, 1)
+        channel, misses=bot_functions.close_cwl_war(database, bot, log, attacker_clan, war, 1)
+        if channel is not None and misses is not None:
+            await channel.send(misses)
 
 # when member joining or leaving, send a message to discord to prompt changing their roles
 @coc_client.event
@@ -1029,7 +1033,9 @@ async def check_scheduled_task():
         if warobj.endtime.now < datetime.datetime.now():
             log.info("\t>>> Closing un-closed cwl wars for {}".format(clantag))
             attacker_clan=await coc_client.get_clan(clantag)
-            bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
+            channel, misses= bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
+            if channel is not None and misses is not None:
+                await channel.send(misses)
 
     #    if days_before_end <=1:
     if hours_before_end <= 8:

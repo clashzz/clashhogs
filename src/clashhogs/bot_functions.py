@@ -65,12 +65,12 @@ def close_cwl_war(database, bot, logger, attacker_clan, current_war_obj, total_a
             logger.info(
                 "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.tag, missed_attacks))
 
-        channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag, database, bot)
-        if channel is not None and misses is not None:
-            await channel.send(misses)
-
         # 2. reset cwl war for this clan
         database.reset_cwl_war_data(attacker_clan.tag, current_war_obj)
+        channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag, database, bot)
+        return channel, misses
+        # if channel is not None and misses is not None:
+        #     await channel.send(misses)
 
 def register_war_attacks(members: list, attacks: list, old_war, clan_home, type, total_attacks, database):
     attack_data = {}

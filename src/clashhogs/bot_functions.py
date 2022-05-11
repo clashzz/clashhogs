@@ -48,6 +48,30 @@ def end_war(war:coc.ClanWar, total_attacks, log, database, bot):
     channel, misses = send_missed_attacks(missed_attacks, clan_home.tag, database, bot)
     return channel, misses
 
+def close_cwl_war(database, bot, logger, attacker_clan, current_war_obj, total_attacks_avail):
+    samewar = database.update_if_same_cwl_war(attacker_clan.tag, current_war_obj)
+    if not samewar:
+        # 1. register previous cwl war attacks
+        prev_war = database.MEM_current_cwl_wars[attacker_clan.tag][1]
+        members = prev_war.members
+        attacks = prev_war.attacks
+        missed_attacks, registered = register_war_attacks(members, attacks, prev_war, attacker_clan,
+                                                                        prev_war.type,
+                                                                        total_attacks_avail, database)
+        if registered:
+            logger.info(
+                "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.tag, missed_attacks))
+        else:
+            logger.info(
+                "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.tag, missed_attacks))
+
+        channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag, database, bot)
+        if channel is not None and misses is not None:
+            await channel.send(misses)
+
+        # 2. reset cwl war for this clan
+        database.reset_cwl_war_data(attacker_clan.tag, current_war_obj)
+
 def register_war_attacks(members: list, attacks: list, old_war, clan_home, type, total_attacks, database):
     attack_data = {}
     for m in members:

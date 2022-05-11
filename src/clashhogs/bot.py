@@ -673,29 +673,8 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
         warobj=warTuple[1]
         if warobj.endtime.now < datetime.datetime.now():
             log.info("\t>> waw_view running background task (closing cwl wars...)")
-            samewar = database.update_if_same_cwl_war(clantag, None)
-            if not samewar:
-                # 1. register previous cwl war attacks
-                prev_war = database.MEM_current_cwl_wars[clantag][1]
-                members = prev_war.members
-                attacks = prev_war.attacks
-                missed_attacks, registered = bot_functions.register_war_attacks(members, attacks, prev_war, clantag,
-                                                                  prev_war.type,
-                                                                  1, database)
-                if registered:
-                    log.info(
-                        "\tCredits registered for: {}. Missed attacks: {}".format(clantag, missed_attacks))
-                else:
-                    log.info(
-                        "\tCredits not registered for: {}, something wrong... ".format(clantag,
-                                                                                       missed_attacks))
-
-                channel, misses = bot_functions.send_missed_attacks(missed_attacks, clantag, database, bot)
-                if channel is not None and misses is not None:
-                    await channel.send(misses)
-
-                # 2. reset cwl war for this clan
-                database.reset_cwl_war_data(clantag, None)
+            attacker_clan=await coc_client.get_clan(clantag)
+            bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
 
     if tag is None:
         await inter.response.send_message(
@@ -1010,27 +989,7 @@ async def current_war_stats(attack, war):
         database.reset_cwl_war_data(attacker_clan.tag, war)
     else:
         # clan has a cwl war previously
-        samewar = database.update_if_same_cwl_war(attacker_clan.tag, war)
-        if not samewar:
-            # 1. register previous cwl war attacks
-            prev_war = database.MEM_current_cwl_wars[attacker_clan.tag][1]
-            members = prev_war.members
-            attacks = prev_war.attacks
-            missed_attacks, registered = bot_functions.register_war_attacks(members, attacks, prev_war, attacker_clan, prev_war.type,
-                                                              1, database)
-            if registered:
-                log.info(
-                    "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.tag, missed_attacks))
-            else:
-                log.info(
-                    "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.tag, missed_attacks))
-
-            channel, misses = bot_functions.send_missed_attacks(missed_attacks, attacker_clan.tag, database, bot)
-            if channel is not None and misses is not None:
-                await channel.send(misses)
-
-            # 2. reset cwl war for this clan
-            database.reset_cwl_war_data(attacker_clan.tag, war)
+        bot_functions.close_cwl_war(database, bot, log, attacker_clan, war, 1)
 
 # when member joining or leaving, send a message to discord to prompt changing their roles
 @coc_client.event
@@ -1056,16 +1015,24 @@ async def on_clan_member_leave(member, clan):
 async def callback(exception):
     log.error("Events had an error: {}".format(exception), exc_info=exception)
 
-@tasks.loop(hours=12)
+@tasks.loop(hours=8)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
     season_start=utils.get_season_start()
-    log.info("\t>>> Checking scheduled task every 12 hours. Time now is {}. The current season will end {}".format(now,
+    log.info("\t>>> Checking scheduled task every 8 hours. Time now is {}. The current season will end {}".format(now,
                                                                                                                    season_end))
     hours_before_end = abs((season_end - now).total_seconds())/3600
+    # checking un-closed wars
+    for clantag, warTuple in database.MEM_current_cwl_wars.items():
+        warobj=warTuple[1]
+        if warobj.endtime.now < datetime.datetime.now():
+            log.info("\t>>> Closing un-closed cwl wars for {}".format(clantag))
+            attacker_clan=await coc_client.get_clan(clantag)
+            bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
+
     #    if days_before_end <=1:
-    if hours_before_end <= 12:
+    if hours_before_end <= 8:
         log.info("\t>>> End of season reached, running scheduled task.")
 
         count_clans = 0

@@ -4,9 +4,13 @@ from pathlib import Path
 
 def war_ended(old_war: coc.ClanWar, new_war: coc.ClanWar):
     if old_war.state == "inWar" and new_war.state != "inWar":
-        return True
-    if old_war.state == "inWar" and old_war.war_tag is not None:
-        return True
+        if old_war.endtime is not None and old_war.endtime.now <= datetime.datetime.now():
+            return True
+        return False
+    if old_war.state == "inWar" and old_war.war_tag is not None: #cwl war state may not change between wars
+        if old_war.endtime is not None and old_war.endtime.now <= datetime.datetime.now():
+            return True
+        return False
 
 async def check_clan(clantag, coc_client, ) -> coc.Clan:
     if clantag is not None:

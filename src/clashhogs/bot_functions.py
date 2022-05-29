@@ -41,7 +41,7 @@ def end_war(war:coc.ClanWar, total_attacks, log, database, bot):
     members = war.members
     attacks = war.attacks
     clan_home=war.clan
-    missed_attacks, registered = register_war_attacks(members, attacks, war, clan_home, type, total_attacks, database)
+    missed_attacks, registered = register_war_attacks(members, attacks, war, clan_home, war.type, total_attacks, database)
     if registered:
         log.info(
             "\tCredits registered for: {}. Missed attacks: {}".format(war.clan, missed_attacks))

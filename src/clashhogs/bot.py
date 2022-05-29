@@ -1010,10 +1010,11 @@ async def callback(exception):
 
 @tasks.loop(hours=6)
 async def check_scheduled_task():
+    hr=6
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
     season_start=utils.get_season_start()
-    log.info("\t>>> Checking scheduled task every 6 hours. Time now is {}. The current season will end {}".format(now,
+    log.info("\t>>> Checking scheduled task every {} hours. Time now is {}. The current season will end {}".format(hr,now,
                                                                                                                    season_end))
     hours_before_end = abs((season_end - now).total_seconds())/3600
     # checking un-closed wars
@@ -1027,7 +1028,7 @@ async def check_scheduled_task():
                 await channel.send(misses)
 
     #    if days_before_end <=1:
-    if hours_before_end <= 8:
+    if hours_before_end <= hr:
         log.info("\t>>> End of season reached ({}hr), running scheduled task. Registered clans={}".format(
             hours_before_end, len(database.MEM_mappings_clanwatch.items())))
 

@@ -1008,12 +1008,12 @@ async def on_clan_member_leave(member, clan):
 async def callback(exception):
     log.error("Events had an error: {}".format(exception), exc_info=exception)
 
-@tasks.loop(hours=8)
+@tasks.loop(hours=6)
 async def check_scheduled_task():
     now = datetime.datetime.now()
     season_end = utils.get_season_end()
     season_start=utils.get_season_start()
-    log.info("\t>>> Checking scheduled task every 8 hours. Time now is {}. The current season will end {}".format(now,
+    log.info("\t>>> Checking scheduled task every 6 hours. Time now is {}. The current season will end {}".format(now,
                                                                                                                    season_end))
     hours_before_end = abs((season_end - now).total_seconds())/3600
     # checking un-closed wars

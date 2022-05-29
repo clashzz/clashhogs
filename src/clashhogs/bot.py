@@ -959,18 +959,7 @@ async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
             else:
                 total_attacks = 2
 
-            members = old_war.members
-            attacks = old_war.attacks
-            missed_attacks, registered = bot_functions.\
-                register_war_attacks(members, attacks, old_war, clan_home, type, total_attacks, database)
-            if registered:
-                log.info(
-                    "\tCredits registered for: {}. Missed attacks: {}".format(old_war.clan, missed_attacks))
-            else:
-                log.info(
-                    "\tCredits not registered for: {}, something wrong... ".format(old_war.clan, missed_attacks))
-
-            channel, misses = bot_functions.send_missed_attacks(missed_attacks, clan_home.tag, database, bot)
+            channel, misses = bot_functions.end_war(old_war,total_attacks,log,database,bot)
             if channel is not None and misses is not None:
                 await channel.send(misses)
 

@@ -49,7 +49,7 @@ def end_war(war:coc.ClanWar, total_attacks, log, database, bot):
         log.info(
             "\tCredits not registered for: {}, something wrong... ".format(war.clan, missed_attacks))
 
-    channel, misses = send_missed_attacks(missed_attacks, clan_home.tag, database, bot)
+    channel, misses = send_missed_attacks(missed_attacks, clan_home.tag, database, bot, war.opponent.name)
     return channel, misses
 
 def close_cwl_war(database, bot, logger, attacker_clan, current_war_obj, total_attacks_avail):
@@ -57,21 +57,9 @@ def close_cwl_war(database, bot, logger, attacker_clan, current_war_obj, total_a
     if not samewar:
         # 1. register previous cwl war attacks
         prev_war = database.MEM_current_cwl_wars[attacker_clan.tag][1]
-        members = prev_war.members
-        attacks = prev_war.attacks
-        missed_attacks, registered = register_war_attacks(members, attacks, prev_war, attacker_clan,
-                                                                        prev_war.type,
-                                                                        total_attacks_avail, database)
-        if registered:
-            logger.info(
-                "\tCredits registered for: {}. Missed attacks: {}".format(attacker_clan.tag, missed_attacks))
-        else:
-            logger.info(
-                "\tCredits not registered for: {}, something wrong... ".format(attacker_clan.tag, missed_attacks))
-
+        channel, misses=end_war(prev_war, total_attacks_avail,logger, database, bot)
         # 2. reset cwl war for this clan
         database.reset_cwl_war_data(attacker_clan.tag, current_war_obj)
-        channel, misses = send_missed_attacks(missed_attacks, attacker_clan.tag, database, bot)
         return channel, misses
         # if channel is not None and misses is not None:
         #     await channel.send(misses)
@@ -96,7 +84,7 @@ def register_war_attacks(members: list, attacks: list, old_war, clan_home, type,
                                                            attack_data)
     return missed_attacks, registered
 
-def send_missed_attacks(misses: dict, clantag: str, database, bot):
+def send_missed_attacks(misses: dict, clantag: str, database, bot, opponent_clan_name):
     clanwatch = database.get_clanwatch(clantag)
     guild = bot.get_guild(clanwatch._guildid)
     if guild is not None:
@@ -105,7 +93,8 @@ def send_missed_attacks(misses: dict, clantag: str, database, bot):
             channel_id = dataformatter.parse_channel_id(channel_id)
         channel = disnake.utils.get(guild.channels, id=channel_id)
         if channel is not None:
-            message = "War missed attack for **{} on {}**:\n".format(
+            message = "War ended between {} and {}. Unused attack for **{} on {}**:\n".format(clanwatch._name,
+                                                                                              opponent_clan_name,
                 clanwatch._name, datetime.datetime.now().strftime('%d/%m/%Y'))
 
             if len(misses) == 0:

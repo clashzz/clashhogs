@@ -1028,7 +1028,7 @@ async def check_scheduled_task():
 
     #    if days_before_end <=1:
     if hours_before_end <= 8:
-        log.info("\t>>> End of season reached, running scheduled task.")
+        log.info("\t>>> End of season reached, running scheduled task. Registered clans={}".format(len(database.MEM_mappings_clanwatch.items())))
 
         count_clans = 0
         most_stars = 0

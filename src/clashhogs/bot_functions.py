@@ -93,7 +93,7 @@ def send_missed_attacks(misses: dict, clantag: str, database, bot, opponent_clan
             channel_id = dataformatter.parse_channel_id(channel_id)
         channel = disnake.utils.get(guild.channels, id=channel_id)
         if channel is not None:
-            message = "War ended between {} and {}. Unused attack for **{} on {}**:\n".format(clanwatch._name,
+            message = "War ended between **{}** and **{}**. Unused attack for **{} on {}**:\n".format(clanwatch._name,
                                                                                               opponent_clan_name,
                 clanwatch._name, datetime.datetime.now().strftime('%d/%m/%Y'))
 

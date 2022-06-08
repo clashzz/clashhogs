@@ -1069,7 +1069,7 @@ async def check_scheduled_task():
                         if totalmisses == 0 and totalmisses == 0:
                             totalmisspercent = 0
                         else:
-                            totalmisspercent = round(totalmisses / (totalstars + totalmisses), 1)
+                            totalmisspercent = round(totalmisses*100 / (totalstars + totalmisses), 1)
                         if totalstars > most_stars:
                             most_stars = totalstars
                             most_stars_winner = (clantag, clanwatch._name)

@@ -63,6 +63,8 @@ def close_cwl_war(database, bot, logger, attacker_clan, current_war_obj, total_a
         return channel, misses
         # if channel is not None and misses is not None:
         #     await channel.send(misses)
+    else:
+        return None, None
 
 def register_war_attacks(members: list, attacks: list, old_war, clan_home, type, total_attacks, database):
     attack_data = {}

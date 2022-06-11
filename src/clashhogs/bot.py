@@ -671,7 +671,7 @@ async def waw_view(inter, option: str = commands.Param(choices={"clan": "-lc",
 
     for clantag, warTuple in database.MEM_current_cwl_wars.items():
         warobj=warTuple[1]
-        if warobj.endtime.now < datetime.datetime.now():
+        if warobj.end_time.now < datetime.datetime.now():
             log.info("\t>> waw_view running background task (closing cwl wars...)")
             attacker_clan=await coc_client.get_clan(clantag)
             channel, misses=bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)
@@ -967,7 +967,7 @@ async def current_war_state(old_war: coc.ClanWar, new_war: coc.ClanWar):
 @coc.WarEvents.war_attack()  # only if the clan war is registered in MEM_mappings_clan_currentwars
 async def current_war_stats(attack, war):
     attacker = attack.attacker
-    if attacker.is_opponent or not war.is_cwl:
+    if attacker.is_opponent or not war.is_cwl: #regular war end/start is ok, only during cwl the war states are messy
         return
 
     attacker_clan = attacker.clan
@@ -978,6 +978,7 @@ async def current_war_stats(attack, war):
     if not attacker_clan.tag in database.MEM_current_cwl_wars.keys():
         # clan does not have a cwl war previously
         database.reset_cwl_war_data(attacker_clan.tag, war)
+        log.info("\t\tThis is the first cwl attack of the first war of clan {}. Saving war object".format(attacker_clan.tag))
     else:
         # clan has a cwl war previously
         channel, misses=bot_functions.close_cwl_war(database, bot, log, attacker_clan, war, 1)
@@ -1004,10 +1005,6 @@ async def on_clan_member_leave(member, clan):
         for m in messages:
             await tochannel.send(m)
 
-@coc.ClientEvents.event_error()
-async def callback(exception):
-    log.error("Events had an error: {}".format(exception), exc_info=exception)
-
 @tasks.loop(hours=6)
 async def check_scheduled_task():
     hr=6
@@ -1020,7 +1017,7 @@ async def check_scheduled_task():
     # checking un-closed wars
     for clantag, warTuple in database.MEM_current_cwl_wars.items():
         warobj=warTuple[1]
-        if warobj.endtime is not None and warobj.endtime.now < datetime.datetime.now():
+        if warobj.end_time is not None and warobj.end_time.now < datetime.datetime.now():
             log.info("\t>>> Closing un-closed cwl wars for {}".format(clantag))
             attacker_clan=await coc_client.get_clan(clantag)
             channel, misses= bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)

@@ -1013,7 +1013,7 @@ async def check_scheduled_task():
     season_start=utils.get_season_start()
     log.info("\t>>> Checking scheduled task every {} hours. Time now is {}. The current season will end {}".format(hr,now,
                                                                                                                    season_end))
-    hours_before_end = abs((season_end - now).total_seconds())/3600
+    hours_before_end = (season_end - now).total_seconds()/3600
     # checking un-closed wars
     for clantag, warTuple in database.MEM_current_cwl_wars.items():
         warobj=warTuple[1]
@@ -1025,7 +1025,7 @@ async def check_scheduled_task():
                 await channel.send(misses)
 
     #    if days_before_end <=1:
-    if hours_before_end <= hr:
+    if hours_before_end >0 and hours_before_end <= hr:
         log.info("\t>>> End of season reached ({}hr), running scheduled task. Registered clans={}".format(
             hours_before_end, len(database.MEM_mappings_clanwatch.items())))
 
@@ -1089,7 +1089,7 @@ async def check_scheduled_task():
                         msg = "**Clan Family Best Performers** ({} clans registered with {})\n".format(count_clans,
                                                                                                        BOT_NAME)
                         msg += "\tMost war stars: {} by {} \n".format(most_stars, str(most_stars_winner))
-                        msg += "\tLowest missed attack: {}% by {}".format(least_misses * 100, str(least_misses_winner))
+                        msg += "\tLowest missed attack: {}% by {}".format(least_misses, str(least_misses_winner))
                         await channel.send(msg)
 
                 # credits for donations

@@ -1017,7 +1017,7 @@ async def check_scheduled_task():
     # checking un-closed wars
     for clantag, warTuple in database.MEM_current_cwl_wars.items():
         warobj=warTuple[1]
-        if warobj.end_time is not None and warobj.end_time.now < datetime.datetime.now():
+        if warobj.end_time is not None and warobj.end_time.time < datetime.datetime.now():
             log.info("\t>>> Closing un-closed cwl wars for {}".format(clantag))
             attacker_clan=await coc_client.get_clan(clantag)
             channel, misses= bot_functions.close_cwl_war(database, bot, log, attacker_clan, None, 1)

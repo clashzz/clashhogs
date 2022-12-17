@@ -360,3 +360,22 @@ def format_clanwatch_data(clan):
                            inline=True)
 
     return embedVar
+
+def format_clanlist_data(clan, minTH, rules_channel):
+    if clan is None:
+        embedVar = disnake.Embed(title="Not Found",
+                                 description="This clan cannot be found.")  # , color=0x00ff00
+    else:
+        embedVar = disnake.Embed(title="{}, {}".format(clan.name, clan.tag),
+                                 description=clan.share_link)  # , color=0x00ff00
+        embedVar.add_field(name='Required TH',
+                    value=minTH,
+                    inline=True)
+        embedVar.add_field(name='CWL',
+                           value=clan.war_league.name,
+                           inline=True)
+        embedVar.add_field(name='Rules',
+                           value=rules_channel,
+                           inline=True)
+
+    return embedVar

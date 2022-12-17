@@ -13,6 +13,7 @@ from clashhogs import models
 DB_CLAN_SETUP= "master_clan_setup"
 TABLE_clanwatch="clanwatch"
 
+TABLE_clan_list = "clan_list"
 TABLE_channel_mapping_warmiss = "channel_mapping_warmiss"
 TABLE_member_attacks = "member_attacks"
 TABLE_member_warnings = "member_warnings"
@@ -80,6 +81,12 @@ def check_master_database():
         create_statement = "CREATE TABLE {} (clantag text PRIMARY KEY, guildid text NOT NULL, " \
                            "data BLOB NOT NULL);".format(TABLE_clanwatch)
         cursor.execute(create_statement)
+    if TABLE_clan_list not in table_names:
+        create_statement = "CREATE TABLE IF NOT EXISTS {} (clan_tag TEXT PRIMARY KEY," \
+                           "clan_min_th TEXT NOT NULL, " \
+                           "clan_rule_channelid integer);".format(TABLE_clan_list)
+        cursor.execute(create_statement)
+
     con.commit()
     con.close()
     lock.release()
@@ -99,10 +106,11 @@ def check_database(guild_id, data_folder):
         table_names.append(t[0])
 
     if TABLE_channel_mapping_warmiss not in table_names:
-        create_statement = "CREATE TABLE IF NOT EXISTS {} (from_id integer PRIMARY KEY, " \
+        create_statement = "CREATE TABLE IF NOT EXISTS {} (from_id INTEGER PRIMARY KEY, " \
                            "to_id integer NOT NULL," \
                            "clan text NOT NULL);".format(TABLE_channel_mapping_warmiss)
         cursor.execute(create_statement)
+
     if TABLE_member_attacks not in table_names:
         create_statement = "CREATE TABLE {} (id text PRIMARY KEY, " \
                            "name TEXT NOT NULL, " \
@@ -158,6 +166,44 @@ def check_database(guild_id, data_folder):
         update_mappings_guild_warmisschannel(guild_id, row[0], row[1], row[2])
 
     lock.release()
+
+def add_clanlist(clantag, minTH, rules_channel):
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('INSERT OR IGNORE INTO {} (clan_tag, clan_min_th, clan_rule_channelid) VALUES (?, ?, ?)'.
+                   format(TABLE_clan_list), [clantag, minTH, rules_channel])
+    cursor.execute('UPDATE {} SET clan_min_th= ?, clan_rule_channelid=? WHERE clan_tag= ?'.
+                   format(TABLE_clan_list), [minTH, rules_channel, clantag])
+    con.commit()
+    con.close()
+    lock.release()
+
+def remove_clanlist(clantag):
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('DELETE FROM {} WHERE clan_tag=?;'.
+                   format(TABLE_clan_list), [clantag])
+    con.commit()
+    con.close()
+    lock.release()
+
+def show_clanlist():
+    res=[]
+    lock = threading.Lock()
+    lock.acquire()
+    con = connect_db(DB_CLAN_SETUP)
+    cursor = con.cursor()
+    cursor.execute('SELECT * FROM {};'.format(TABLE_clan_list))
+    entry = cursor.fetchall()
+    for r in entry:
+        res.append(r)
+    con.close()
+    lock.release()
+    return res
 
 def get_clanwatch(clantag, guildid=None):
     clanwatch=None

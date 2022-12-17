@@ -76,6 +76,27 @@ def prepare_help_menu(botname):
 
     return embedVar
 
+def prepare_clanlist_help():
+    embedVar = disnake.Embed(title="Command /clan-list",
+                             description="[A] This command is used to create a message listing all clans' information. " \
+                                         " The clan must have been added using 'clan-list add' before.")
+    embedVar.add_field(name="Usage",
+                       value="/clan-list [option] [clantag] [thlevel]",
+                       inline=False)
+    embedVar.add_field(name="option",
+                       value="- list: to list all clans. [clantag] will be ignored. \n"
+                             "- add: to add a clan. [clantag] and [thlevel] must be provided. Other clan information will be fetched by the bot. \n"
+                             "- remove: to remove a clan. [clantag] must be provided. ",
+                       inline=False)
+    embedVar.add_field(name="clantag",
+                       value="The tag of a clan. This may or may not be needed, depending on the [option]",
+                       inline=False)
+    embedVar.add_field(name="thlevel",
+                       value="The minimum TH level your clan requires",
+                       inline=False)
+
+    return embedVar
+
 def prepare_link_help():
     embedVar = disnake.Embed(title="Command /link",
                              description="[A] This command must be run to link a clan to this discord server before other commands can be used." \

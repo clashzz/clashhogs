@@ -4,7 +4,9 @@ import os
 import coc, sys
 
 from coc import utils
-
+'''
+#2PQ9RCU8U #2PV9JQUYP #2Q28RRQPJ #2YGUPUU82 #2L29RRJU9 #2PVQOV822 #GQPQPJC #2G89JOOLU
+'''
 client = coc.login(
     sys.argv[2],
     sys.argv[3],

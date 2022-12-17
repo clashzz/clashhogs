@@ -85,7 +85,8 @@ async def on_guild_join(guild):
 # Register the help command
 #########################################################
 @bot.slash_command(description="Show the list of commands and a summary of their functions.")
-async def help(inter, command: str = commands.Param(choices={"show-all": "all",
+async def help(inter, command: str = commands.Param(choices={"clanlist":"clanlist",
+                                                             "show-all": "all",
                                                              "link": "link",
                                                              "channel": "channel",
                                                              "clanwar": "clanwar",
@@ -97,6 +98,8 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
                                                              "waw_view": "waw_view",
                                                              "mycredit": "mycredit",
                                                              "mywar": "mywar"})):
+    if command == 'clanlist':
+        await inter.response.send_message(embed=util.prepare_clanlist_help())
     if command == 'all':
         await inter.response.send_message(embed=util.prepare_help_menu(BOT_NAME))
     elif command == 'link':
@@ -124,6 +127,78 @@ async def help(inter, command: str = commands.Param(choices={"show-all": "all",
         await inter.response.send_message(embed=util.prepare_mycredit_help())
     else:
         await inter.response.send_message(f'Command {command} does not exist.')
+
+#########################################################
+# This method is used to configure the discord channels
+# to automatically tally missed attacks
+#########################################################
+@bot.slash_command(description="Add a clan to the 'clan list' (requires admin access).")
+@commands.has_permissions(manage_guild=True)
+async def clanlist(inter, option: str = commands.Param(choices={"add": "-a",
+                                                            "list (clan tag not required)": "-l",
+                                                            "remove": "-r"}), clantag: str = None, thlevel:str=None,
+                                                            rules_channel=None):
+    log.info(
+        "GUILD={}, {}, ACTION=clanlist, OPTION={}, user={}".format(inter.guild.id, inter.guild.name, option, inter.author))
+    clantag=utils.correct_tag(clantag)
+    clan = await bot_functions.check_clan(clantag, coc_client)
+
+    if option == '-a':
+        if clan is None:
+            await inter.response.send_message("Cannot find a clan with the given tag: {}".format(clantag))
+            return
+        if thlevel is None:
+            await inter.response.send_message("You must enter the minimum TH level your clan requires".format(clantag))
+            return
+        if rules_channel is None:
+            await inter.response.send_message("You must assign a channel for the clan's rules".format(clantag))
+            return
+
+        discord_rules_channel = dataformatter.parse_channel_id(rules_channel)
+        channel = disnake.utils.get(inter.guild.channels, id=discord_rules_channel)
+        if channel is None:
+            await inter.response.send_message(
+                f"The channel {rules_channel} does not exist. Please create it first.")
+            return
+
+        database.add_clanlist(clantag, thlevel,discord_rules_channel)
+        await inter.response.send_message(
+            "Clan added to the clan list.")
+    elif option == '-l':
+        clans = database.show_clanlist()
+        if len(clans)==0:
+            await inter.response.send_message("No clan has been added to the list yet.".format(clantag))
+            return
+        embed_list = []
+        for c in clans:
+            ctag = c[0]
+            min_th=c[1]
+            channel = disnake.utils.get(inter.guild.channels, id=c[2])
+            clan = await bot_functions.check_clan(ctag, coc_client)
+            embed_list.append(dataformatter.format_clanlist_data(clan, min_th,channel))
+        await inter.response.send_message(embeds=embed_list)
+        return
+    elif option == '-r':
+        if clantag is None:
+            await inter.response.send_message("Clan tag must be provided")
+            return
+        database.remove_clanlist(clantag)
+        await inter.response.send_message("Clan {} has been removed from the list.".format(clantag))
+        return
+    else:
+        await inter.response.send_message("Option {} not supported. Run help for details.".format(option))
+
+@clanlist.error
+async def clanlist_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.channel.send(f"'clanlist' requires arguments. Run /help clanlist for details")
+    elif isinstance(error, commands.MissingPermissions) or isinstance(error, commands.MissingRole):
+        await ctx.channel.send(
+            "Users of 'clanlist' must have 'Manage server' permission. You do not seem to have permission to use this "
+            "command")
+    else:
+        print("clanlist_error: {}".format(datetime.datetime.now()))
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 #########################################################
 # This method is used to configure the discord channels

@@ -100,7 +100,7 @@ async def help(inter, command: str = commands.Param(choices={"clanlist":"clanlis
                                                              "mywar": "mywar"})):
     if command == 'clanlist':
         await inter.response.send_message(embed=util.prepare_clanlist_help())
-    if command == 'all':
+    elif command == 'all':
         await inter.response.send_message(embed=util.prepare_help_menu(BOT_NAME))
     elif command == 'link':
         await inter.response.send_message(embed=util.prepare_link_help())

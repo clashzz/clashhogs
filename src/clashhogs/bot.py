@@ -173,10 +173,19 @@ async def clanlist(inter, option: str = commands.Param(choices={"add": "-a",
         for c in clans:
             ctag = c[0]
             min_th=c[1]
-            channel = disnake.utils.get(inter.guild.channels, id=c[2])
+            #channel = disnake.utils.get(inter.guild.channels, id=c[2])
             clan = await bot_functions.check_clan(ctag, coc_client)
-            embed_list.append(dataformatter.format_clanlist_data(clan, min_th,channel))
-        await inter.response.send_message(embeds=embed_list)
+            embed, msg=dataformatter.format_clanlist_data(clan, min_th,'<#'+str(c[2])+'>')
+            embed_list.append((msg, embed))
+        embed_list=sorted(
+            embed_list,
+            key=lambda x: x[0]
+        )
+
+        embed_list_sorted=[]
+        for t in embed_list:
+            embed_list_sorted.append(t[1])
+        await inter.response.send_message(embeds=embed_list_sorted)
         return
     elif option == '-r':
         if clantag is None:

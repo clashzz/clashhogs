@@ -6,6 +6,38 @@ import coc, sys
 from coc import utils
 '''
 #2PQ9RCU8U #2PV9JQUYP #2Q28RRQPJ #2YGUPUU82 #2L29RRJU9 #2PVQOV822 #GQPQPJC #2G89JOOLU
+
+A. Nation #2PQ9RCU8U CWL M2 (AN, or just A) for non rushed TH14+.
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2PQ9RCU8U
+- Rules: 「📜」clan-rules-an 
+
+B. Nation #2PV9JQUYP CWL C2  (BN, or just B) rushed or non-rushed TH12+
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2PV9JQUYP
+- Rules: 「📜」clan-rules-bn 
+
+C. Nation #2Q28RRQPJ CWL C3  (CN, or just C) at least max TH10
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2Q28RRQPJ
+- Rules: 「📜」clan-rules-cn 
+
+DeadSages #2YGUPUU82 CWL C1  (DS) for TH11+ (rushed or non-rushed). 
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2YGUPUU82
+- Rules: 「📜」clan-rules-ds 
+
+DeadSages Elite #2L29RRJU9  CWL C3 (DSE) for non-rushed,TH11+
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2L29RRJU9
+- Rules: 「📜」clan-rules-dse
+
+DeadSages Max #2PVQOV822 CWL G2 (DSM) for TH9+ (any)
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=#2PVQOV822
+- Rules: 「📜」clan-rules-dsm
+
+Late Knighters #GQPQPJC CWL G1 (LK) for TH11+ (non rushed)
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=GQPQPJC
+- Rules: 「📜」clan-rules-lk
+
+Ultra Knighters #2G89JOOLU S2 (UK) for TH3+
+- Link: https://link.clashofclans.com/en?action=OpenClanProfile&tag=2G89J00LU
+- Rules: 「📜」clan-rules-uk 
 '''
 client = coc.login(
     sys.argv[2],

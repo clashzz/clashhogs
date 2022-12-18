@@ -378,4 +378,4 @@ def format_clanlist_data(clan, minTH, rules_channel):
                            value=rules_channel,
                            inline=True)
 
-    return embedVar
+    return embedVar, clan.name

@@ -366,7 +366,7 @@ def format_clanlist_data(clan, minTH, rules_channel):
         embedVar = disnake.Embed(title="Not Found",
                                  description="This clan cannot be found.")  # , color=0x00ff00
     else:
-        embedVar = disnake.Embed(title="{}, {}".format(clan.name, clan.tag),
+        embedVar = disnake.Embed(title="{}, {}, Level {}".format(clan.name, clan.tag, clan.level),
                                  description=clan.share_link)  # , color=0x00ff00
         embedVar.add_field(name='Required TH',
                     value=minTH,
